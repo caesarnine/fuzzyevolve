@@ -126,8 +126,8 @@ sequenceDiagram
         Judge->>JLLM: ranking prompt
         JLLM-->>Judge: rankings
         Judge->>TS: update ratings
-        TS-->>Judge: new μ/σ
-        Judge-->>Runner
+        TS-->>Judge: new mu/sigma
+        Judge-->>Runner: updated mu/sigma
         Runner->>Arc: add child, resort bucket
     end
     alt migration
