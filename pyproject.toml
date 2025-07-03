@@ -1,0 +1,118 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fuzzyevolve"
+version = "0.1.0"
+description = "AlphaEvolve with fuzzy evaluation. Evolve anything not just code." # Updated description
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" } # Example license
+authors = [
+  { name="Your Name / Team", email="your@email.com" }, # Please update
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Topic :: Software Development",
+    "Topic :: Utilities",
+    "Intended Audience :: Developers",
+]
+dependencies = [
+    # "chardet>=5.2.0", # Removed - seemed unused
+    "google-genai>=0.3.0",
+    "lxml>=5.3.2",
+    "pathspec>=0.12.1", # For Gemini model via Google AI Studio
+    "pydantic-ai[logfire]>=0.0.49", # Core agent library (consider if logfire is needed)
+    # "pydantic-settings>=2.7.1", # Keep if future config plans exist, remove otherwise? Removed for now.
+    "python-dotenv>=1.0.1",
+    "prompt-toolkit>=3.0.0", # For improved CLI input handling
+    "rapidfuzz>=3.13.0", # For .env file loading (often used by google-genai)
+    "rich>=13.9.4", # For CLI display
+    "pyyaml>=6.0", # For loading roles.yaml
+    # Add 'google-cloud-aiplatform' if USE_VERTEX_AI needs to be bundled
+    "readabilipy>=0.3.0",
+    "markdownify>=1.1.0",
+    "numpy>=2.2.6",
+    "litellm>=1.71.0",
+    "ribs>=0.7.1",
+    "unidiff>=0.7.5",
+    "trueskill>=0.4.5",
+    "flask>=3.1.1",
+    "flask-socketio>=5.5.1",
+]
+
+# CLI command entry point
+[project.scripts]
+# Updated entry point to the new main module
+# ctxl = "ctxl_coder.cli.main:run_cli"
+
+# Optional project URLs
+[project.urls]
+"Homepage" = "https://github.com/yourusername/ctxl-coder" # Please update
+"Bug Tracker" = "https://github.com/yourusername/ctxl-coder/issues" # Please update
+
+# Optional dependencies (formerly dependency-groups)
+[project.optional-dependencies]
+dev = [
+    "ipykernel>=6.29.5",   # Interactive kernel
+    "pre-commit>=3.7.1",  # Git hooks manager
+    "pytest>=7.0.0",      # Testing framework
+    "mypy>=1.0.0",        # Static type checker
+    "ruff>=0.1.0",        # Linter and formatter
+    "build>=1.2.1",       # For building the package
+    "twine>=5.0.0",       # For uploading to PyPI (optional)
+]
+# Optional: Extra for Vertex AI support
+vertex = ["google-cloud-aiplatform>=1.48.0"]
+
+
+[tool.ruff]
+# Exclude the same directories from all checks & fixes.
+extend-exclude = [
+    "tests",
+    "migrations",
+    ".venv",        # Exclude virtual env
+    ".git",         # Exclude git dir
+    ".ctxl",        # Exclude runtime data dir
+    "dist",         # Exclude build artifacts
+    "build",        # Exclude build artifacts
+    "*.egg-info",   # Exclude build artifacts
+    ]
+
+# Same as Black.
+line-length = 88
+indent-width = 4
+
+# Assume Python 3.10+ based on requires-python = ">=3.10"
+target-version = "py310"
+
+[tool.ruff.lint]
+# Enable Pyflakes (F) and pycodestyle (E, W) error rules by default.
+# Enable flake8-import-conventions (I).
+# Enable pyupgrade rules (UP).
+# Add others as needed (e.g., B for flake8-bugbear, SIM for flake8-simplify)
+ignore = ["E501", "F841"] # REMOVED E722 (bare except) - Prefer 'except Exception:' or specific types.
+unfixable = ["F401"] # Prevent auto-removal of unused imports
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
