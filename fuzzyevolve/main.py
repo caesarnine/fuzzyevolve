@@ -16,23 +16,26 @@ from __future__ import annotations
 # ╭──────────────────────────────────────────────────────────╮
 # │ 0.  Imports & logging helper                             │
 # ╰──────────────────────────────────────────────────────────╯
-import argparse
 import json
 import logging
 import random
 import re
-import tomllib
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 import copy
+import sys
 
 import litellm
 from litellm import completion
 from pydantic import BaseModel, Field
 from rich.logging import RichHandler
 from rich.console import Console
-from lxml import html  # Added for parsing LLM judge response
+from lxml import html
 from rich.progress import (
     Progress,
     TextColumn,
@@ -41,12 +44,14 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 import trueskill as ts
-import os  # Moved import os to the top import block
+import os
+import typer
 
 litellm.suppress_debug_info = True
 litellm.set_verbose = False
 
 console = Console()
+app = typer.Typer()
 
 os.environ["VERTEXAI_LOCATION"] = "global"
 
@@ -57,6 +62,7 @@ def setup_logging(
     log_dir: Path | str = "logs",
     level: int = logging.INFO,
     suppress_libs: List[str] | None = None,
+    quiet: bool = False,
 ) -> None:
     """Configure root logger with Rich console + rotating file.
 
@@ -74,14 +80,15 @@ def setup_logging(
     handlers: list[logging.Handler] = []
 
     # console (RichHandler)
-    handlers.append(
-        RichHandler(
-            markup=True,
-            rich_tracebacks=True,
-            show_path=False,
-            log_time_format="%H:%M:%S",
+    if not quiet:
+        handlers.append(
+            RichHandler(
+                markup=True,
+                rich_tracebacks=True,
+                show_path=False,
+                log_time_format="%H:%M:%S",
+            )
         )
-    )
 
     # file handler (plain text)
     file_handler = logging.FileHandler(file_path)
@@ -132,18 +139,17 @@ class Config(BaseModel):
     llm_ensemble: List[LLMEntry] = Field(
         default_factory=lambda: [
             LLMEntry(
-                model="vertex_ai/gemini-2.5-flash-preview-05-20",
+                model="vertex_ai/gemini-2.5-flash",
                 p=0.85,
                 temperature=1,
             ),
             LLMEntry(
-                model="vertex_ai/gemini-2.5-pro-preview-06-05", p=0.15, temperature=1
+                model="vertex_ai/gemini-2.5-pro", p=0.15, temperature=1
             ),
         ]
     )
-    judge_model: str = "vertex_ai/gemini-2.5-pro-preview-06-05"
-    metrics: List[str] = ["taste", "quality"]
-
+    judge_model: str = "vertex_ai/gemini-2.5-pro"
+    metrics: List[str] = ["clarity", "conciseness", "creativity"]
     # descriptor space
     axes: Dict[str, Any] = Field(
         default_factory=lambda: {
@@ -158,7 +164,7 @@ class Config(BaseModel):
     sparring_every: int = 100
 
     # mutation prompt
-    mutation_prompt_goal: str = "write a prompt for a coding agent, the coding agent should be singularly high quality and world class"
+    mutation_prompt_goal: str = "Improve the text based on the metrics provided."
     mutation_prompt_instructions: str = (
         "Propose one or more SEARCH/REPLACE diff blocks to improve the PARENT text. "
         "You can rewrite, shorten, or completely change the text. "
@@ -820,9 +826,9 @@ def build_mut_prompt(
 # ╰──────────────────────────────────────────────────────────╯
 
 
-def run(cfg: Config):
+def run(cfg: Config, seed_text: str, output_path: Path, quiet: bool):
     # ─ setup logging & PRNG ─────────────────────────────────────────
-    setup_logging(level=logging.INFO)
+    setup_logging(level=logging.INFO, quiet=quiet)
     random.seed(42)
 
     # islands & judge
@@ -830,17 +836,14 @@ def run(cfg: Config):
     judge = MultiMetricJudge(cfg.judge_model, cfg.metrics)
 
     # seed
-    seed_txt = Path(cfg.seed_path).read_text()
-    seed_desc = {"lang": "txt", "len": len(seed_txt)}
+    seed_desc = {"lang": "txt", "len": len(seed_text)}
     seed_elite = {
-        "txt": seed_txt,
+        "txt": seed_text,
         "rating": {m: judge.envs[m].create_rating() for m in cfg.metrics},
         "age": 0,
     }
     for arc in islands:
-        arc.add(
-            seed_desc, copy.deepcopy(seed_elite)
-        )  # deepcopy not needed: ratings are new per env
+        arc.add(seed_desc, copy.deepcopy(seed_elite))
 
     # ─ Rich progress bar setup ─────────────────────────────────────
     progress = Progress(
@@ -850,7 +853,7 @@ def run(cfg: Config):
         TextColumn("• best {task.fields[best]:.3f}"),
         TextColumn("• empty {task.fields[empty]}"),
         TimeElapsedColumn(),
-        transient=True,
+        transient=quiet,
     )
 
     with progress:
@@ -864,11 +867,9 @@ def run(cfg: Config):
             arc = islands[isl_idx]
 
             parent = arc.random_elite(cfg.youth_bias)
-            # inspirations from same island, exclude parent
             cand = [e for b in arc.cell.values() for e in b if e is not parent]
             inspirations = random.sample(cand, k=min(3, len(cand)))
 
-            # mutate
             mdl, temp = pick_model(cfg.llm_ensemble)
             prompt = build_mut_prompt(
                 parent,
@@ -887,8 +888,7 @@ def run(cfg: Config):
 
             if not diff_content:
                 log_mut.warning(
-                    "No diff content found in LLM reply, skipping mutation for iter %d.",
-                    it,
+                    "No diff content found in LLM reply, skipping iter %d.", it
                 )
                 continue
 
@@ -906,17 +906,13 @@ def run(cfg: Config):
                 desc_child = {"lang": "txt", "len": len(child_txt)}
                 child["cell_key"] = arc._key(desc_child)
 
-                # rank & update ratings (parent + insp + child)
                 group = [parent] + inspirations + [child]
                 judge.rank_and_rate(group)
-                # resort buckets whose ratings changed
                 for e in group:
                     arc.resort_elite(e)
 
-                # add child to archive
                 arc.add(desc_child, child)
 
-            # migration
             if (it + 1) % cfg.migration_every == 0:
                 for idx, src in enumerate(islands):
                     migrants = random.sample(
@@ -931,75 +927,41 @@ def run(cfg: Config):
                         desc = {"lang": "txt", "len": len(e["txt"])}
                         dst.add(desc, copy.deepcopy(e))
 
-            # optional rare global sparring
             if (it + 1) % cfg.sparring_every == 0:
                 elite_to_island_map = {}
                 pool = []
-                # Corrected variable name to sparring_arc
                 for isl_idx, sparring_arc in enumerate(islands):
-                    # Iterate over cell keys, then check if bucket exists and is non-empty
-                    # Using list(sparring_arc.cell.keys()) to avoid issues if cell modified during iteration (though not expected here)
                     for cell_key_in_arc in list(sparring_arc.cell.keys()):
                         bucket = sparring_arc.cell.get(cell_key_in_arc)
-                        if bucket:  # Ensure bucket exists and is not empty
+                        if bucket:
                             chosen_elite = random.choice(bucket)
                             pool.append(chosen_elite)
-                            # Map elite object's id to its source island (sparring_arc)
                             elite_to_island_map[id(chosen_elite)] = sparring_arc
 
                 if len(pool) > 1:
-                    logging.info("Global sparring with %d elites in pool.", len(pool))
-                    judge.rank_and_rate(pool)  # Modifies elites in 'pool' in-place
-
-                    resorted_count = 0
+                    logging.info("Global sparring with %d elites.", len(pool))
+                    judge.rank_and_rate(pool)
                     for e_updated in pool:
                         original_island = elite_to_island_map.get(id(e_updated))
                         if original_island:
                             original_island.resort_elite(e_updated)
-                            resorted_count += 1
-                        else:
-                            # This case should ideally not happen if map is populated correctly.
-                            logging.warning(
-                                "Could not find original island for globally sparred elite (id: %s, text snippet: '%s'). Skipping resort for this elite.",
-                                id(e_updated),
-                                e_updated.get("txt", "N/A")[
-                                    :50
-                                ],  # Provide default for get
-                            )
-                    logging.info(
-                        "Global sparring: %d elites resorted in their original islands.",
-                        resorted_count,
-                    )
 
-            # logging & progress update
             best_global = max(
                 (arc.best for arc in islands), key=lambda e: ts_score(e["rating"])
             )
             best_score = ts_score(best_global["rating"])
             if (it + 1) % cfg.log_every == 0:
-                metric_details_parts = []
-                for metric_name in cfg.metrics:  # Iterate through configured metrics
-                    rating_obj = best_global["rating"].get(metric_name)
-                    if rating_obj:
-                        metric_details_parts.append(
-                            f"{metric_name}(μ={rating_obj.mu:.2f}, σ={rating_obj.sigma:.2f})"
-                        )
-                    else:
-                        # This case should ideally not happen if ensure_ratings works,
-                        # but good for robustness if a metric was somehow missed for the best elite.
-                        metric_details_parts.append(f"{metric_name}(N/A)")
-
-                metrics_summary_str = " | ".join(metric_details_parts)
+                metric_parts = [
+                    f'{m}(μ={r.mu:.2f}, σ={r.sigma:.2f})'
+                    for m, r in best_global["rating"].items()
+                ]
                 logging.info(
-                    "it %d  best_score %.3f | %s",
+                    "it %d best_score %.3f | %s",
                     it + 1,
                     best_score,
-                    metrics_summary_str
-                    if metrics_summary_str
-                    else "No metric details available",
+                    " | ".join(metric_parts),
                 )
 
-            # The single, definitive progress update at the end of each iteration
             progress.update(
                 task,
                 advance=1,
@@ -1007,18 +969,58 @@ def run(cfg: Config):
                 empty=islands[0].empty_cells,
             )
 
-    # save final best
     best_final = max((arc.best for arc in islands), key=lambda e: ts_score(e["rating"]))
-    Path("best.txt").write_text(best_final["txt"])
-    logging.info("DONE – best saved with score %.3f", ts_score(best_final["rating"]))
+    output_path.write_text(best_final["txt"])
+    logging.info("DONE – best saved to %s (score %.3f)", output_path, ts_score(best_final["rating"]))
 
 
 # ╭──────────────────────────────────────────────────────────╮
 # │ 9.  CLI                                                  │
 # ╰──────────────────────────────────────────────────────────╯
 
+@app.command()
+def cli(
+    input: Optional[str] = typer.Argument(None, help="Initial text to evolve. Can be a string or a file path."),
+    config: Optional[Path] = typer.Option(None, "-c", "--config", help="Path to a TOML or JSON config file."),
+    output: Path = typer.Option(Path("best.txt"), "-o", "--output", help="Path to save the best final result."),
+    iterations: Optional[int] = typer.Option(None, "-i", "--iterations", help="Number of evolution iterations."),
+    goal: Optional[str] = typer.Option(None, "-g", "--goal", help="The high-level goal for the mutation prompt."),
+    metric: Optional[List[str]] = typer.Option(None, "-m", "--metric", help="A metric to evaluate against. Can be specified multiple times."),
+    judge_model: Optional[str] = typer.Option(None, "--judge-model", help="The LLM to use for judging candidates."),
+    log_file: Optional[Path] = typer.Option(None, help="Path to write detailed logs."),
+    quiet: bool = typer.Option(False, "-q", "--quiet", help="Suppress the progress bar and non-essential logging."),
+):
+    # --- Configuration Layering ---
+    cfg = load_cfg(config)
+
+    if iterations is not None:
+        cfg.iterations = iterations
+    if goal is not None:
+        cfg.mutation_prompt_goal = goal
+    if metric:
+        cfg.metrics = metric
+    if judge_model is not None:
+        cfg.judge_model = judge_model
+
+    # --- Input Handling ---
+    seed_text = ""
+    if input is None:
+        if not sys.stdin.isatty():
+            seed_text = sys.stdin.read()
+        else:
+            typer.echo("Error: No input provided. Please provide an input string, file path, or pipe data via stdin.")
+            raise typer.Exit(code=1)
+    elif Path(input).is_file():
+        seed_text = Path(input).read_text()
+    else:
+        seed_text = input
+
+    if not seed_text.strip():
+        typer.echo("Error: Input text is empty.")
+        raise typer.Exit(code=1)
+
+    run(cfg, seed_text, output, quiet)
+
+
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--config", help="JSON/TOML config path")
-    cfg = load_cfg(ap.parse_args().config)
-    run(cfg)
+    app()

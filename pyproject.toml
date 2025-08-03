@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "AlphaEvolve with fuzzy evaluation. Evolve anything not just code." # Updated description
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" } # Example license
+license = "Apache-2.0"
 authors = [
   { name="Your Name / Team", email="your@email.com" }, # Please update
 ]
@@ -17,7 +17,6 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Environment :: Console",
     "Topic :: Software Development",
@@ -46,12 +45,13 @@ dependencies = [
     "trueskill>=0.4.5",
     "flask>=3.1.1",
     "flask-socketio>=5.5.1",
+    "typer[all]>=0.12.3",
+    "tomli>=2.0.1; python_version < '3.11'",
 ]
 
 # CLI command entry point
 [project.scripts]
-# Updated entry point to the new main module
-# ctxl = "ctxl_coder.cli.main:run_cli"
+fuzzyevolve = "fuzzyevolve.main:app"
 
 # Optional project URLs
 [project.urls]
@@ -116,3 +116,6 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
+
+[tool.setuptools]
+packages = ["fuzzyevolve"]
