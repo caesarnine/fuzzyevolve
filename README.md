@@ -42,16 +42,15 @@ To get started with `fuzzyevolve`, follow these steps:
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/yourname/fuzzyevolve.git
+    git clone https://github.com/caesarnine/fuzzyevolve.git
     cd fuzzyevolve
     ```
 
 2.  **Install dependencies:**
     It is recommended to use a virtual environment.
     ```bash
-    python -m venv .venv
+    uv sync
     source .venv/bin/activate
-    pip install -e .
     ```
 
 3.  **Set up your LLM provider:**
