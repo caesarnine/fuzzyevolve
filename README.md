@@ -38,67 +38,98 @@
 
 ## Quick Start
 
-```bash
-# 1.  Clone & install
-$ git clone https://github.com/yourname/fuzzyevolve.git
-$ cd fuzzyevolve
-$ python -m venv .venv && source .venv/bin/activate
-$ pip install -e .  # installs using pyproject.toml
+To get started with `fuzzyevolve`, follow these steps:
 
-# 2.  Provide a seed file
-$ echo "This is my starting prompt." > seed.txt
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/yourname/fuzzyevolve.git
+    cd fuzzyevolve
+    ```
 
-# 3.  Run it (defaults are fine to try it out)
-$ python fuzzyevolve/main.py
-# … Rich progress bar appears; best sample saved to best.txt on exit
-```
+2.  **Install dependencies:**
+    It is recommended to use a virtual environment.
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate
+    pip install -e .
+    ```
 
-> **Note**: The default config expects **Google Gemini via Vertex AI**. Either:
->
-> * set the env vars required by `google-cloud-aiplatform`, **or**
-> * edit `config.toml` to point at OpenAI / Anthropic models supported by [LiteLLM](https://github.com/BerriAI/litellm).
+3.  **Set up your LLM provider:**
+    By default, `fuzzyevolve` uses Google Gemini. Ensure you have the necessary environment variables set for authentication. You can also edit the `config.toml` to use other models supported by [LiteLLM](https://github.com/BerriAI/litellm).
+
+4.  **Run the evolution:**
+    You can provide the initial text as an argument, a file path, or via standard input.
+
+    *   **From a string:**
+        ```bash
+        fuzzyevolve "This is my starting prompt."
+        ```
+
+    *   **From a file:**
+        ```bash
+        echo "This is my starting prompt." > seed.txt
+        fuzzyevolve seed.txt
+        ```
+
+    *   **From stdin:**
+        ```bash
+        cat seed.txt | fuzzyevolve
+        ```
+    The best result will be saved to `best.txt` by default. You can specify a different output file with the `-o` or `--output` option.
 
 ---
 
 ## Configuration
 
-Create `myconfig.toml` (or JSON) and pass via `--config`.
+`fuzzyevolve` can be configured via a TOML or JSON file (specified with the `--config` option) and command-line arguments. Command-line arguments will override any values set in the configuration file.
+
+Here is an example `config.toml`:
 
 ```toml
-iterations      = 2000      # how long to evolve
-log_every       = 25        # console log frequency
-num_islands     = 4         # independent archives
-k_top           = 6         # elites per cell
-migration_every = 500       # migrate between islands
-migrants_per_island = 4
+iterations = 1000
+num_islands = 4
+k_top = 5
+migration_every = 100
+migrants_per_island = 2
+sparring_every = 50
+youth_bias = 0.5
+n_diffs = 1
+log_every = 10
 
-# Behaviour descriptor space (axes)
 [axes]
-lang = ["txt"]                    # categorical axis
-len  = { bins = [0, 500, 1000, 2000, 1e9] }  # numeric axis → bins
+lang = ["txt"]
+len = { bins = [0, 100, 500, 1000, 2000] }
 
-# What you are optimising for – any labels you like
-metrics = ["taste", "quality", "originality"]
-
-# LLM ensemble (mutation models)
-[[llm_ensemble]]
-model = "vertex_ai/gemini-2.5-flash-preview-05-20"
-p     = 0.85        # selection probability
-temperature = 1.2
+metrics = ["creativity", "clarity", "impact"]
 
 [[llm_ensemble]]
-model = "vertex_ai/gemini-2.5-pro-preview-06-05"
-p     = 0.15
+model = "gemini-2.5-flash"
+p = 0.8
+temperature = 1.0
 
-# Judge model (ranks candidates)
-judge_model = "vertex_ai/gemini-2.5-pro-preview-06-05"
+[[llm_ensemble]]
+model = "gemini-2.5-pro"
+p = 0.2
+temperature = 0.8
 
-# Prompts
-mutation_prompt_goal         = "write a prompt for a coding agent…"
-mutation_prompt_instructions = "Propose SEARCH/REPLACE diff blocks…"
+judge_model = "gemini-2.5-pro"
+
+mutation_prompt_goal = "Evolve this text to be more persuasive."
+mutation_prompt_instructions = "Propose a single SEARCH/REPLACE diff block to improve the text."
 ```
 
-Every field in `Config` can be overridden – see `main.py` > `class Config` for defaults.
+### Command-Line Options
+
+*   `--config` / `-c`: Path to a TOML or JSON config file.
+*   `--output` / `-o`: Path to save the best final result.
+*   `--iterations` / `-i`: Number of evolution iterations.
+*   `--goal` / `-g`: The high-level goal for the mutation prompt.
+*   `--metric` / `-m`: A metric to evaluate against (can be specified multiple times).
+*   `--judge-model`: The LLM to use for judging candidates.
+*   `--log-file`: Path to write detailed logs.
+*   `--quiet` / `-q`: Suppress the progress bar and non-essential logging.
+
+For a full list of configuration options, please refer to the `Config` class in `fuzzyevolve/config.py`.
 
 ---
 
@@ -171,14 +202,25 @@ graph TD
 
 ```
 fuzzyevolve/
+├── evolution/
+│   ├── archive.py         # MAP-Elites archive implementation
+│   ├── driver.py          # Main evolutionary loop driver
+│   ├── judge.py           # LLM-based multi-metric judge
+│   └── scoring.py         # TrueSkill scoring implementation
+├── llm/
+│   ├── client.py          # LLM provider client
+│   ├── parsers.py         # Parsers for LLM responses
+│   └── prompts.py         # Prompt building functions
 ├── utils/
-│   ├── logging_setup.py   # Rich/TTY logging
-│   └── mutation_viewer.py # Rich Live diff viewer
-├── main.py                # Evolution engine & CLI
-├── seed.txt               # (user‑supplied) starting text
-├── best.txt               # output – best elite after run
-├── pyproject.toml         # deps & metadata
-└── .gitignore             # housekeeping
+│   ├── diff.py            # Diff application utilities
+│   └── logging.py         # Logging setup
+├── cli.py                 # Command-line interface (Typer)
+├── config.py              # Configuration loading
+└── datamodels.py        # Core data models (Pydantic)
+
+best.txt                   # Default output file
+pyproject.toml             # Project metadata and dependencies
+README.md                  # This file
 ```
 
 ---

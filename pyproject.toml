@@ -40,7 +40,6 @@ dependencies = [
     "markdownify>=1.1.0",
     "numpy>=2.2.6",
     "litellm>=1.71.0",
-    "ribs>=0.7.1",
     "unidiff>=0.7.5",
     "trueskill>=0.4.5",
     "flask>=3.1.1",
@@ -51,12 +50,12 @@ dependencies = [
 
 # CLI command entry point
 [project.scripts]
-fuzzyevolve = "fuzzyevolve.main:app"
+fuzzyevolve = "fuzzyevolve.cli:app"
 
 # Optional project URLs
 [project.urls]
-"Homepage" = "https://github.com/yourusername/ctxl-coder" # Please update
-"Bug Tracker" = "https://github.com/yourusername/ctxl-coder/issues" # Please update
+"Homepage" = "https://github.com/caesarnine/fuzzyevolve"
+"Bug Tracker" = "https://github.com/caesarnine/fuzzyevolve/issues"
 
 # Optional dependencies (formerly dependency-groups)
 [project.optional-dependencies]
