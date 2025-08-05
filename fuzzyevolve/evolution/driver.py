@@ -80,7 +80,7 @@ class EvolutionaryDriver:
 
                 parent = arc.random_elite(self.cfg.youth_bias)
                 cand = [e for b in arc.cell.values() for e in b if e is not parent]
-                inspirations = random.sample(cand, k=min(3, len(cand)))
+                inspirations = random.sample(cand, k=min(3, len(cand))) if cand else []
 
                 prompt = build_mut_prompt(
                     parent,

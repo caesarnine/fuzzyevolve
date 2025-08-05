@@ -192,3 +192,5 @@ cython_debug/
 logs
 biome.json
 repomix*
+.rune
+*.txt

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass
 from typing import Deque, List
 
 from rich.console import Group, RenderableType
@@ -10,14 +9,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-
-@dataclass
-class MutationEvent:
-    iteration: int
-    island: int
-    parent_s: float  # μ-3σ
-    child_s: float
-    diff: str  # unified diff text
+from fuzzyevolve.datamodels import MutationEvent
 
 
 class MutationViewer:

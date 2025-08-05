@@ -60,6 +60,7 @@ class MixedArchive:
         key = random.choice(list(self.cell.keys()))
         bucket = self.cell[key]
         if random.random() < youth_bias and len(bucket) >= 3:
+            # Sort by age ascending (youngest first) and take the top 30%
             bucket = sorted(bucket, key=lambda e: e["age"])[
                 : max(1, int(len(bucket) * 0.3))
             ]

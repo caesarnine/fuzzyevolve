@@ -165,13 +165,13 @@ def parse_llm_mutation_response(
             thinking = thinking_match.group(1).strip()
 
         diffs_match = re.search(
-            r"<diffs>(.*?</diffs>)", raw_response, re.DOTALL | re.IGNORECASE
+            r"<diffs>(.*?)</diffs>", raw_response, re.DOTALL | re.IGNORECASE
         )
         if diffs_match:
             diffs = diffs_match.group(1).strip()
         else:
             # Fallback for LLMs that forget the <diffs> wrapper but still output diffs
-            if not thinking_match and "<<<<<<<" in raw_response:
+            if not thinking_match and re.search(r"<<<<<<< SEARCH", raw_response):
                 logger.warning(
                     "No <diffs> tag found, but diff-like content detected. Using raw response."
                 )
