@@ -239,21 +239,26 @@ README.md                  # This file
 ## Development Setup
 
 ```bash
-# Dev extras install
-$ pip install -e .[dev]
+# Create venv and install dev extras
+uv venv && source .venv/bin/activate
+uv sync --extra dev
 
 # Lint & format
-$ ruff check .
-$ ruff format .
+uv run ruff format .
+uv run ruff check .
 
 # Type‑check
-$ mypy fuzzyevolve/
+uv run mypy fuzzyevolve/
 
-# Run tests (if you add pytest suites)
-$ pytest -q
+# Run tests
+uv run pytest -q
 ```
 
 ---
+
+## Coding Agents
+
+See `AGENTS.md` to get up to speed on project conventions.
 
 ## License
 

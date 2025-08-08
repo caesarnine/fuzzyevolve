@@ -10,7 +10,7 @@ from typing import List, Optional
 
 import typer
 
-from fuzzyevolve.config import load_cfg
+from fuzzyevolve.config import load_cfg, LLMEntry
 from fuzzyevolve.evolution.archive import MixedArchive
 from fuzzyevolve.evolution.driver import EvolutionaryDriver
 from fuzzyevolve.evolution.judge import MultiMetricJudge
@@ -89,15 +89,18 @@ def cli(
     setup_logging(level=logging.INFO, quiet=quiet, log_file=log_file)
     random.seed(42)
 
-    # llm provider
-    llm_provider = LLMProvider(cfg.llm_ensemble)
+    # llm providers
+    # - mutations: use ensemble
+    mut_llm_provider = LLMProvider(cfg.llm_ensemble)
+    # - judge: force single model from cfg.judge_model
+    judge_llm_provider = LLMProvider([LLMEntry(model=cfg.judge_model, p=1.0)])
 
     # islands & judge
     islands = [MixedArchive(cfg.axes, cfg.k_top) for _ in range(cfg.num_islands)]
-    judge = MultiMetricJudge(llm_provider, cfg.metrics)
+    judge = MultiMetricJudge(judge_llm_provider, cfg.metrics)
 
     # driver
-    driver = EvolutionaryDriver(cfg, llm_provider, judge, islands)
+    driver = EvolutionaryDriver(cfg, mut_llm_provider, judge, islands)
     driver.run(seed_text, output, quiet)
 
 
