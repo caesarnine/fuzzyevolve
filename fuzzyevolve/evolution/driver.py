@@ -78,7 +78,7 @@ class EvolutionaryDriver:
                 isl_idx = random.randrange(self.cfg.num_islands)
                 arc = self.islands[isl_idx]
 
-                parent = arc.random_elite(self.cfg.youth_bias)
+                parent = arc.random_elite()
                 cand = [e for b in arc.cell.values() for e in b if e is not parent]
                 inspirations = random.sample(cand, k=min(3, len(cand))) if cand else []
 
@@ -103,6 +103,7 @@ class EvolutionaryDriver:
 
                 log_mut.debug("Diff block (iter %d):\n%s", it, diff_content)
 
+                children: list[tuple[dict, dict]] = []
                 for blk in split_blocks(diff_content)[: self.cfg.n_diffs]:
                     child_txt = apply_patch(parent["txt"], blk)
                     if child_txt == parent["txt"]:
@@ -117,12 +118,20 @@ class EvolutionaryDriver:
                     }
                     desc_child = {"lang": "txt", "len": len(child_txt)}
                     child["cell_key"] = arc._key(desc_child)
+                    children.append((desc_child, child))
 
-                    group = [parent] + inspirations + [child]
-                    self.judge.rank_and_rate(group)
-                    for e in group:
-                        arc.resort_elite(e)
+                if not children:
+                    continue
 
+                opponents = inspirations if self.cfg.judge_include_inspirations else []
+
+                group = [parent] + opponents + [child for _, child in children]
+                self.judge.rank_and_rate(group)
+
+                for e in [parent] + opponents:
+                    arc.resort_elite(e)
+
+                for desc_child, child in children:
                     arc.add(desc_child, child)
 
                 if (it + 1) % self.cfg.migration_every == 0:
@@ -165,7 +174,7 @@ class EvolutionaryDriver:
                 best_score = ts_score(best_global["rating"])
                 if (it + 1) % self.cfg.log_every == 0:
                     metric_parts = [
-                        f'{m}(μ={r.mu:.2f}, σ={r.sigma:.2f})'
+                        f"{m}(μ={r.mu:.2f}, σ={r.sigma:.2f})"
                         for m, r in best_global["rating"].items()
                     ]
                     logging.info(

@@ -72,45 +72,19 @@ class TestMixedArchive:
         # Should be sorted by score (highest first)
         scores = [e["rating"]["metric"].mu for e in self.archive.cell[key]]
         assert scores == sorted(scores, reverse=True)
-    
-    def test_youth_bias_selects_younger(self):
-        """Test that youth bias correctly selects younger elites."""
-        # Add elites with different ages
-        ages = [100, 50, 150, 200, 25]
-        for age in ages:
-            elite = {
-                "txt": f"text age {age}",
-                "rating": {"metric": type('Rating', (), {"mu": 25.0, "sigma": 8.0})()},
-                "age": age
-            }
-            desc = {"lang": "txt", "len": 50}
-            self.archive.add(desc, elite)
-        
-        # Sample with youth bias many times
-        sampled_ages = []
-        for _ in range(100):
-            selected = self.archive.random_elite(youth_bias=1.0)
-            sampled_ages.append(selected["age"])
-        
-        avg_age = sum(sampled_ages) / len(sampled_ages)
-        # With youth bias, average should be much less than overall average
-        overall_avg = sum(ages) / len(ages)
-        assert avg_age < overall_avg * 0.5, f"Youth bias not working: avg {avg_age} vs overall {overall_avg}"
-    
-    def test_random_elite_no_youth_bias(self):
-        """Test random elite selection without youth bias."""
-        # Add multiple elites
+
+    def test_random_elite(self):
+        """Test random elite selection from the archive."""
         for i in range(5):
             elite = {
                 "txt": f"test {i}",
-                "rating": {"metric": type('Rating', (), {"mu": 25.0, "sigma": 8.0})()},
-                "age": i * 10
+                "rating": {"metric": type("Rating", (), {"mu": 25.0, "sigma": 8.0})()},
+                "age": i,
             }
             desc = {"lang": "txt", "len": 50}
             self.archive.add(desc, elite)
-        
-        # Should be able to select any elite
-        selected = self.archive.random_elite(youth_bias=0.0)
+
+        selected = self.archive.random_elite()
         assert selected is not None
         assert "txt" in selected
     

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+
 try:
     import tomllib
 except ImportError:
@@ -7,6 +8,7 @@ except ImportError:
 from pathlib import Path
 from typing import Any, Dict, List
 from pydantic import BaseModel, Field
+
 
 class LLMEntry(BaseModel):
     model: str
@@ -34,9 +36,7 @@ class Config(BaseModel):
                 p=0.85,
                 temperature=1,
             ),
-            LLMEntry(
-                model="vertex_ai/gemini-2.5-pro", p=0.15, temperature=1
-            ),
+            LLMEntry(model="vertex_ai/gemini-2.5-pro", p=0.15, temperature=1),
         ]
     )
     judge_model: str = "vertex_ai/gemini-2.5-pro"
@@ -50,14 +50,15 @@ class Config(BaseModel):
     )
 
     n_diffs: int = 4
-    youth_bias: float = 0.30
     # rarely-needed global sparring (still helpful early on)
-    sparring_every: int = 100
+    sparring_every: int = 50
+    judge_include_inspirations: bool = False
 
     # mutation prompt
     mutation_prompt_goal: str = "Improve the text based on the metrics provided."
     mutation_prompt_instructions: str = (
         "Propose one or more SEARCH/REPLACE diff blocks to improve the PARENT text. "
+        "If you provide multiple diff blocks, each block must be a standalone alternative that applies to the original PARENT text as-is. "
         "You can rewrite, shorten, or completely change the text. "
         "First, explain your reasoning in a <thinking> block. Then, provide the diffs in a <diffs> block."
     )

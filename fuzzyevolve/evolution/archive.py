@@ -55,15 +55,10 @@ class MixedArchive:
         if key in self.cell:
             self._sort_bucket(self.cell[key])
 
-    def random_elite(self, youth_bias: float) -> Dict:
+    def random_elite(self) -> Dict:
         """Selects a random elite from the archive."""
         key = random.choice(list(self.cell.keys()))
         bucket = self.cell[key]
-        if random.random() < youth_bias and len(bucket) >= 3:
-            # Sort by age ascending (youngest first) and take the top 30%
-            bucket = sorted(bucket, key=lambda e: e["age"])[
-                : max(1, int(len(bucket) * 0.3))
-            ]
         return random.choice(bucket)
 
     @property

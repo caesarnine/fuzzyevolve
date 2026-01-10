@@ -6,6 +6,7 @@ log_mut = logging.getLogger("mutation")
 
 _DIFF_START = re.compile(r"^<<<<<<< SEARCH", re.M)
 
+
 def split_blocks(raw: str) -> List[str]:
     blocks, cur = [], []
     for ln in raw.splitlines():
@@ -17,6 +18,7 @@ def split_blocks(raw: str) -> List[str]:
     if cur:
         blocks.append("\n".join(cur))
     return blocks
+
 
 def apply_patch(text: str, block: str) -> str:
     try:

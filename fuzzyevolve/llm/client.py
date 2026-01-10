@@ -6,7 +6,6 @@ import logging
 import random
 from typing import List, Tuple
 
-import litellm
 from litellm import completion
 
 from fuzzyevolve.config import LLMEntry
@@ -22,13 +21,13 @@ class LLMProvider:
 
     def _pick_model(self) -> Tuple[str, float]:
         """Selects a model from the ensemble based on defined probabilities."""
-        models, probs, temps = zip(*[(e.model, e.p, e.temperature) for e in self.llm_ensemble])
+        models, probs, temps = zip(
+            *[(e.model, e.p, e.temperature) for e in self.llm_ensemble]
+        )
         idx = random.choices(range(len(models)), weights=probs)[0]
         return models[idx], temps[idx]
 
-    def call(
-        self, prompt: str, response_format: dict | None = None
-    ) -> str:
+    def call(self, prompt: str, response_format: dict | None = None) -> str:
         """Selects a model and makes a call to the LLM API."""
         model, temperature = self._pick_model()
         try:

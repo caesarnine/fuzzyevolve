@@ -48,6 +48,5 @@ def sample_config():
             "lang": ["txt", "code"],
             "len": {"bins": [0, 100, 500, 1000, 10000]}
         },
-        youth_bias=0.3,
         n_diffs=2
     )

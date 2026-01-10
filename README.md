@@ -26,7 +26,7 @@
 
 | Category              | Highlights                                                                                                                                         |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Evolutionary core** | *MAP‑Elites* archive with **top‑k** elites per cell, multi‑island architecture, youth‑bias sampling, periodic migration & global sparring.         |
+| **Evolutionary core** | *MAP‑Elites* archive with **top‑k** elites per cell, multi‑island architecture, periodic migration & global sparring.                              |
 | **LLM ensemble**      | Probabilistic model picker (`pick_model`) lets you blend fast & slow models (e.g. Gemini Flash vs Pro).                                            |
 | **Judge & scoring**   | One LLM ranks candidates across *N* metrics. Ratings are updated with **TrueSkill** (one environment per metric) – uncertainty aware and additive. |
 | **Mutation grammar**  | Mutator LLM returns standard `<<<<<<< SEARCH … ======= … >>>>>>> REPLACE` patches – easy to diff & undo.                                           |
@@ -91,8 +91,8 @@ k_top = 5
 migration_every = 100
 migrants_per_island = 2
 sparring_every = 50
-youth_bias = 0.5
 n_diffs = 1
+judge_include_inspirations = false
 log_every = 10
 
 [axes]
@@ -152,12 +152,14 @@ sequenceDiagram
     loop each diff
         Runner->>Patch: apply_patch()
         Patch-->>Runner: child text
-        Runner->>Judge: rank_and_rate(parent, inspir., child)
-        Judge->>JLLM: ranking prompt
-        JLLM-->>Judge: rankings
-        Judge->>TS: update ratings
-        TS-->>Judge: new mu/sigma
-        Judge-->>Runner: updated mu/sigma
+    end
+    Runner->>Judge: rank_and_rate(parent, children)
+    Judge->>JLLM: ranking prompt
+    JLLM-->>Judge: rankings
+    Judge->>TS: update ratings
+    TS-->>Judge: new mu/sigma
+    Judge-->>Runner: updated mu/sigma
+    loop each child
         Runner->>Arc: add child, resort bucket
     end
     alt migration
@@ -184,7 +186,7 @@ graph TD
         B3[Ask mutator‑LLM]
         B4[Parse / apply diffs]
         B5[Judge.rank_and_rate]
-        B6[Archive.add child]
+        B6[Archive.add children]
         B1 --> B2 --> B3 --> B4 --> B5 --> B6
     end
     A4 --> Loop

@@ -1,11 +1,11 @@
 from __future__ import annotations
 import random
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 
 from fuzzyevolve.datamodels import Elite
 from fuzzyevolve.evolution.scoring import ts_score
 
-_MUT_PROMPT_TEMPLATE = '''
+_MUT_PROMPT_TEMPLATE = """
 Your overall goal is: {goal}
 Your task is: {instructions}
 
@@ -14,6 +14,9 @@ First, provide your step-by-step thinking process on how to improve the PARENT t
 Analyze its weaknesses and explain the changes you will propose, potentially drawing inspiration from the other texts provided.
 
 Then, provide the diffs using the exact SEARCH/REPLACE syntax inside a <diffs> block.
+
+Important: If you provide multiple diff blocks, treat them as ALTERNATIVE proposals.
+Each block must apply cleanly to the original PARENT text as-is; do not make later blocks depend on earlier blocks.
 
 Use exactly this diff syntax:
 <<<<<<< SEARCH
@@ -50,9 +53,9 @@ Score   : {p_score:.3f}
 ──────────────────────────────────────────
 
 Remember to follow the response format exactly: <thinking>...</thinking><diffs>...</diffs>
-'''
+"""
 
-_RANK_PROMPT_TEMPLATE = '''Below are {n} texts, each tagged with its [ID].
+_RANK_PROMPT_TEMPLATE = """Below are {n} texts, each tagged with its [ID].
 Your task is to evaluate these texts based on the following metrics: {metrics_list_str}.
 
 First, provide your step-by-step thinking process within <thinking> tags.
@@ -84,7 +87,8 @@ Follow this exact response format:
 {metric_tags_str}
 </output>
 </response_format>
-'''
+"""
+
 
 def build_mut_prompt(
     parent: Elite, inspirations: List[Elite], goal: str, instructions: str
@@ -101,15 +105,14 @@ def build_mut_prompt(
         insp_text="\n\n".join(insp_lines) or "(none)",
     )
 
+
 def make_rank_prompt(metrics: List[str], items: List[Tuple[int, Elite]]) -> str:
     candidate_lines = []
     for idx, elite_data in items:
         candidate_lines.append(f"[{idx}]\n{elite_data['txt']}\n")
 
     candidates_str = "\n".join(candidate_lines)
-    metrics_list_str = ", ".join(
-        f'"{m}"' for m in metrics
-    )
+    metrics_list_str = ", ".join(f'"{m}"' for m in metrics)
 
     metric_tags_str_parts = []
     example_ids_str = (

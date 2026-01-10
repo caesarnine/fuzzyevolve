@@ -46,11 +46,12 @@ def cli(
     judge_model: Optional[str] = typer.Option(
         None, "--judge-model", help="The LLM to use for judging candidates."
     ),
-    log_file: Optional[Path] = typer.Option(
-        None, help="Path to write detailed logs."
-    ),
+    log_file: Optional[Path] = typer.Option(None, help="Path to write detailed logs."),
     quiet: bool = typer.Option(
-        False, "-q", "--quiet", help="Suppress the progress bar and non-essential logging."
+        False,
+        "-q",
+        "--quiet",
+        help="Suppress the progress bar and non-essential logging.",
     ),
 ):
     """Evolve text with a language model."""
