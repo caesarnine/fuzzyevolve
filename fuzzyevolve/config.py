@@ -29,7 +29,7 @@ class Config(BaseModel):
     # sampling
     inspiration_count: int = 3
     max_diffs: int = 4
-    judge_include_inspirations: bool = False
+    judge_include_inspirations: bool = True
 
     # reproducibility
     random_seed: int | None = None
