@@ -1,58 +1,60 @@
 from __future__ import annotations
+
 import json
+from pathlib import Path
+from typing import Any
 
 try:
     import tomllib
-except ImportError:
+except ImportError:  # pragma: no cover - fallback for <3.11
     import tomli as tomllib
-from pathlib import Path
-from typing import Any, Dict, List
+
 from pydantic import BaseModel, Field
 
-
-class LLMEntry(BaseModel):
-    model: str
-    p: float = Field(..., ge=0)
-    temperature: float = 0.7
+from fuzzyevolve.llm.models import ModelSpec
 
 
 class Config(BaseModel):
     # core loop
-    seed_path: str = "seed.txt"
     iterations: int = 10
-    log_every: int = 1
+    log_interval: int = 1
 
     # map-elites + islands
-    num_islands: int = 1
-    k_top: int = 4
-    migration_every: int = 300
-    migrants_per_island: int = 4
+    island_count: int = 1
+    elites_per_cell: int = 4
+    migration_interval: int = 300
+    migration_size: int = 4
+    sparring_interval: int = 50
+
+    # sampling
+    inspiration_count: int = 3
+    max_diffs: int = 4
+    judge_include_inspirations: bool = False
+
+    # reproducibility
+    random_seed: int | None = None
 
     # llm ensemble + judge
-    llm_ensemble: List[LLMEntry] = Field(
+    llm_ensemble: list[ModelSpec] = Field(
         default_factory=lambda: [
-            LLMEntry(
+            ModelSpec(
                 model="vertex_ai/gemini-2.5-flash",
                 p=0.85,
                 temperature=1,
             ),
-            LLMEntry(model="vertex_ai/gemini-2.5-pro", p=0.15, temperature=1),
+            ModelSpec(model="vertex_ai/gemini-2.5-pro", p=0.15, temperature=1),
         ]
     )
     judge_model: str = "vertex_ai/gemini-2.5-pro"
-    metrics: List[str] = ["clarity", "conciseness", "creativity"]
+    metrics: list[str] = ["clarity", "conciseness", "creativity"]
+
     # descriptor space
-    axes: Dict[str, Any] = Field(
+    axes: dict[str, Any] = Field(
         default_factory=lambda: {
             "lang": ["txt"],
             "len": {"bins": [0, 500, 1000, 2000, 1e9]},
         }
     )
-
-    n_diffs: int = 4
-    # rarely-needed global sparring (still helpful early on)
-    sparring_every: int = 50
-    judge_include_inspirations: bool = False
 
     # mutation prompt
     mutation_prompt_goal: str = "Improve the text based on the metrics provided."

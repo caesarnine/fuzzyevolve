@@ -86,14 +86,16 @@ Here is an example `config.toml`:
 
 ```toml
 iterations = 1000
-num_islands = 4
-k_top = 5
-migration_every = 100
-migrants_per_island = 2
-sparring_every = 50
-n_diffs = 1
+island_count = 4
+elites_per_cell = 5
+migration_interval = 100
+migration_size = 2
+sparring_interval = 50
+max_diffs = 1
+inspiration_count = 3
 judge_include_inspirations = false
-log_every = 10
+log_interval = 10
+random_seed = 42
 
 [axes]
 lang = ["txt"]
@@ -139,10 +141,10 @@ For a full list of configuration options, please refer to the `Config` class in 
 ```mermaid
 sequenceDiagram
     actor Runner as run()
-    participant Arc as MixedArchive
+    participant Arc as MapElitesArchive
     participant MutLLM as LLM‑mutation
-    participant Patch as Diff utils
-    participant Judge as MultiMetricJudge
+    participant Patch as Diff parser
+    participant Judge as LLMJudge
     participant JLLM as LLM‑judge
     participant TS as TrueSkill
 
@@ -203,21 +205,27 @@ graph TD
 
 ```
 fuzzyevolve/
-├── evolution/
+├── core/
 │   ├── archive.py         # MAP-Elites archive implementation
-│   ├── driver.py          # Main evolutionary loop driver
+│   ├── descriptors.py     # Descriptor space definitions
+│   ├── engine.py          # Evolution loop orchestration
 │   ├── judge.py           # LLM-based multi-metric judge
+│   ├── models.py          # Core data models
 │   └── scoring.py         # TrueSkill scoring implementation
 ├── llm/
 │   ├── client.py          # LLM provider client
-│   ├── parsers.py         # Parsers for LLM responses
+│   ├── models.py          # LLM model specs
+│   ├── parsing.py         # Parsers for LLM responses
 │   └── prompts.py         # Prompt building functions
-├── utils/
-│   ├── diff.py            # Diff application utilities
-│   └── logging.py         # Logging setup
+├── mutation/
+│   ├── diff.py            # Diff parsing and application
+│   └── mutator.py         # Mutation generation
+├── console/
+│   ├── logging.py         # Logging setup
+│   └── mutation_viewer.py # Mutation diff viewer
 ├── cli.py                 # Command-line interface (Typer)
 ├── config.py              # Configuration loading
-└── datamodels.py        # Core data models (Pydantic)
+└── __init__.py
 
 best.txt                   # Default output file
 pyproject.toml             # Project metadata and dependencies

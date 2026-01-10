@@ -1,9 +1,10 @@
 from __future__ import annotations
-import random
-from typing import List, Tuple
 
-from fuzzyevolve.datamodels import Elite
-from fuzzyevolve.evolution.scoring import ts_score
+import random
+from typing import Sequence
+
+from fuzzyevolve.core.models import Elite
+from fuzzyevolve.core.scoring import score_ratings
 
 _MUT_PROMPT_TEMPLATE = """
 Your overall goal is: {goal}
@@ -90,31 +91,33 @@ Follow this exact response format:
 """
 
 
-def build_mut_prompt(
-    parent: Elite, inspirations: List[Elite], goal: str, instructions: str
+def build_mutation_prompt(
+    parent: Elite, inspirations: Sequence[Elite], goal: str, instructions: str
 ) -> str:
     insp_lines = [
-        f"[{i}] score={ts_score(e['rating']):.3f}\n{e['txt']}"
-        for i, e in enumerate(inspirations, 1)
+        f"[{i}] score={score_ratings(elite.ratings):.3f}\n{elite.text}"
+        for i, elite in enumerate(inspirations, 1)
     ]
     return _MUT_PROMPT_TEMPLATE.format(
         goal=goal,
         instructions=instructions,
-        p_score=ts_score(parent["rating"]),
-        p_text=parent["txt"],
+        p_score=score_ratings(parent.ratings),
+        p_text=parent.text,
         insp_text="\n\n".join(insp_lines) or "(none)",
     )
 
 
-def make_rank_prompt(metrics: List[str], items: List[Tuple[int, Elite]]) -> str:
+def build_rank_prompt(
+    metrics: Sequence[str], items: Sequence[tuple[int, Elite]]
+) -> str:
     candidate_lines = []
     for idx, elite_data in items:
-        candidate_lines.append(f"[{idx}]\n{elite_data['txt']}\n")
+        candidate_lines.append(f"[{idx}]\n{elite_data.text}\n")
 
     candidates_str = "\n".join(candidate_lines)
     metrics_list_str = ", ".join(f'"{m}"' for m in metrics)
 
-    metric_tags_str_parts = []
+    metric_tags_str_parts: list[str] = []
     example_ids_str = (
         ", ".join(
             str(i) for i in random.sample(range(len(items)), k=min(len(items), 3))

@@ -1,34 +1,37 @@
-"""
-This module abstracts the interaction with the language model provider.
-"""
+"""LLM provider wrapper around LiteLLM."""
+
+from __future__ import annotations
 
 import logging
 import random
-from typing import List, Tuple
+from typing import Sequence
 
 from litellm import completion
 
-from fuzzyevolve.config import LLMEntry
+from fuzzyevolve.llm.models import ModelSpec
 
 log_llm = logging.getLogger("llm")
 
 
 class LLMProvider:
-    """A wrapper around LiteLLM to handle model selection and API calls."""
+    """Wrapper around LiteLLM for model selection and API calls."""
 
-    def __init__(self, llm_ensemble: List[LLMEntry]):
-        self.llm_ensemble = llm_ensemble
+    def __init__(
+        self, llm_ensemble: Sequence[ModelSpec], rng: random.Random | None = None
+    ):
+        self.llm_ensemble = list(llm_ensemble)
+        if not self.llm_ensemble:
+            raise ValueError("LLM ensemble cannot be empty.")
+        self.rng = rng or random.Random()
 
-    def _pick_model(self) -> Tuple[str, float]:
-        """Selects a model from the ensemble based on defined probabilities."""
+    def _pick_model(self) -> tuple[str, float]:
         models, probs, temps = zip(
             *[(e.model, e.p, e.temperature) for e in self.llm_ensemble]
         )
-        idx = random.choices(range(len(models)), weights=probs)[0]
+        idx = self.rng.choices(range(len(models)), weights=probs)[0]
         return models[idx], temps[idx]
 
     def call(self, prompt: str, response_format: dict | None = None) -> str:
-        """Selects a model and makes a call to the LLM API."""
         model, temperature = self._pick_model()
         try:
             rsp = completion(

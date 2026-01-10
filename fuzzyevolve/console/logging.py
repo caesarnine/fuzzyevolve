@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import logging
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 
@@ -14,13 +15,6 @@ def setup_logging(
     quiet: bool = False,
     log_file: Optional[Path] = None,
 ) -> None:
-    """
-    Configure root logger:
-
-    • Console handler (Rich-coloured if available)
-    • File handler  logs/YYYY-mm-dd_HHMMSS.log
-    • Downgrade chatty 3rd-party libraries to WARNING
-    """
     if log_file:
         file_path = log_file
         log_dir = log_file.parent
@@ -48,7 +42,7 @@ def setup_logging(
                     )
                 )
             except ImportError:
-                use_rich = False  # graceful fallback
+                use_rich = False
 
         if not use_rich:
             stream = logging.StreamHandler(sys.stdout)

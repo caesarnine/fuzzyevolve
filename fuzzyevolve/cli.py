@@ -1,6 +1,6 @@
-"""
-This module contains the command-line interface for fuzzyevolve.
-"""
+"""Command-line interface for fuzzyevolve."""
+
+from __future__ import annotations
 
 import logging
 import random
@@ -9,13 +9,23 @@ from pathlib import Path
 from typing import List, Optional
 
 import typer
+from rich.progress import (
+    BarColumn,
+    Progress,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
-from fuzzyevolve.config import load_cfg, LLMEntry
-from fuzzyevolve.evolution.archive import MixedArchive
-from fuzzyevolve.evolution.driver import EvolutionaryDriver
-from fuzzyevolve.evolution.judge import MultiMetricJudge
+from fuzzyevolve.config import load_cfg
+from fuzzyevolve.console.logging import setup_logging
+from fuzzyevolve.core.archive import MapElitesArchive
+from fuzzyevolve.core.descriptors import build_descriptor_space, default_text_descriptor
+from fuzzyevolve.core.engine import EvolutionEngine
+from fuzzyevolve.core.judge import LLMJudge
 from fuzzyevolve.llm.client import LLMProvider
-from fuzzyevolve.utils.logging import setup_logging
+from fuzzyevolve.llm.models import ModelSpec
+from fuzzyevolve.mutation.mutator import LLMMutator
 
 app = typer.Typer()
 
@@ -55,7 +65,6 @@ def cli(
     ),
 ):
     """Evolve text with a language model."""
-    # --- Configuration Layering ---
     cfg = load_cfg(config)
 
     if iterations is not None:
@@ -67,9 +76,87 @@ def cli(
     if judge_model is not None:
         cfg.judge_model = judge_model
 
-    # --- Input Handling ---
-    seed_text = ""
-    if input is None:
+    seed_text = _read_seed_text(input)
+
+    setup_logging(level=logging.INFO, quiet=quiet, log_file=log_file)
+
+    rng = random.Random(cfg.random_seed)
+
+    mut_llm_provider = LLMProvider(cfg.llm_ensemble, rng=rng)
+    judge_llm_provider = LLMProvider(
+        [ModelSpec(model=cfg.judge_model, p=1.0)], rng=rng
+    )
+
+    space = build_descriptor_space(cfg.axes)
+    islands = [
+        MapElitesArchive(space, cfg.elites_per_cell, rng=rng)
+        for _ in range(cfg.island_count)
+    ]
+
+    judge = LLMJudge(judge_llm_provider, cfg.metrics, rng=rng)
+    mutator = LLMMutator(
+        mut_llm_provider,
+        cfg.mutation_prompt_goal,
+        cfg.mutation_prompt_instructions,
+        cfg.max_diffs,
+    )
+
+    engine = EvolutionEngine(
+        cfg,
+        mutator,
+        judge,
+        islands,
+        descriptor_fn=default_text_descriptor,
+        rng=rng,
+    )
+
+    progress = Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TextColumn("• best {task.fields[best]:.3f}"),
+        TextColumn("• empty {task.fields[empty]}"),
+        TimeElapsedColumn(),
+        transient=quiet,
+    )
+
+    with progress:
+        task = progress.add_task(
+            "evolving",
+            total=cfg.iterations,
+            best=0.0,
+            empty=islands[0].empty_cells,
+        )
+
+        def on_iteration(snapshot):
+            if cfg.log_interval and snapshot.iteration % cfg.log_interval == 0:
+                metric_parts = [
+                    f"{metric}(μ={rating.mu:.2f}, σ={rating.sigma:.2f})"
+                    for metric, rating in snapshot.best_elite.ratings.items()
+                ]
+                logging.info(
+                    "it %d best_score %.3f | %s",
+                    snapshot.iteration,
+                    snapshot.best_score,
+                    " | ".join(metric_parts),
+                )
+            progress.update(
+                task,
+                advance=1,
+                best=snapshot.best_score,
+                empty=snapshot.empty_cells,
+            )
+
+        result = engine.run(seed_text, on_iteration=on_iteration)
+
+    output.write_text(result.best_elite.text)
+    logging.info(
+        "DONE – best saved to %s (score %.3f)", output, result.best_score
+    )
+
+
+def _read_seed_text(user_input: str | None) -> str:
+    if user_input is None:
         if not sys.stdin.isatty():
             seed_text = sys.stdin.read()
         else:
@@ -77,32 +164,15 @@ def cli(
                 "Error: No input provided. Please provide an input string, file path, or pipe data via stdin."
             )
             raise typer.Exit(code=1)
-    elif Path(input).is_file():
-        seed_text = Path(input).read_text()
+    elif Path(user_input).is_file():
+        seed_text = Path(user_input).read_text()
     else:
-        seed_text = input
+        seed_text = user_input
 
     if not seed_text.strip():
         typer.echo("Error: Input text is empty.")
         raise typer.Exit(code=1)
-
-    # ─ setup logging & PRNG ─────────────────────────────────────────
-    setup_logging(level=logging.INFO, quiet=quiet, log_file=log_file)
-    random.seed(42)
-
-    # llm providers
-    # - mutations: use ensemble
-    mut_llm_provider = LLMProvider(cfg.llm_ensemble)
-    # - judge: force single model from cfg.judge_model
-    judge_llm_provider = LLMProvider([LLMEntry(model=cfg.judge_model, p=1.0)])
-
-    # islands & judge
-    islands = [MixedArchive(cfg.axes, cfg.k_top) for _ in range(cfg.num_islands)]
-    judge = MultiMetricJudge(judge_llm_provider, cfg.metrics)
-
-    # driver
-    driver = EvolutionaryDriver(cfg, mut_llm_provider, judge, islands)
-    driver.run(seed_text, output, quiet)
+    return seed_text
 
 
 if __name__ == "__main__":
