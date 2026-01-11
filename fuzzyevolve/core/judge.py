@@ -72,13 +72,13 @@ class LLMJudge:
             if metric not in elite.ratings:
                 elite.ratings[metric] = self.envs[metric].create_rating()
 
-    def rank_and_rate(self, players: Sequence[Elite]) -> None:
+    def rank_and_rate(self, players: Sequence[Elite]) -> bool:
         for player in players:
             self.ensure_ratings(player)
 
         if not players:
             log_llm.warning("Rank and rate called with no players. Skipping.")
-            return
+            return False
 
         shuffled_indices = list(range(len(players)))
         self.rng.shuffle(shuffled_indices)
@@ -103,11 +103,11 @@ class LLMJudge:
             log_llm.error(
                 "Judge agent call failed outright — skipping rating update for this batch."
             )
-            return
+            return False
         parsed_rankings = rsp.output.rankings
         if not parsed_rankings:
             log_llm.error("Judge agent: No rankings returned. Skipping update.")
-            return
+            return False
 
         ranked_map: dict[str, list[int]] = {}
         for ranking in parsed_rankings:
@@ -128,8 +128,9 @@ class LLMJudge:
 
         if not ranked_map:
             log_llm.error("Judge agent: No usable rankings returned. Skipping update.")
-            return
+            return False
 
+        updated_any = False
         for metric_name in self.metrics:
             ranked_ids = ranked_map.get(metric_name)
             if not ranked_ids:
@@ -160,7 +161,13 @@ class LLMJudge:
                 continue
 
             for player, new_rating in zip(ranked_players, updated_ratings):
+                if player.frozen:
+                    continue
                 player.ratings[metric_name] = new_rating[0]
+                updated_any = True
+        if not updated_any:
+            log_llm.error("Judge agent: No ratings updated. Skipping update.")
+        return updated_any
 
     def _resolve_ranked_players(
         self,

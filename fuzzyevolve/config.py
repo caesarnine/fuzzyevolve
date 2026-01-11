@@ -31,6 +31,13 @@ class Config(BaseModel):
     max_diffs: int = 4
     judge_include_inspirations: bool = True
 
+    # anchors
+    anchor_injection_prob: float = Field(0.2, ge=0.0, le=1.0)
+    anchor_mu: float = 25.0
+    anchor_sigma: float = 0.001
+    anchor_max_per_judgement: int = Field(2, ge=0)
+    ghost_anchor_interval: int = Field(10, ge=0)
+
     # reproducibility
     random_seed: int | None = None
 
@@ -50,7 +57,7 @@ class Config(BaseModel):
         ]
     )
     judge_model: str = "google-gla:gemini-3-pro-preview"
-    metrics: list[str] = ["clarity", "conciseness", "creativity"]
+    metrics: list[str] = ["atmosphere", "creativity"]
 
     # descriptor space
     axes: dict[str, Any] = Field(
@@ -61,7 +68,7 @@ class Config(BaseModel):
     )
 
     # mutation prompt
-    mutation_prompt_goal: str = "Improve the text based on the metrics provided."
+    mutation_prompt_goal: str = "Write me a riveting short story."
     mutation_prompt_instructions: str = (
         "Propose one or more alternative edits to improve the PARENT text. "
         "Each edit must be independently applicable to the original PARENT text (do not chain edits). "

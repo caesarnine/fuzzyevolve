@@ -14,6 +14,7 @@ class Elite:
     descriptor: Descriptor
     ratings: dict[str, ts.Rating]
     age: int
+    frozen: bool = False
     cell_key: tuple[Any, ...] | None = None
 
     def clone(self) -> "Elite":
@@ -26,6 +27,7 @@ class Elite:
             descriptor=dict(self.descriptor),
             ratings=ratings,
             age=self.age,
+            frozen=self.frozen,
             cell_key=self.cell_key,
         )
 

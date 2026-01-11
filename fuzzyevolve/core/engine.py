@@ -9,6 +9,7 @@ from fuzzyevolve.config import Config
 from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.descriptors import default_text_descriptor
 from fuzzyevolve.core.models import Elite, EvolutionResult, IterationSnapshot
+from fuzzyevolve.core.reference_pool import ReferencePool
 from fuzzyevolve.core.scoring import score_ratings
 from fuzzyevolve.mutation.mutator import LLMMutator
 from fuzzyevolve.core.judge import LLMJudge
@@ -23,6 +24,7 @@ class EvolutionEngine:
         mutator: LLMMutator,
         judge: LLMJudge,
         islands: Sequence[MapElitesArchive],
+        reference_pool: ReferencePool | None = None,
         descriptor_fn: Callable[[str], dict[str, Any]] = default_text_descriptor,
         rng: random.Random | None = None,
     ) -> None:
@@ -34,6 +36,7 @@ class EvolutionEngine:
             raise ValueError("At least one island archive is required.")
         self.descriptor_fn = descriptor_fn
         self.rng = rng or random.Random()
+        self.reference_pool = reference_pool or ReferencePool(cfg.metrics, rng=self.rng)
 
     def run(
         self,
@@ -53,6 +56,7 @@ class EvolutionEngine:
             )
             if on_iteration:
                 on_iteration(snapshot)
+            self._maybe_add_ghost_anchor(iteration + 1)
 
         best_final = self.best_elite()
         return EvolutionResult(
@@ -74,6 +78,13 @@ class EvolutionEngine:
         )
         for archive in self.islands:
             archive.add(seed_elite.clone())
+        if self.reference_pool:
+            self.reference_pool.add_seed_anchor(
+                seed_text,
+                descriptor_fn=self.descriptor_fn,
+                mu=self.cfg.anchor_mu,
+                sigma=self.cfg.anchor_sigma,
+            )
 
     def _step(self, iteration: int) -> None:
         archive = self.rng.choice(self.islands)
@@ -96,13 +107,19 @@ class EvolutionEngine:
 
         opponents = inspirations if self.cfg.judge_include_inspirations else []
         group = [parent] + opponents + children
-        self.judge.rank_and_rate(group)
+        group = self._maybe_add_anchors(group)
+        judge_success = self.judge.rank_and_rate(group)
+        if judge_success:
+            for elite in [parent] + opponents:
+                archive.resort(elite)
 
-        for elite in [parent] + opponents:
-            archive.resort(elite)
-
-        for child in children:
-            archive.add(child)
+            for child in children:
+                archive.add(child)
+        else:
+            log_evo.warning(
+                "Judge failed; skipping archive update for iteration %d.",
+                iteration + 1,
+            )
 
         if self.cfg.migration_interval > 0 and (
             (iteration + 1) % self.cfg.migration_interval == 0
@@ -145,8 +162,40 @@ class EvolutionEngine:
             return
 
         log_evo.info("Global sparring with %d elites.", len(pool))
-        self.judge.rank_and_rate(pool)
+        pool = self._maybe_add_anchors(pool)
+        if not self.judge.rank_and_rate(pool):
+            log_evo.warning("Global sparring judge failed - skipping resort.")
+            return
         for elite in pool:
             origin = elite_to_island.get(id(elite))
             if origin:
                 origin.resort(elite)
+
+    def _maybe_add_anchors(self, group: list[Elite]) -> list[Elite]:
+        if not self.reference_pool:
+            return group
+        if self.cfg.anchor_injection_prob <= 0:
+            return group
+        if self.rng.random() >= self.cfg.anchor_injection_prob:
+            return group
+        max_count = self.cfg.anchor_max_per_judgement
+        if max_count <= 0:
+            return group
+        anchors = self.reference_pool.sample(
+            max_count,
+            exclude_texts={elite.text for elite in group},
+        )
+        if not anchors:
+            return group
+        return group + anchors
+
+    def _maybe_add_ghost_anchor(self, iteration: int) -> None:
+        if not self.reference_pool:
+            return
+        if self.cfg.ghost_anchor_interval <= 0:
+            return
+        if iteration % self.cfg.ghost_anchor_interval != 0:
+            return
+        best = self.best_elite()
+        self.reference_pool.add_ghost_anchor(best, age=iteration)
+        log_evo.info("Added ghost anchor at iteration %d.", iteration)

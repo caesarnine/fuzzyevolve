@@ -37,6 +37,7 @@ class TestEvolutionEngine:
             metrics=["test_metric"],
             max_diffs=2,
             inspiration_count=0,
+            anchor_injection_prob=0.0,
         )
         self.judge = Mock()
         self.judge.new_ratings = Mock(
@@ -58,6 +59,7 @@ class TestEvolutionEngine:
             metrics=["test_metric"],
             max_diffs=2,
             inspiration_count=0,
+            anchor_injection_prob=0.0,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
@@ -91,6 +93,7 @@ class TestEvolutionEngine:
             max_diffs=1,
             inspiration_count=1,
             judge_include_inspirations=include_inspirations,
+            anchor_injection_prob=0.0,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
@@ -130,6 +133,7 @@ class TestEvolutionEngine:
             migration_interval=1,
             migration_size=1,
             sparring_interval=1000,
+            anchor_injection_prob=0.0,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
@@ -157,6 +161,7 @@ class TestEvolutionEngine:
             inspiration_count=0,
             sparring_interval=1,
             migration_interval=1000,
+            anchor_injection_prob=0.0,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})

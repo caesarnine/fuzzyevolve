@@ -48,6 +48,7 @@ def sample_config():
         island_count=2,
         elites_per_cell=3,
         metrics=["clarity", "creativity", "impact"],
+        anchor_injection_prob=0.0,
         axes={
             "lang": ["txt", "code"],
             "len": {"bins": [0, 100, 500, 1000, 10000]},

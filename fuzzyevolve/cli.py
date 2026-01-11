@@ -23,6 +23,7 @@ from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.descriptors import build_descriptor_space, default_text_descriptor
 from fuzzyevolve.core.engine import EvolutionEngine
 from fuzzyevolve.core.judge import LLMJudge
+from fuzzyevolve.core.reference_pool import ReferencePool
 from fuzzyevolve.mutation.mutator import LLMMutator
 
 app = typer.Typer()
@@ -112,12 +113,14 @@ def cli(
         cfg.max_diffs,
         rng=rng,
     )
+    reference_pool = ReferencePool(cfg.metrics, rng=rng)
 
     engine = EvolutionEngine(
         cfg,
         mutator,
         judge,
         islands,
+        reference_pool=reference_pool,
         descriptor_fn=default_text_descriptor,
         rng=rng,
     )
