@@ -65,10 +65,9 @@ class TestEvolutionEngine:
         mutator = Mock()
         mutator.propose = Mock(
             return_value=MutationResult(
-                thinking="Test",
                 candidates=[
-                    MutationCandidate(text="modified1", diff="diff1"),
-                    MutationCandidate(text="modified2", diff="diff2"),
+                    MutationCandidate(text="modified1", search="old1", replace="new1"),
+                    MutationCandidate(text="modified2", search="old2", replace="new2"),
                 ],
             )
         )
@@ -99,8 +98,7 @@ class TestEvolutionEngine:
         mutator = Mock()
         mutator.propose = Mock(
             return_value=MutationResult(
-                thinking="Test",
-                candidates=[MutationCandidate(text="seedX", diff="diff")],
+                candidates=[MutationCandidate(text="seedX", search="old", replace="new")],
             )
         )
 
@@ -114,7 +112,7 @@ class TestEvolutionEngine:
 
     def test_empty_candidates_handling(self):
         self.mutator.propose = Mock(
-            return_value=MutationResult(thinking="Test", candidates=[])
+            return_value=MutationResult(candidates=[])
         )
         engine = make_engine(self.cfg, self.mutator, self.judge)
         engine.run("seed")
@@ -139,8 +137,7 @@ class TestEvolutionEngine:
         mutator = Mock()
         mutator.propose = Mock(
             return_value=MutationResult(
-                thinking="Test",
-                candidates=[MutationCandidate(text="seedX", diff="diff")],
+                candidates=[MutationCandidate(text="seedX", search="old", replace="new")],
             )
         )
 
@@ -167,8 +164,7 @@ class TestEvolutionEngine:
         mutator = Mock()
         mutator.propose = Mock(
             return_value=MutationResult(
-                thinking="Test",
-                candidates=[MutationCandidate(text="seedX", diff="diff")],
+                candidates=[MutationCandidate(text="seedX", search="old", replace="new")],
             )
         )
 

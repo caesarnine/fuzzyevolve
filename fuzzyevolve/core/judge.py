@@ -4,27 +4,62 @@ import logging
 import random
 from typing import Iterable, Sequence
 
+from pydantic import BaseModel, Field
+from pydantic_ai import Agent
+from pydantic_ai.settings import ModelSettings
+
 import trueskill as ts
 from fuzzyevolve.core.models import Elite
 from fuzzyevolve.core.scoring import make_envs
-from fuzzyevolve.llm.client import LLMProvider
-from fuzzyevolve.llm.parsing import parse_judge_response
 from fuzzyevolve.llm.prompts import build_rank_prompt
 
 log_llm = logging.getLogger("llm")
 
 
+class MetricRanking(BaseModel):
+    metric: str = Field(
+        ...,
+        description="Metric name from the prompt.",
+    )
+    ranked_ids: list[int] = Field(
+        ...,
+        description=(
+            "Candidate IDs ordered best to worst. "
+            "IDs must correspond to the bracketed IDs in the prompt."
+        ),
+    )
+
+
+class JudgeOutput(BaseModel):
+    rankings: list[MetricRanking] = Field(
+        default_factory=list,
+        description="Per-metric rankings as a list of objects.",
+    )
+
+
 class LLMJudge:
     def __init__(
         self,
-        llm_provider: LLMProvider,
+        model: str,
         metrics: Sequence[str],
         rng: random.Random | None = None,
+        model_settings: ModelSettings | None = None,
     ) -> None:
-        self.llm_provider = llm_provider
+        self.model = model
         self.metrics = list(metrics)
         self.envs = make_envs(self.metrics)
         self.rng = rng or random.Random()
+        self.model_settings = model_settings or {"temperature": 0.0}
+        self.agent = Agent(
+            output_type=JudgeOutput,
+            name="judge",
+            instructions=(
+                "Rank the provided candidates independently for each metric.\n"
+                "- Return ONLY the structured output (no prose).\n"
+                "- For each metric, rank ALL candidate IDs exactly once.\n"
+                "- Provide `rankings` as a list of {metric, ranked_ids} objects.\n"
+            ),
+        )
 
     def new_ratings(self) -> dict[str, ts.Rating]:
         return {metric: self.envs[metric].create_rating() for metric in self.metrics}
@@ -56,37 +91,50 @@ class LLMJudge:
             id_to_player[prompt_id] = player
 
         prompt = build_rank_prompt(self.metrics, prompt_items)
+        log_llm.debug("Judge prompt:\n%s", prompt)
         try:
-            raw_response = self.llm_provider.call(prompt=prompt)
+            rsp = self.agent.run_sync(
+                prompt,
+                model=self.model,
+                model_settings=self.model_settings,
+            )
+            log_llm.debug("Judge response: %s", rsp.output)
         except Exception:
             log_llm.error(
-                "Judge LLM call failed outright — skipping rating update for this batch."
+                "Judge agent call failed outright — skipping rating update for this batch."
             )
             return
-
-        if not raw_response:
-            log_llm.error("Judge LLM returned an empty response — skipping update.")
-            return
-
-        thinking, parsed_rankings = parse_judge_response(
-            raw_response, self.metrics, log_llm
-        )
-        if thinking:
-            log_llm.info("Judge LLM rationale:\n%s", thinking)
-        else:
-            log_llm.warning("Judge LLM: No thinking process extracted from response.")
-
+        parsed_rankings = rsp.output.rankings
         if not parsed_rankings:
-            log_llm.error(
-                "Judge LLM: No valid rankings extracted. Skipping rating update."
-            )
+            log_llm.error("Judge agent: No rankings returned. Skipping update.")
+            return
+
+        ranked_map: dict[str, list[int]] = {}
+        for ranking in parsed_rankings:
+            metric_name = ranking.metric
+            if metric_name in ranked_map:
+                log_llm.warning(
+                    "Judge agent: Duplicate ranking for metric '%s'.",
+                    metric_name,
+                )
+                continue
+            if metric_name not in self.metrics:
+                log_llm.warning(
+                    "Judge agent: Ranking returned for unknown metric '%s'.",
+                    metric_name,
+                )
+                continue
+            ranked_map[metric_name] = ranking.ranked_ids
+
+        if not ranked_map:
+            log_llm.error("Judge agent: No usable rankings returned. Skipping update.")
             return
 
         for metric_name in self.metrics:
-            ranked_ids = parsed_rankings.get(metric_name)
+            ranked_ids = ranked_map.get(metric_name)
             if not ranked_ids:
                 log_llm.warning(
-                    "Judge LLM: Missing ranking for metric '%s'.",
+                    "Judge agent: Missing ranking for metric '%s'.",
                     metric_name,
                 )
                 continue
@@ -105,7 +153,7 @@ class LLMJudge:
                 )
             except Exception as exc:
                 log_llm.error(
-                    "Judge LLM: TrueSkill update failed for metric '%s': %s",
+                    "Judge agent: TrueSkill update failed for metric '%s': %s",
                     metric_name,
                     exc,
                 )
@@ -125,7 +173,7 @@ class LLMJudge:
         for prompt_id in ranked_ids:
             if prompt_id in seen_ids:
                 log_llm.warning(
-                    "Judge LLM: Metric '%s' ranking contains duplicate ID %s.",
+                    "Judge agent: Metric '%s' ranking contains duplicate ID %s.",
                     metric_name,
                     prompt_id,
                 )
@@ -133,7 +181,7 @@ class LLMJudge:
             player = id_to_player.get(prompt_id)
             if player is None:
                 log_llm.warning(
-                    "Judge LLM: Metric '%s' ranking contains invalid ID %s.",
+                    "Judge agent: Metric '%s' ranking contains invalid ID %s.",
                     metric_name,
                     prompt_id,
                 )

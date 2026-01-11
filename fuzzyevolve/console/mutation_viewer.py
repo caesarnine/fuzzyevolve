@@ -28,15 +28,14 @@ class MutationViewer:
     def push(self, event: MutationEvent) -> None:
         self.events.appendleft(event)
 
-    def _colour_diff(self, diff: str) -> RenderableType:
+    def _render_edit(self, search: str, replace: str) -> RenderableType:
         text = Text()
-        for line in diff.splitlines():
-            if line.startswith("+") and not line.startswith("+++"):
-                text.append(line + "\n", style="green")
-            elif line.startswith("-") and not line.startswith("---"):
-                text.append(line + "\n", style="red")
-            else:
-                text.append(line + "\n")
+        text.append("SEARCH\n", style="bold yellow")
+        if search:
+            text.append(search.rstrip("\n") + "\n", style="red")
+        text.append("REPLACE\n", style="bold green")
+        if replace:
+            text.append(replace.rstrip("\n"), style="green")
         return Panel(text, padding=(0, 1), border_style="dim")
 
     def __rich__(self) -> RenderableType:
@@ -49,7 +48,7 @@ class MutationViewer:
         tbl.add_column("parent", justify="right")
         tbl.add_column("child", justify="right")
 
-        diff_panels: List[RenderableType] = []
+        edit_panels: List[RenderableType] = []
         for event in self.events:
             tbl.add_row(
                 str(event.iteration),
@@ -57,6 +56,6 @@ class MutationViewer:
                 f"{event.parent_score:.3f}",
                 f"{event.child_score:.3f}",
             )
-            diff_panels.append(self._colour_diff(event.diff))
+            edit_panels.append(self._render_edit(event.search, event.replace))
 
-        return Group(tbl, *diff_panels)
+        return Group(tbl, *edit_panels)

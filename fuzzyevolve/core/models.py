@@ -36,7 +36,8 @@ class MutationEvent:
     island: int
     parent_score: float
     child_score: float
-    diff: str
+    search: str
+    replace: str
 
 
 @dataclass(frozen=True, slots=True)

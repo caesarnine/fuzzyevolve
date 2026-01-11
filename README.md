@@ -29,8 +29,8 @@
 | **Evolutionary core** | *MAP‑Elites* archive with **top‑k** elites per cell, multi‑island architecture, periodic migration & global sparring.                              |
 | **LLM ensemble**      | Probabilistic model picker (`pick_model`) lets you blend fast & slow models (e.g. Gemini Flash vs Pro).                                            |
 | **Judge & scoring**   | One LLM ranks candidates across *N* metrics. Ratings are updated with **TrueSkill** (one environment per metric) – uncertainty aware and additive. |
-| **Mutation grammar**  | Mutator LLM returns standard `<<<<<<< SEARCH … ======= … >>>>>>> REPLACE` patches – easy to diff & undo.                                           |
-| **Rich UX**           | Colour console logging, animated progress bar, optional `MutationViewer` that live‑renders recent diffs.                                           |
+| **Mutation grammar**  | Mutator LLM returns structured search/replace edits with exact substrings.                                                                         |
+| **Rich UX**           | Colour console logging, animated progress bar, optional `MutationViewer` that live‑renders recent edits.                                           |
 | **Config‑first**      | All knobs (axes, metrics, model weights, iterations…) live in a single \[TOML/JSON] config file.                                                   |
 | **Pure Python ≥3.10** | No compiled extensions; runs anywhere you can `pip install`.                                                                                       |
 
@@ -54,7 +54,7 @@ To get started with `fuzzyevolve`, follow these steps:
     ```
 
 3.  **Set up your LLM provider:**
-    By default, `fuzzyevolve` uses Google Gemini. Ensure you have the necessary environment variables set for authentication. You can also edit the `config.toml` to use other models supported by [LiteLLM](https://github.com/BerriAI/litellm).
+    By default, `fuzzyevolve` uses Google Gemini via PydanticAI's `google-gla` provider. Set `GOOGLE_API_KEY` for authentication. You can also edit the `config.toml` to use other models supported by [PydanticAI](https://ai.pydantic.dev/).
 
 4.  **Run the evolution:**
     You can provide the initial text as an argument, a file path, or via standard input.
@@ -104,19 +104,19 @@ len = { bins = [0, 100, 500, 1000, 2000] }
 metrics = ["creativity", "clarity", "impact"]
 
 [[llm_ensemble]]
-model = "gemini-2.5-flash"
+model = "google-gla:gemini-3-flash-preview"
 p = 0.8
 temperature = 1.0
 
 [[llm_ensemble]]
-model = "gemini-2.5-pro"
+model = "google-gla:gemini-3-pro-preview"
 p = 0.2
 temperature = 0.8
 
-judge_model = "gemini-2.5-pro"
+judge_model = "google-gla:gemini-3-pro-preview"
 
 mutation_prompt_goal = "Evolve this text to be more persuasive."
-mutation_prompt_instructions = "Propose a single SEARCH/REPLACE diff block to improve the text."
+mutation_prompt_instructions = "Propose a single search/replace edit to improve the text."
 ```
 
 ### Command-Line Options
@@ -127,6 +127,7 @@ mutation_prompt_instructions = "Propose a single SEARCH/REPLACE diff block to im
 *   `--goal` / `-g`: The high-level goal for the mutation prompt.
 *   `--metric` / `-m`: A metric to evaluate against (can be specified multiple times).
 *   `--judge-model`: The LLM to use for judging candidates.
+*   `--log-level` / `-l`: Logging level (debug, info, warning, error, critical) or a number.
 *   `--log-file`: Path to write detailed logs.
 *   `--quiet` / `-q`: Suppress the progress bar and non-essential logging.
 
@@ -143,16 +144,16 @@ sequenceDiagram
     actor Runner as run()
     participant Arc as MapElitesArchive
     participant MutLLM as LLM‑mutation
-    participant Patch as Diff parser
+    participant Patch as Search/replace applier
     participant Judge as LLMJudge
     participant JLLM as LLM‑judge
     participant TS as TrueSkill
 
     Runner->>Arc: sample parent
     Runner->>MutLLM: mutation prompt
-    MutLLM-->>Runner: <thinking> + diff blocks
-    loop each diff
-        Runner->>Patch: apply_patch()
+    MutLLM-->>Runner: edit proposals
+    loop each edit
+        Runner->>Patch: apply_search_replace()
         Patch-->>Runner: child text
     end
     Runner->>Judge: rank_and_rate(parent, children)
@@ -186,7 +187,7 @@ graph TD
         B1[Pick island & parent]
         B2[Pick inspirations]
         B3[Ask mutator‑LLM]
-        B4[Parse / apply diffs]
+        B4[Apply edits]
         B5[Judge.rank_and_rate]
         B6[Archive.add children]
         B1 --> B2 --> B3 --> B4 --> B5 --> B6
@@ -213,16 +214,14 @@ fuzzyevolve/
 │   ├── models.py          # Core data models
 │   └── scoring.py         # TrueSkill scoring implementation
 ├── llm/
-│   ├── client.py          # LLM provider client
+│   ├── client.py          # Model ensemble selection
 │   ├── models.py          # LLM model specs
-│   ├── parsing.py         # Parsers for LLM responses
 │   └── prompts.py         # Prompt building functions
 ├── mutation/
-│   ├── diff.py            # Diff parsing and application
 │   └── mutator.py         # Mutation generation
 ├── console/
 │   ├── logging.py         # Logging setup
-│   └── mutation_viewer.py # Mutation diff viewer
+│   └── mutation_viewer.py # Mutation edit viewer
 ├── cli.py                 # Command-line interface (Typer)
 ├── config.py              # Configuration loading
 └── __init__.py
@@ -240,7 +239,7 @@ README.md                  # This file
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | **Add metrics**             | Append names to `metrics` array; TrueSkill envs & judge prompt auto‑expand.                                            |
 | **Change descriptor space** | Edit `[axes]` in config and ensure your code sets those descriptor keys before `archive.add()`.                        |
-| **Swap LLM back‑end**       | `pip install` whatever LiteLLM supports and change `model=` strings.                                                   |
+| **Swap LLM back‑end**       | Change `model=` strings to any provider supported by PydanticAI.                                                       |
 | **Evolve other artefacts**  | Feed binary‑friendly descriptors & patch logic (e.g., JSON merge, AST diffs).                                          |
 | **Web UI**                  | The dependency list already includes Flask‑SocketIO – wire `MutationViewer` into a websocket for real‑time dashboards. |
 

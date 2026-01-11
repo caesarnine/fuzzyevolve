@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import logging
+import random
 from dataclasses import dataclass
 from typing import Sequence
 
+from pydantic import BaseModel, Field
+from pydantic_ai import Agent
+
 from fuzzyevolve.core.models import Elite
-from fuzzyevolve.llm.client import LLMProvider
-from fuzzyevolve.llm.parsing import parse_mutation_response
+from fuzzyevolve.llm.client import ModelEnsemble
+from fuzzyevolve.llm.models import ModelSpec
 from fuzzyevolve.llm.prompts import build_mutation_prompt
-from fuzzyevolve.mutation.diff import DiffBlock, extract_blocks
 
 log_mut = logging.getLogger("mutation")
 
@@ -16,27 +19,58 @@ log_mut = logging.getLogger("mutation")
 @dataclass(frozen=True, slots=True)
 class MutationCandidate:
     text: str
-    diff: str
+    search: str
+    replace: str
 
 
 @dataclass(frozen=True, slots=True)
 class MutationResult:
-    thinking: str | None
     candidates: list[MutationCandidate]
+
+
+class MutationDiff(BaseModel):
+    search: str = Field(
+        ...,
+        description=(
+            "Exact substring to search for in the PARENT text. "
+            "Must appear verbatim in the PARENT text."
+        ),
+    )
+    replace: str = Field(..., description="Replacement text for the matched substring.")
+
+
+class MutationOutput(BaseModel):
+    diffs: list[MutationDiff] = Field(
+        default_factory=list,
+        description=(
+            "Alternative edits; apply each diff independently to the original PARENT."
+        ),
+    )
 
 
 class LLMMutator:
     def __init__(
         self,
-        llm_provider: LLMProvider,
+        llm_ensemble: Sequence[ModelSpec],
         goal: str,
         instructions: str,
         max_diffs: int,
+        rng: random.Random | None = None,
     ) -> None:
-        self.llm_provider = llm_provider
+        self.model_ensemble = ModelEnsemble(llm_ensemble, rng=rng)
         self.goal = goal
         self.instructions = instructions
         self.max_diffs = max_diffs
+        self.agent = Agent(
+            output_type=MutationOutput,
+            name="mutator",
+            instructions=(
+                "Propose high-signal SEARCH/REPLACE style edits.\n"
+                "- Return ONLY the structured output (no prose).\n"
+                "- Each diff must be independently applicable to the original parent.\n"
+                "- `search` must be an exact substring of the parent.\n"
+            ),
+        )
 
     def propose(self, parent: Elite, inspirations: Sequence[Elite]) -> MutationResult:
         prompt = build_mutation_prompt(
@@ -44,22 +78,43 @@ class LLMMutator:
             inspirations,
             goal=self.goal,
             instructions=self.instructions,
+            max_diffs=self.max_diffs,
         )
-        reply = self.llm_provider.call(prompt)
-        thinking, diff_content = parse_mutation_response(reply, log_mut)
+        log_mut.debug("Mutation prompt:\n%s", prompt)
+        model, model_settings = self.model_ensemble.pick()
+        try:
+            rsp = self.agent.run_sync(
+                prompt,
+                model=model,
+                model_settings=model_settings,
+            )
+            log_mut.debug("Mutation response: %s", rsp.output)
+        except Exception:
+            log_mut.exception(
+                "Mutator agent call failed — skipping mutation proposal batch."
+            )
+            return MutationResult(candidates=[])
 
-        if thinking:
-            log_mut.info("Mutator rationale:\n%s", thinking)
-
-        if not diff_content:
-            return MutationResult(thinking=thinking, candidates=[])
-
-        blocks = extract_blocks(diff_content, log_mut)[: self.max_diffs]
+        diffs = rsp.output.diffs[: self.max_diffs]
         candidates: list[MutationCandidate] = []
-        for block in blocks:
-            new_text = block.apply(parent.text)
+        for diff in diffs:
+            new_text = _apply_search_replace(parent.text, diff.search, diff.replace)
             if new_text is None or new_text == parent.text:
                 continue
-            candidates.append(MutationCandidate(text=new_text, diff=block.raw))
+            candidates.append(
+                MutationCandidate(
+                    text=new_text,
+                    search=diff.search,
+                    replace=diff.replace,
+                )
+            )
+        if candidates:
+            log_mut.debug("Mutation candidates: %s", candidates)
 
-        return MutationResult(thinking=thinking, candidates=candidates)
+        return MutationResult(candidates=candidates)
+
+
+def _apply_search_replace(text: str, search: str, replace: str) -> str | None:
+    if text.find(search) == -1:
+        return None
+    return text.replace(search, replace, 1)

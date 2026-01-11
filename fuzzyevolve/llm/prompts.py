@@ -1,98 +1,51 @@
 from __future__ import annotations
 
-import random
 from typing import Sequence
 
 from fuzzyevolve.core.models import Elite
 from fuzzyevolve.core.scoring import score_ratings
 
 _MUT_PROMPT_TEMPLATE = """
-Your overall goal is: {goal}
-Your task is: {instructions}
+Overall goal: {goal}
+Task instructions: {instructions}
 
-First, provide your step-by-step thinking process on how to improve the PARENT text.
+Return up to {max_diffs} alternative edits.
+Each edit must specify:
+- `search`: an exact substring from the PARENT text (verbatim)
+- `replace`: replacement text for that substring
 
-Analyze its weaknesses and explain the changes you will propose, potentially drawing inspiration from the other texts provided.
-
-Then, provide the diffs using the exact SEARCH/REPLACE syntax inside a <diffs> block.
-
-Important: If you provide multiple diff blocks, treat them as ALTERNATIVE proposals.
-Each block must apply cleanly to the original PARENT text as-is; do not make later blocks depend on earlier blocks.
-
-Use exactly this diff syntax:
-<<<<<<< SEARCH
-<text to match>
-=======
-<replacement>
->>>>>>> REPLACE
-
-Example Response:
-
-<thinking>
-[Your detailed thought process for improving the parent text.]
-</thinking>
-<diffs>
-<<<<<<< SEARCH
-<a paragraph from the middle of the parent text>
-=======
-<a new, improved paragraph with better pacing>
->>>>>>> REPLACE
-
-<<<<<<< SEARCH
-<the last sentence of the parent text>
-=======
-<a new, more impactful ending>
->>>>>>> REPLACE
-</diffs>
+Constraints:
+- Each edit is evaluated independently; do not chain edits.
+- Prefer a `search` span with enough context to be unique.
+- If you can't find a safe exact-match `search` span, return no edits.
 
 ──────────────── PARENT ────────────────
-Score   : {p_score:.3f}
+Score: {p_score:.3f}
 {p_text}
 
 ──────────────── INSPIRATIONS ───────────
 {insp_text}
 ──────────────────────────────────────────
-
-Remember to follow the response format exactly: <thinking>...</thinking><diffs>...</diffs>
 """
 
-_RANK_PROMPT_TEMPLATE = """Below are {n} texts, each tagged with its [ID].
-Your task is to evaluate these texts based on the following metrics: {metrics_list_str}.
-
-First, provide your step-by-step thinking process within <thinking> tags.
-Then, for each metric, provide a comma-separated list of IDs, ordered from best to worst, within its own XML-like tag. Tag names should be lowercase.
-
-Example for metrics {metrics_list_str}:
-<response_format>
-<thinking>
-[Your detailed rationale for rankings. Explain your reasoning for each metric, comparing the candidates.
-For instance, for metric 'metric_name_1', candidate [id_x] was ranked higher than [id_y] because...
-For metric 'metric_name_2', candidate [id_z] demonstrated stronger qualities in X, Y, Z leading to its top rank.]
-</thinking>
-<output>
-{metric_tags_str}
-</output>
-</response_format>
-
-Ensure your response strictly follows this format.
+_RANK_PROMPT_TEMPLATE = """You are judging {n} candidate texts.
 
 Metrics: {metrics_list_str}
 
+For each metric, rank ALL candidates from best to worst.
+Use the metric names exactly as provided above.
+
 Candidates:
 {candidates_str}
-
-Follow this exact response format:
-<response_format>
-<thinking>[Your step-by-step thinking process and rationale for rankings for each metric]</thinking>
-<output>
-{metric_tags_str}
-</output>
-</response_format>
 """
 
 
 def build_mutation_prompt(
-    parent: Elite, inspirations: Sequence[Elite], goal: str, instructions: str
+    parent: Elite,
+    inspirations: Sequence[Elite],
+    goal: str,
+    instructions: str,
+    max_diffs: int,
 ) -> str:
     insp_lines = [
         f"[{i}] score={score_ratings(elite.ratings):.3f}\n{elite.text}"
@@ -101,6 +54,7 @@ def build_mutation_prompt(
     return _MUT_PROMPT_TEMPLATE.format(
         goal=goal,
         instructions=instructions,
+        max_diffs=max_diffs,
         p_score=score_ratings(parent.ratings),
         p_text=parent.text,
         insp_text="\n\n".join(insp_lines) or "(none)",
@@ -115,24 +69,10 @@ def build_rank_prompt(
         candidate_lines.append(f"[{idx}]\n{elite_data.text}\n")
 
     candidates_str = "\n".join(candidate_lines)
-    metrics_list_str = ", ".join(f'"{m}"' for m in metrics)
-
-    metric_tags_str_parts: list[str] = []
-    example_ids_str = (
-        ", ".join(
-            str(i) for i in random.sample(range(len(items)), k=min(len(items), 3))
-        )
-        if items
-        else "id_1, id_2"
-    )
-    for metric_name in metrics:
-        tag_name = metric_name.lower()
-        metric_tags_str_parts.append(f"<{tag_name}>[{example_ids_str}]</{tag_name}>")
-    metric_tags_str = "\n".join(metric_tags_str_parts)
+    metrics_list_str = ", ".join(metrics)
 
     return _RANK_PROMPT_TEMPLATE.format(
         n=len(items),
         metrics_list_str=metrics_list_str,
         candidates_str=candidates_str,
-        metric_tags_str=metric_tags_str,
     )

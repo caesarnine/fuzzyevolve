@@ -23,11 +23,21 @@ from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.descriptors import build_descriptor_space, default_text_descriptor
 from fuzzyevolve.core.engine import EvolutionEngine
 from fuzzyevolve.core.judge import LLMJudge
-from fuzzyevolve.llm.client import LLMProvider
-from fuzzyevolve.llm.models import ModelSpec
 from fuzzyevolve.mutation.mutator import LLMMutator
 
 app = typer.Typer()
+
+
+def _parse_log_level(value: str) -> int:
+    text = value.strip()
+    if text.isdigit():
+        return int(text)
+    level = getattr(logging, text.upper(), None)
+    if isinstance(level, int):
+        return level
+    raise typer.BadParameter(
+        f"Invalid log level '{value}'. Use debug, info, warning, error, critical, or a number."
+    )
 
 
 @app.command()
@@ -56,6 +66,12 @@ def cli(
     judge_model: Optional[str] = typer.Option(
         None, "--judge-model", help="The LLM to use for judging candidates."
     ),
+    log_level: str = typer.Option(
+        "info",
+        "-l",
+        "--log-level",
+        help="Logging level (debug, info, warning, error, critical) or a number.",
+    ),
     log_file: Optional[Path] = typer.Option(None, help="Path to write detailed logs."),
     quiet: bool = typer.Option(
         False,
@@ -78,14 +94,9 @@ def cli(
 
     seed_text = _read_seed_text(input)
 
-    setup_logging(level=logging.INFO, quiet=quiet, log_file=log_file)
+    setup_logging(level=_parse_log_level(log_level), quiet=quiet, log_file=log_file)
 
     rng = random.Random(cfg.random_seed)
-
-    mut_llm_provider = LLMProvider(cfg.llm_ensemble, rng=rng)
-    judge_llm_provider = LLMProvider(
-        [ModelSpec(model=cfg.judge_model, p=1.0)], rng=rng
-    )
 
     space = build_descriptor_space(cfg.axes)
     islands = [
@@ -93,12 +104,13 @@ def cli(
         for _ in range(cfg.island_count)
     ]
 
-    judge = LLMJudge(judge_llm_provider, cfg.metrics, rng=rng)
+    judge = LLMJudge(cfg.judge_model, cfg.metrics, rng=rng)
     mutator = LLMMutator(
-        mut_llm_provider,
+        cfg.llm_ensemble,
         cfg.mutation_prompt_goal,
         cfg.mutation_prompt_instructions,
         cfg.max_diffs,
+        rng=rng,
     )
 
     engine = EvolutionEngine(

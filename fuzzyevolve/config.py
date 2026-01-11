@@ -38,14 +38,18 @@ class Config(BaseModel):
     llm_ensemble: list[ModelSpec] = Field(
         default_factory=lambda: [
             ModelSpec(
-                model="vertex_ai/gemini-2.5-flash",
+                model="google-gla:gemini-3-flash-preview",
                 p=0.85,
                 temperature=1,
             ),
-            ModelSpec(model="vertex_ai/gemini-2.5-pro", p=0.15, temperature=1),
+            ModelSpec(
+                model="google-gla:gemini-3-pro-preview",
+                p=0.15,
+                temperature=1,
+            ),
         ]
     )
-    judge_model: str = "vertex_ai/gemini-2.5-pro"
+    judge_model: str = "google-gla:gemini-3-pro-preview"
     metrics: list[str] = ["clarity", "conciseness", "creativity"]
 
     # descriptor space
@@ -59,10 +63,10 @@ class Config(BaseModel):
     # mutation prompt
     mutation_prompt_goal: str = "Improve the text based on the metrics provided."
     mutation_prompt_instructions: str = (
-        "Propose one or more SEARCH/REPLACE diff blocks to improve the PARENT text. "
-        "If you provide multiple diff blocks, each block must be a standalone alternative that applies to the original PARENT text as-is. "
-        "You can rewrite, shorten, or completely change the text. "
-        "First, explain your reasoning in a <thinking> block. Then, provide the diffs in a <diffs> block."
+        "Propose one or more alternative edits to improve the PARENT text. "
+        "Each edit must be independently applicable to the original PARENT text (do not chain edits). "
+        "Use exact substring search/replace semantics: your `search` must appear verbatim in the PARENT text. "
+        "You can rewrite, shorten, or completely change the text."
     )
 
 
