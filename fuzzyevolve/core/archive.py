@@ -65,6 +65,13 @@ class MapElitesArchive:
         for bucket in self._cells.values():
             yield from bucket
 
+    def iter_cells(self) -> Iterable[tuple[tuple[Any, ...], list[Elite]]]:
+        return self._cells.items()
+
+    def is_new_cell(self, descriptor: dict[str, Any]) -> bool:
+        key = self.space.cell_key(descriptor)
+        return key not in self._cells
+
     @property
     def best(self) -> Elite:
         if not self._cells:

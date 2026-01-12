@@ -10,7 +10,9 @@ from fuzzyevolve.core.models import Elite
 
 
 class ReferencePool:
-    def __init__(self, metrics: Sequence[str], rng: random.Random | None = None) -> None:
+    def __init__(
+        self, metrics: Sequence[str], rng: random.Random | None = None
+    ) -> None:
         self.metrics = list(metrics)
         self.rng = rng or random.Random()
         self._anchors: list[Elite] = []

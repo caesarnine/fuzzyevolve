@@ -31,6 +31,8 @@ class TestMutationPrompt:
             goal="Improve the text.",
             instructions="Make it clearer.",
             max_diffs=2,
+            show_metric_stats=True,
+            metric_c=1.0,
         )
 
         lowered = prompt.lower()

@@ -44,12 +44,16 @@ class LLMJudge:
         metrics: Sequence[str],
         rng: random.Random | None = None,
         model_settings: ModelSettings | None = None,
+        max_attempts: int = 2,
+        repair_enabled: bool = True,
     ) -> None:
         self.model = model
         self.metrics = list(metrics)
         self.envs = make_envs(self.metrics)
         self.rng = rng or random.Random()
         self.model_settings = model_settings or {"temperature": 0.0}
+        self.max_attempts = max(1, max_attempts)
+        self.repair_enabled = repair_enabled
         self.agent = Agent(
             output_type=JudgeOutput,
             name="judge",
@@ -72,7 +76,9 @@ class LLMJudge:
             if metric not in elite.ratings:
                 elite.ratings[metric] = self.envs[metric].create_rating()
 
-    def rank_and_rate(self, players: Sequence[Elite]) -> bool:
+    def rank_and_rate(
+        self, players: Sequence[Elite], frozen: set[int] | None = None
+    ) -> bool:
         for player in players:
             self.ensure_ratings(player)
 
@@ -92,107 +98,128 @@ class LLMJudge:
 
         prompt = build_rank_prompt(self.metrics, prompt_items)
         log_llm.debug("Judge prompt:\n%s", prompt)
-        try:
-            rsp = self.agent.run_sync(
-                prompt,
-                model=self.model,
-                model_settings=self.model_settings,
-            )
-            log_llm.debug("Judge response: %s", rsp.output)
-        except Exception:
-            log_llm.error(
-                "Judge agent call failed outright — skipping rating update for this batch."
-            )
-            return False
-        parsed_rankings = rsp.output.rankings
-        if not parsed_rankings:
-            log_llm.error("Judge agent: No rankings returned. Skipping update.")
-            return False
+        frozen_ids = frozen or set()
 
-        ranked_map: dict[str, list[int]] = {}
-        for ranking in parsed_rankings:
-            metric_name = ranking.metric
-            if metric_name in ranked_map:
-                log_llm.warning(
-                    "Judge agent: Duplicate ranking for metric '%s'.",
-                    metric_name,
-                )
-                continue
-            if metric_name not in self.metrics:
-                log_llm.warning(
-                    "Judge agent: Ranking returned for unknown metric '%s'.",
-                    metric_name,
-                )
-                continue
-            ranked_map[metric_name] = ranking.ranked_ids
-
-        if not ranked_map:
-            log_llm.error("Judge agent: No usable rankings returned. Skipping update.")
-            return False
-
-        updated_any = False
-        for metric_name in self.metrics:
-            ranked_ids = ranked_map.get(metric_name)
-            if not ranked_ids:
-                log_llm.warning(
-                    "Judge agent: Missing ranking for metric '%s'.",
-                    metric_name,
-                )
-                continue
-
-            ranked_players = self._resolve_ranked_players(
-                metric_name, ranked_ids, id_to_player
-            )
-            if not ranked_players:
-                continue
-
-            rating_groups = [[p.ratings[metric_name]] for p in ranked_players]
+        for attempt in range(1, self.max_attempts + 1):
             try:
-                updated_ratings = self.envs[metric_name].rate(
-                    rating_groups,
-                    ranks=list(range(len(ranked_players))),
+                rsp = self.agent.run_sync(
+                    prompt,
+                    model=self.model,
+                    model_settings=self.model_settings,
                 )
-            except Exception as exc:
+                log_llm.debug("Judge response: %s", rsp.output)
+            except Exception:
                 log_llm.error(
-                    "Judge agent: TrueSkill update failed for metric '%s': %s",
-                    metric_name,
-                    exc,
+                    "Judge agent call failed outright — attempt %d/%d.",
+                    attempt,
+                    self.max_attempts,
+                )
+                if attempt >= self.max_attempts:
+                    return False
+                continue
+
+            parsed_rankings = rsp.output.rankings
+            if not parsed_rankings:
+                log_llm.error(
+                    "Judge agent: No rankings returned — attempt %d/%d.",
+                    attempt,
+                    self.max_attempts,
+                )
+                if attempt >= self.max_attempts:
+                    return False
+                continue
+
+            ranked_map, error_msg = self._validate_rankings(
+                parsed_rankings, len(players)
+            )
+            if ranked_map is None:
+                log_llm.warning(
+                    "Judge agent: Invalid rankings (%s) — attempt %d/%d.",
+                    error_msg,
+                    attempt,
+                    self.max_attempts,
+                )
+                if not self.repair_enabled or attempt >= self.max_attempts:
+                    return False
+                prompt = self._build_repair_prompt(
+                    prompt, error_msg or "invalid output"
                 )
                 continue
 
-            for player, new_rating in zip(ranked_players, updated_ratings):
-                if player.frozen:
-                    continue
-                player.ratings[metric_name] = new_rating[0]
-                updated_any = True
-        if not updated_any:
-            log_llm.error("Judge agent: No ratings updated. Skipping update.")
-        return updated_any
+            updates: list[tuple[Elite, str, ts.Rating]] = []
+            try:
+                for metric_name in self.metrics:
+                    ranked_ids = ranked_map[metric_name]
+                    ranked_players = [
+                        id_to_player[prompt_id] for prompt_id in ranked_ids
+                    ]
+                    rating_groups = [
+                        [player.ratings[metric_name]] for player in ranked_players
+                    ]
+                    updated_ratings = self.envs[metric_name].rate(
+                        rating_groups,
+                        ranks=list(range(len(ranked_players))),
+                    )
+                    for player, new_rating in zip(ranked_players, updated_ratings):
+                        if player.frozen or id(player) in frozen_ids:
+                            continue
+                        updates.append((player, metric_name, new_rating[0]))
+            except Exception as exc:
+                log_llm.error("Judge agent: TrueSkill update failed: %s", exc)
+                return False
 
-    def _resolve_ranked_players(
-        self,
-        metric_name: str,
-        ranked_ids: Iterable[int],
-        id_to_player: dict[int, Elite],
-    ) -> list[Elite]:
-        ranked_players: list[Elite] = []
-        seen_ids: set[int] = set()
-        for prompt_id in ranked_ids:
-            if prompt_id in seen_ids:
-                log_llm.warning(
-                    "Judge agent: Metric '%s' ranking contains duplicate ID %s.",
-                    metric_name,
-                    prompt_id,
+            if not updates:
+                log_llm.error("Judge agent: No ratings updated. Skipping update.")
+                return False
+
+            for player, metric_name, rating in updates:
+                player.ratings[metric_name] = rating
+            return True
+
+        return False
+
+    def _validate_rankings(
+        self, rankings: Iterable[MetricRanking], total_players: int
+    ) -> tuple[dict[str, list[int]] | None, str | None]:
+        expected_ids = set(range(total_players))
+        ranked_map: dict[str, list[int]] = {}
+        errors: list[str] = []
+
+        for ranking in rankings:
+            metric_name = ranking.metric
+            if metric_name not in self.metrics:
+                errors.append(f"unknown metric '{metric_name}'")
+                continue
+            if metric_name in ranked_map:
+                errors.append(f"duplicate metric '{metric_name}'")
+                continue
+            ranked_ids = ranking.ranked_ids
+            if len(ranked_ids) != total_players:
+                errors.append(
+                    f"metric '{metric_name}' has {len(ranked_ids)} ids, expected {total_players}"
                 )
                 continue
-            player = id_to_player.get(prompt_id)
-            if player is None:
-                log_llm.warning(
-                    "Judge agent: Metric '%s' ranking contains invalid ID %s.",
-                    metric_name,
-                    prompt_id,
+            if set(ranked_ids) != expected_ids:
+                missing = expected_ids - set(ranked_ids)
+                extra = set(ranked_ids) - expected_ids
+                errors.append(
+                    f"metric '{metric_name}' ids mismatch missing={sorted(missing)} extra={sorted(extra)}"
                 )
                 continue
-            ranked_players.append(player)
-            seen_ids.add(prompt_id)
-        return ranked_players
+            ranked_map[metric_name] = ranked_ids
+
+        missing_metrics = [m for m in self.metrics if m not in ranked_map]
+        if missing_metrics:
+            errors.append(f"missing metrics {missing_metrics}")
+
+        if errors:
+            return None, "; ".join(errors)
+        return ranked_map, None
+
+    def _build_repair_prompt(self, prompt: str, error_msg: str) -> str:
+        return (
+            "The previous output was invalid.\n"
+            f"Issues: {error_msg}\n\n"
+            "Return corrected structured output only.\n\n"
+            f"Original prompt:\n{prompt}"
+        )

@@ -20,11 +20,15 @@ from rich.progress import (
 from fuzzyevolve.config import load_cfg
 from fuzzyevolve.console.logging import setup_logging
 from fuzzyevolve.core.archive import MapElitesArchive
-from fuzzyevolve.core.descriptors import build_descriptor_space, default_text_descriptor
+from fuzzyevolve.core.descriptors import build_descriptor_space
+from fuzzyevolve.core.descriptors_semantic import build_descriptor_fn
 from fuzzyevolve.core.engine import EvolutionEngine
 from fuzzyevolve.core.judge import LLMJudge
 from fuzzyevolve.core.reference_pool import ReferencePool
+from fuzzyevolve.core.scoring import score_ratings
+from fuzzyevolve.core.selection import ParentSelector
 from fuzzyevolve.mutation.mutator import LLMMutator
+from fuzzyevolve.mutation.patcher import PatchConfig
 
 app = typer.Typer()
 
@@ -97,23 +101,68 @@ def cli(
 
     setup_logging(level=_parse_log_level(log_level), quiet=quiet, log_file=log_file)
 
-    rng = random.Random(cfg.random_seed)
-
-    space = build_descriptor_space(cfg.axes)
-    islands = [
-        MapElitesArchive(space, cfg.elites_per_cell, rng=rng)
-        for _ in range(cfg.island_count)
+    seed = cfg.random_seed
+    if seed is None:
+        seed = random.SystemRandom().randint(0, 2**32 - 1)
+        logging.info("Generated random seed: %d", seed)
+    master_rng = random.Random(seed)
+    rng_engine = random.Random(master_rng.randrange(2**32))
+    rng_selection = random.Random(master_rng.randrange(2**32))
+    rng_judge = random.Random(master_rng.randrange(2**32))
+    rng_models = random.Random(master_rng.randrange(2**32))
+    rng_reference = random.Random(master_rng.randrange(2**32))
+    archive_rngs = [
+        random.Random(master_rng.randrange(2**32)) for _ in range(cfg.island_count)
     ]
 
-    judge = LLMJudge(cfg.judge_model, cfg.metrics, rng=rng)
+    axes_spec = dict(cfg.axes)
+    if cfg.descriptor_mode == "semantic":
+        axes_spec.setdefault("semantic_x", {"bins": cfg.semantic_bins_x})
+        axes_spec.setdefault("semantic_y", {"bins": cfg.semantic_bins_y})
+    space = build_descriptor_space(axes_spec)
+
+    def score_fn(ratings):
+        return score_ratings(ratings, c=cfg.archive_score_c)
+
+    islands = [
+        MapElitesArchive(
+            space, cfg.elites_per_cell, rng=archive_rngs[idx], score_fn=score_fn
+        )
+        for idx in range(cfg.island_count)
+    ]
+
+    judge = LLMJudge(
+        cfg.judge_model,
+        cfg.metrics,
+        rng=rng_judge,
+        max_attempts=cfg.judge_max_attempts,
+        repair_enabled=cfg.judge_repair_enabled,
+    )
+    patch_cfg = PatchConfig(
+        fuzzy_enabled=cfg.fuzzy_patch_enabled,
+        threshold=cfg.fuzzy_patch_threshold,
+        margin=cfg.fuzzy_patch_margin,
+        min_search_len=cfg.fuzzy_patch_min_search_len,
+        max_window_expansion=cfg.fuzzy_patch_max_window_expansion,
+    )
     mutator = LLMMutator(
         cfg.llm_ensemble,
         cfg.mutation_prompt_goal,
         cfg.mutation_prompt_instructions,
         cfg.max_diffs,
-        rng=rng,
+        patch_cfg=patch_cfg,
+        show_metric_stats=cfg.mutation_prompt_show_metric_stats,
+        metric_c=cfg.mutation_prompt_c,
+        rng=rng_models,
     )
-    reference_pool = ReferencePool(cfg.metrics, rng=rng)
+    reference_pool = ReferencePool(cfg.metrics, rng=rng_reference)
+    selector = ParentSelector(
+        cfg.selection_mode,
+        cfg.selection_beta,
+        cfg.selection_temp,
+        rng=rng_selection,
+    )
+    descriptor_fn = build_descriptor_fn(cfg)
 
     engine = EvolutionEngine(
         cfg,
@@ -121,8 +170,9 @@ def cli(
         judge,
         islands,
         reference_pool=reference_pool,
-        descriptor_fn=default_text_descriptor,
-        rng=rng,
+        selector=selector,
+        descriptor_fn=descriptor_fn,
+        rng=rng_engine,
     )
 
     progress = Progress(
@@ -165,9 +215,7 @@ def cli(
         result = engine.run(seed_text, on_iteration=on_iteration)
 
     output.write_text(result.best_elite.text)
-    logging.info(
-        "DONE – best saved to %s (score %.3f)", output, result.best_score
-    )
+    logging.info("DONE – best saved to %s (score %.3f)", output, result.best_score)
 
 
 def _read_seed_text(user_input: str | None) -> str:

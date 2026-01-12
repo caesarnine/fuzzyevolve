@@ -9,6 +9,7 @@ from pydantic_ai.settings import ModelSettings
 
 from fuzzyevolve.llm.models import ModelSpec
 
+
 class ModelEnsemble:
     """Weighted random selection over model specs."""
 

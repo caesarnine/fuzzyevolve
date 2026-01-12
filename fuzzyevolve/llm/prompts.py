@@ -21,6 +21,7 @@ Constraints:
 
 ──────────────── PARENT ────────────────
 Score: {p_score:.3f}
+{p_stats}
 {p_text}
 
 ──────────────── INSPIRATIONS ───────────
@@ -46,9 +47,12 @@ def build_mutation_prompt(
     goal: str,
     instructions: str,
     max_diffs: int,
+    show_metric_stats: bool,
+    metric_c: float,
 ) -> str:
+    p_stats = _format_metric_stats(parent, metric_c) if show_metric_stats else ""
     insp_lines = [
-        f"[{i}] score={score_ratings(elite.ratings):.3f}\n{elite.text}"
+        _format_inspiration(elite, i, show_metric_stats, metric_c)
         for i, elite in enumerate(inspirations, 1)
     ]
     return _MUT_PROMPT_TEMPLATE.format(
@@ -56,6 +60,7 @@ def build_mutation_prompt(
         instructions=instructions,
         max_diffs=max_diffs,
         p_score=score_ratings(parent.ratings),
+        p_stats=p_stats,
         p_text=parent.text,
         insp_text="\n\n".join(insp_lines) or "(none)",
     )
@@ -76,3 +81,23 @@ def build_rank_prompt(
         metrics_list_str=metrics_list_str,
         candidates_str=candidates_str,
     )
+
+
+def _format_metric_stats(elite: Elite, c: float) -> str:
+    lines = []
+    for metric, rating in elite.ratings.items():
+        lcb = rating.mu - c * rating.sigma
+        lines.append(
+            f"{metric}: mu={rating.mu:.2f}, sigma={rating.sigma:.2f}, lcb={lcb:.2f}"
+        )
+    return "Per-metric stats:\n" + "\n".join(lines)
+
+
+def _format_inspiration(
+    elite: Elite, idx: int, show_metric_stats: bool, metric_c: float
+) -> str:
+    header = f"[{idx}] score={score_ratings(elite.ratings):.3f}"
+    if show_metric_stats:
+        stats = _format_metric_stats(elite, metric_c)
+        return f"{header}\n{stats}\n{elite.text}"
+    return f"{header}\n{elite.text}"

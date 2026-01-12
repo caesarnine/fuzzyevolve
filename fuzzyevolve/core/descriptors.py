@@ -5,12 +5,10 @@ from typing import Any, Mapping, Protocol
 
 
 class Axis(Protocol):
-    def key_for(self, value: Any) -> Any:
-        ...
+    def key_for(self, value: Any) -> Any: ...
 
     @property
-    def size(self) -> int:
-        ...
+    def size(self) -> int: ...
 
 
 @dataclass(frozen=True, slots=True)

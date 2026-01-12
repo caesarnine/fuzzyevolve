@@ -12,6 +12,7 @@ from fuzzyevolve.core.models import Elite
 from fuzzyevolve.llm.client import ModelEnsemble
 from fuzzyevolve.llm.models import ModelSpec
 from fuzzyevolve.llm.prompts import build_mutation_prompt
+from fuzzyevolve.mutation.patcher import PatchConfig, apply_patch
 
 log_mut = logging.getLogger("mutation")
 
@@ -55,12 +56,18 @@ class LLMMutator:
         goal: str,
         instructions: str,
         max_diffs: int,
+        patch_cfg: PatchConfig,
+        show_metric_stats: bool,
+        metric_c: float,
         rng: random.Random | None = None,
     ) -> None:
         self.model_ensemble = ModelEnsemble(llm_ensemble, rng=rng)
         self.goal = goal
         self.instructions = instructions
         self.max_diffs = max_diffs
+        self.patch_cfg = patch_cfg
+        self.show_metric_stats = show_metric_stats
+        self.metric_c = metric_c
         self.agent = Agent(
             output_type=MutationOutput,
             name="mutator",
@@ -79,6 +86,8 @@ class LLMMutator:
             goal=self.goal,
             instructions=self.instructions,
             max_diffs=self.max_diffs,
+            show_metric_stats=self.show_metric_stats,
+            metric_c=self.metric_c,
         )
         log_mut.debug("Mutation prompt:\n%s", prompt)
         model, model_settings = self.model_ensemble.pick()
@@ -98,12 +107,14 @@ class LLMMutator:
         diffs = rsp.output.diffs[: self.max_diffs]
         candidates: list[MutationCandidate] = []
         for diff in diffs:
-            new_text = _apply_search_replace(parent.text, diff.search, diff.replace)
-            if new_text is None or new_text == parent.text:
+            patch = apply_patch(parent.text, diff.search, diff.replace, self.patch_cfg)
+            if not patch.success or patch.new_text is None:
+                continue
+            if patch.new_text == parent.text:
                 continue
             candidates.append(
                 MutationCandidate(
-                    text=new_text,
+                    text=patch.new_text,
                     search=diff.search,
                     replace=diff.replace,
                 )
@@ -112,9 +123,3 @@ class LLMMutator:
             log_mut.debug("Mutation candidates: %s", candidates)
 
         return MutationResult(candidates=candidates)
-
-
-def _apply_search_replace(text: str, search: str, replace: str) -> str | None:
-    if text.find(search) == -1:
-        return None
-    return text.replace(search, replace, 1)
