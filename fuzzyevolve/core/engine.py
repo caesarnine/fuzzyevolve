@@ -15,6 +15,7 @@ from fuzzyevolve.core.models import Elite, EvolutionResult, IterationSnapshot
 from fuzzyevolve.core.reference_pool import ReferencePool
 from fuzzyevolve.core.scoring import score_ratings
 from fuzzyevolve.core.selection import ParentSelector
+from fuzzyevolve.core.stats import EvolutionStats
 from fuzzyevolve.mutation.mutator import LLMMutator
 from fuzzyevolve.core.judge import LLMJudge
 
@@ -32,6 +33,7 @@ class EvolutionEngine:
         selector: ParentSelector | None = None,
         descriptor_fn: Callable[[str], dict[str, Any]] = default_text_descriptor,
         rng: random.Random | None = None,
+        stats: EvolutionStats | None = None,
     ) -> None:
         self.cfg = cfg
         self.mutator = mutator
@@ -43,6 +45,7 @@ class EvolutionEngine:
         self.rng = rng or random.Random()
         self.reference_pool = reference_pool or ReferencePool(cfg.metrics, rng=self.rng)
         self.selector = selector
+        self.stats = stats
 
     def run(
         self,
@@ -132,11 +135,23 @@ class EvolutionEngine:
         opponent = self._maybe_pick_opponent(
             archive, parent, [parent] + children + anchors
         )
-        group = self._assemble_battle_group(
+        group, judged_children = self._assemble_battle_group(
             parent, children, anchors, opponent, judge_inspiration
         )
         if len(group) < 2:
             return
+
+        if self.stats:
+            self.stats.record_battle_size(len(group))
+            child_ids = {id(child) for child in judged_children}
+            self.stats.children_judged += sum(
+                1 for elite in group if id(elite) in child_ids
+            )
+            anchor_ids = {id(anchor) for anchor in anchors}
+            if anchor_ids:
+                self.stats.anchor_injected_total += sum(
+                    1 for elite in group if id(elite) in anchor_ids
+                )
 
         frozen_ids = {id(elite) for elite in group if elite.frozen}
         judge_success = self.judge.rank_and_rate(group, frozen=frozen_ids)
@@ -147,9 +162,13 @@ class EvolutionEngine:
             if judge_inspiration is not None:
                 archive.resort(judge_inspiration)
 
-            for child in children:
+            for child in judged_children:
                 if self._passes_new_cell_gate(archive, parent, child):
                     archive.add(child)
+                    if self.stats:
+                        self.stats.children_inserted += 1
+                elif self.stats:
+                    self.stats.children_rejected_new_cell_gate += 1
         else:
             log_evo.warning(
                 "Judge failed; skipping archive update for iteration %d.",
@@ -298,7 +317,7 @@ class EvolutionEngine:
         anchors: list[Elite],
         opponent: Elite | None,
         inspiration: Elite | None,
-    ) -> list[Elite]:
+    ) -> tuple[list[Elite], list[Elite]]:
         group_children = list(children)
         extras: list[Elite] = []
         max_size = self.cfg.max_battle_size
@@ -325,7 +344,7 @@ class EvolutionEngine:
         if inspiration is not None and inspiration not in extras and available > 0:
             extras.append(inspiration)
 
-        return [parent] + group_children + extras
+        return [parent] + group_children + extras, group_children
 
     def _passes_new_cell_gate(
         self, archive: MapElitesArchive, parent: Elite, child: Elite

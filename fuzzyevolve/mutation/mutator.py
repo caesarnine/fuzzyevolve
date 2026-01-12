@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 
 from fuzzyevolve.core.models import Elite
+from fuzzyevolve.core.stats import EvolutionStats
 from fuzzyevolve.llm.client import ModelEnsemble
 from fuzzyevolve.llm.models import ModelSpec
 from fuzzyevolve.llm.prompts import build_mutation_prompt
@@ -60,6 +61,7 @@ class LLMMutator:
         show_metric_stats: bool,
         metric_c: float,
         rng: random.Random | None = None,
+        stats: EvolutionStats | None = None,
     ) -> None:
         self.model_ensemble = ModelEnsemble(llm_ensemble, rng=rng)
         self.goal = goal
@@ -68,6 +70,7 @@ class LLMMutator:
         self.patch_cfg = patch_cfg
         self.show_metric_stats = show_metric_stats
         self.metric_c = metric_c
+        self.stats = stats
         self.agent = Agent(
             output_type=MutationOutput,
             name="mutator",
@@ -105,13 +108,24 @@ class LLMMutator:
             return MutationResult(candidates=[])
 
         diffs = rsp.output.diffs[: self.max_diffs]
+        if self.stats:
+            self.stats.mutations_proposed += len(diffs)
         candidates: list[MutationCandidate] = []
         for diff in diffs:
             patch = apply_patch(parent.text, diff.search, diff.replace, self.patch_cfg)
-            if not patch.success or patch.new_text is None:
+            if (
+                not patch.success
+                or patch.new_text is None
+                or patch.new_text == parent.text
+            ):
+                if self.stats:
+                    self.stats.patch_fail += 1
                 continue
-            if patch.new_text == parent.text:
-                continue
+            if self.stats:
+                if patch.used_fuzzy:
+                    self.stats.patch_fuzzy_success += 1
+                else:
+                    self.stats.patch_exact_success += 1
             candidates.append(
                 MutationCandidate(
                     text=patch.new_text,

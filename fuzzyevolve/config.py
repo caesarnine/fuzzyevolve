@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field
 
 from fuzzyevolve.llm.models import ModelSpec
 
+DEFAULT_SEMANTIC_BINS = [-2.0, -1.0, 0.0, 1.0, 2.0]
+
 
 class Config(BaseModel):
     # core loop
@@ -34,7 +36,7 @@ class Config(BaseModel):
     # anchors
     anchor_injection_prob: float = Field(0.2, ge=0.0, le=1.0)
     anchor_mu: float = 25.0
-    anchor_sigma: float = 0.001
+    anchor_sigma: float = 2.0
     anchor_max_per_judgement: int = Field(2, ge=0)
     ghost_anchor_interval: int = Field(10, ge=0)
 
@@ -73,11 +75,15 @@ class Config(BaseModel):
     selection_temp: float = Field(1.0, gt=0.0)
 
     # descriptors
-    descriptor_mode: str = "basic"
+    descriptor_mode: str = "semantic"
     semantic_projection_seed: int = 123
-    semantic_bins_x: list[float] = Field(default_factory=lambda: [-1.0, -0.3, 0.3, 1.0])
-    semantic_bins_y: list[float] = Field(default_factory=lambda: [-1.0, -0.3, 0.3, 1.0])
-    semantic_embedding_model: str | None = None
+    semantic_bins_x: list[float] = Field(
+        default_factory=lambda: list(DEFAULT_SEMANTIC_BINS)
+    )
+    semantic_bins_y: list[float] = Field(
+        default_factory=lambda: list(DEFAULT_SEMANTIC_BINS)
+    )
+    semantic_embedding_model: str | None = "sentence-transformers/all-MiniLM-L6-v2"
 
     # reproducibility
     random_seed: int | None = None
@@ -103,8 +109,8 @@ class Config(BaseModel):
     # descriptor space
     axes: dict[str, Any] = Field(
         default_factory=lambda: {
-            "lang": ["txt"],
-            "len": {"bins": [0, 500, 1000, 2000, 1e9]},
+            "semantic_x": {"bins": list(DEFAULT_SEMANTIC_BINS)},
+            "semantic_y": {"bins": list(DEFAULT_SEMANTIC_BINS)},
         }
     )
 

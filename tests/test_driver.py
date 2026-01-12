@@ -11,6 +11,8 @@ from fuzzyevolve.core.descriptors import build_descriptor_space
 from fuzzyevolve.core.engine import EvolutionEngine
 from fuzzyevolve.mutation.mutator import MutationCandidate, MutationResult
 
+BASIC_AXES = {"lang": ["txt"], "len": {"bins": [0, 10, 100]}}
+
 
 class DummyRating:
     def __init__(self, mu: float = 25.0, sigma: float = 8.333):
@@ -38,6 +40,7 @@ class TestEvolutionEngine:
             max_diffs=2,
             inspiration_count=0,
             anchor_injection_prob=0.0,
+            axes=BASIC_AXES,
         )
         self.judge = Mock()
         self.judge.new_ratings = Mock(
@@ -61,6 +64,7 @@ class TestEvolutionEngine:
             max_diffs=2,
             inspiration_count=0,
             anchor_injection_prob=0.0,
+            axes=BASIC_AXES,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
@@ -96,6 +100,7 @@ class TestEvolutionEngine:
             inspiration_count=1,
             judge_include_inspirations=include_inspirations,
             anchor_injection_prob=0.0,
+            axes=BASIC_AXES,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
@@ -135,6 +140,7 @@ class TestEvolutionEngine:
             inspiration_count=0,
             anchor_injection_prob=0.0,
             new_cell_gate_mode="none",
+            axes=BASIC_AXES,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
@@ -163,6 +169,7 @@ class TestEvolutionEngine:
             anchor_injection_prob=0.0,
             max_battle_size=3,
             max_children_judged=5,
+            axes=BASIC_AXES,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
@@ -236,6 +243,7 @@ class TestEvolutionEngine:
             migration_size=1,
             sparring_interval=1000,
             anchor_injection_prob=0.0,
+            axes=BASIC_AXES,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
@@ -265,6 +273,7 @@ class TestEvolutionEngine:
             sparring_interval=1,
             migration_interval=1000,
             anchor_injection_prob=0.0,
+            axes=BASIC_AXES,
         )
         judge = Mock()
         judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})

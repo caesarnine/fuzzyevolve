@@ -27,6 +27,7 @@ from fuzzyevolve.core.judge import LLMJudge
 from fuzzyevolve.core.reference_pool import ReferencePool
 from fuzzyevolve.core.scoring import score_ratings
 from fuzzyevolve.core.selection import ParentSelector
+from fuzzyevolve.core.stats import EvolutionStats
 from fuzzyevolve.mutation.mutator import LLMMutator
 from fuzzyevolve.mutation.patcher import PatchConfig
 
@@ -115,10 +116,13 @@ def cli(
         random.Random(master_rng.randrange(2**32)) for _ in range(cfg.island_count)
     ]
 
-    axes_spec = dict(cfg.axes)
     if cfg.descriptor_mode == "semantic":
-        axes_spec.setdefault("semantic_x", {"bins": cfg.semantic_bins_x})
-        axes_spec.setdefault("semantic_y", {"bins": cfg.semantic_bins_y})
+        axes_spec = {
+            "semantic_x": {"bins": cfg.semantic_bins_x},
+            "semantic_y": {"bins": cfg.semantic_bins_y},
+        }
+    else:
+        axes_spec = dict(cfg.axes)
     space = build_descriptor_space(axes_spec)
 
     def score_fn(ratings):
@@ -131,12 +135,15 @@ def cli(
         for idx in range(cfg.island_count)
     ]
 
+    stats = EvolutionStats()
+
     judge = LLMJudge(
         cfg.judge_model,
         cfg.metrics,
         rng=rng_judge,
         max_attempts=cfg.judge_max_attempts,
         repair_enabled=cfg.judge_repair_enabled,
+        stats=stats,
     )
     patch_cfg = PatchConfig(
         fuzzy_enabled=cfg.fuzzy_patch_enabled,
@@ -154,6 +161,7 @@ def cli(
         show_metric_stats=cfg.mutation_prompt_show_metric_stats,
         metric_c=cfg.mutation_prompt_c,
         rng=rng_models,
+        stats=stats,
     )
     reference_pool = ReferencePool(cfg.metrics, rng=rng_reference)
     selector = ParentSelector(
@@ -173,6 +181,7 @@ def cli(
         selector=selector,
         descriptor_fn=descriptor_fn,
         rng=rng_engine,
+        stats=stats,
     )
 
     progress = Progress(
@@ -216,6 +225,7 @@ def cli(
 
     output.write_text(result.best_elite.text)
     logging.info("DONE – best saved to %s (score %.3f)", output, result.best_score)
+    logging.info("run_stats=%s", stats.as_dict())
 
 
 def _read_seed_text(user_input: str | None) -> str:

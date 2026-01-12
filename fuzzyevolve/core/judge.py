@@ -10,6 +10,7 @@ from pydantic_ai.settings import ModelSettings
 
 import trueskill as ts
 from fuzzyevolve.core.models import Elite
+from fuzzyevolve.core.stats import EvolutionStats
 from fuzzyevolve.core.scoring import make_envs
 from fuzzyevolve.llm.prompts import build_rank_prompt
 
@@ -46,6 +47,7 @@ class LLMJudge:
         model_settings: ModelSettings | None = None,
         max_attempts: int = 2,
         repair_enabled: bool = True,
+        stats: EvolutionStats | None = None,
     ) -> None:
         self.model = model
         self.metrics = list(metrics)
@@ -54,6 +56,7 @@ class LLMJudge:
         self.model_settings = model_settings or {"temperature": 0.0}
         self.max_attempts = max(1, max_attempts)
         self.repair_enabled = repair_enabled
+        self.stats = stats
         self.agent = Agent(
             output_type=JudgeOutput,
             name="judge",
@@ -86,6 +89,9 @@ class LLMJudge:
             log_llm.warning("Rank and rate called with no players. Skipping.")
             return False
 
+        if self.stats:
+            self.stats.judge_calls_total += 1
+
         shuffled_indices = list(range(len(players)))
         self.rng.shuffle(shuffled_indices)
 
@@ -114,6 +120,8 @@ class LLMJudge:
                     attempt,
                     self.max_attempts,
                 )
+                if self.stats and attempt >= self.max_attempts:
+                    self.stats.judge_calls_failed += 1
                 if attempt >= self.max_attempts:
                     return False
                 continue
@@ -125,6 +133,8 @@ class LLMJudge:
                     attempt,
                     self.max_attempts,
                 )
+                if self.stats and attempt >= self.max_attempts:
+                    self.stats.judge_calls_failed += 1
                 if attempt >= self.max_attempts:
                     return False
                 continue
@@ -139,8 +149,14 @@ class LLMJudge:
                     attempt,
                     self.max_attempts,
                 )
+                if self.stats:
+                    self.stats.judge_invalid_total += 1
                 if not self.repair_enabled or attempt >= self.max_attempts:
+                    if self.stats:
+                        self.stats.judge_calls_failed += 1
                     return False
+                if self.stats:
+                    self.stats.judge_repair_attempts += 1
                 prompt = self._build_repair_prompt(
                     prompt, error_msg or "invalid output"
                 )
@@ -166,10 +182,14 @@ class LLMJudge:
                         updates.append((player, metric_name, new_rating[0]))
             except Exception as exc:
                 log_llm.error("Judge agent: TrueSkill update failed: %s", exc)
+                if self.stats:
+                    self.stats.judge_calls_failed += 1
                 return False
 
             if not updates:
                 log_llm.error("Judge agent: No ratings updated. Skipping update.")
+                if self.stats:
+                    self.stats.judge_calls_failed += 1
                 return False
 
             for player, metric_name, rating in updates:

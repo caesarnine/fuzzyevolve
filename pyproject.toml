@@ -39,6 +39,7 @@ dependencies = [
     "readabilipy>=0.3.0",
     "markdownify>=1.1.0",
     "numpy>=2.2.6",
+    "sentence-transformers>=2.6.1",
     "unidiff>=0.7.5",
     "trueskill>=0.4.5",
     "flask>=3.1.1",
@@ -69,6 +70,7 @@ dev = [
 ]
 # Optional: Extra for Vertex AI support
 vertex = ["google-cloud-aiplatform>=1.48.0"]
+semantic = ["sentence-transformers>=2.6.1"]
 
 
 [tool.ruff]
