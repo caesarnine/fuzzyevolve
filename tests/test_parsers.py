@@ -41,6 +41,32 @@ class TestMutationPrompt:
         assert "return up to 2" in lowered
         assert "`search`" in prompt
 
+    def test_score_uses_metric_c(self):
+        parent = Elite(
+            text="Hello.",
+            descriptor={"lang": "txt", "len": 6},
+            ratings={"clarity": DummyRating(mu=10.0, sigma=1.0)},
+            age=0,
+        )
+        inspiration = Elite(
+            text="Inspire.",
+            descriptor={"lang": "txt", "len": 8},
+            ratings={"clarity": DummyRating(mu=20.0, sigma=2.0)},
+            age=0,
+        )
+        prompt = build_mutation_prompt(
+            parent,
+            inspirations=[inspiration],
+            goal="Improve the text.",
+            instructions="Make it clearer.",
+            max_diffs=1,
+            show_metric_stats=False,
+            metric_c=1.0,
+        )
+
+        assert "Score: 9.000" in prompt
+        assert "[1] score=18.000" in prompt
+
 
 class TestRankPrompt:
     def test_no_thinking_tags(self):

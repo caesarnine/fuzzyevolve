@@ -59,7 +59,7 @@ def build_mutation_prompt(
         goal=goal,
         instructions=instructions,
         max_diffs=max_diffs,
-        p_score=score_ratings(parent.ratings),
+        p_score=score_ratings(parent.ratings, c=metric_c),
         p_stats=p_stats,
         p_text=parent.text,
         insp_text="\n\n".join(insp_lines) or "(none)",
@@ -96,7 +96,7 @@ def _format_metric_stats(elite: Elite, c: float) -> str:
 def _format_inspiration(
     elite: Elite, idx: int, show_metric_stats: bool, metric_c: float
 ) -> str:
-    header = f"[{idx}] score={score_ratings(elite.ratings):.3f}"
+    header = f"[{idx}] score={score_ratings(elite.ratings, c=metric_c):.3f}"
     if show_metric_stats:
         stats = _format_metric_stats(elite, metric_c)
         return f"{header}\n{stats}\n{elite.text}"

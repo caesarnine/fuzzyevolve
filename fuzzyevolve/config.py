@@ -62,11 +62,11 @@ class Config(BaseModel):
     child_prior_tau: float = Field(4.0, ge=0.0)
 
     # scoring
-    archive_score_c: float = Field(1.0, ge=0.0)
+    archive_score_c: float = Field(2.0, ge=0.0)
     report_score_c: float = Field(2.0, ge=0.0)
 
     # new cell gate
-    new_cell_gate_mode: str = "parent_lcb"
+    new_cell_gate_mode: str = "none"
     new_cell_gate_delta: float = -0.5
 
     # selection

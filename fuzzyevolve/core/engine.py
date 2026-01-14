@@ -273,7 +273,7 @@ class EvolutionEngine:
             return None
         if self.rng.random() >= self.cfg.judge_opponent_p:
             return None
-        exclude = set(group)
+        exclude_ids = {id(elite) for elite in group}
 
         if self.cfg.judge_opponent_mode == "cell_champion":
             if parent.cell_key is None:
@@ -289,13 +289,13 @@ class EvolutionEngine:
             if not bucket:
                 return None
             for elite in bucket:
-                if elite not in exclude:
+                if id(elite) not in exclude_ids:
                     return elite
             return None
 
         if self.cfg.judge_opponent_mode == "global_top_sample":
             candidates = [
-                elite for elite in archive.iter_elites() if elite not in exclude
+                elite for elite in archive.iter_elites() if id(elite) not in exclude_ids
             ]
             if not candidates:
                 return None
@@ -318,24 +318,20 @@ class EvolutionEngine:
         opponent: Elite | None,
         inspiration: Elite | None,
     ) -> tuple[list[Elite], list[Elite]]:
-        group_children = list(children)
-        extras: list[Elite] = []
         max_size = self.cfg.max_battle_size
 
-        if len(group_children) > max_size - 1:
-            group_children = self.rng.sample(group_children, k=max_size - 1)
+        child_budget = max_size - 1
+        group_children = list(children)
+        if len(group_children) > child_budget:
+            group_children = self.rng.sample(group_children, k=child_budget)
 
-        available = max_size - 1 - len(group_children)
-        if anchors:
-            for anchor in anchors:
-                if available <= 0 and group_children:
-                    drop_idx = self.rng.randrange(len(group_children))
-                    group_children.pop(drop_idx)
-                    available += 1
-                if available <= 0:
-                    break
-                extras.append(anchor)
-                available -= 1
+        available = child_budget - len(group_children)
+        extras: list[Elite] = []
+        for anchor in anchors:
+            if available <= 0:
+                break
+            extras.append(anchor)
+            available -= 1
 
         if opponent is not None and available > 0:
             extras.append(opponent)
