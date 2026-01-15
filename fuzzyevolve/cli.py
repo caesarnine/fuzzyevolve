@@ -139,6 +139,11 @@ def cli(
     judge = LLMJudge(
         cfg.judge_model,
         cfg.metrics,
+        trueskill_mu=cfg.trueskill_mu,
+        trueskill_sigma=cfg.trueskill_sigma,
+        trueskill_beta=cfg.trueskill_beta,
+        trueskill_tau=cfg.trueskill_tau,
+        trueskill_draw_probability=cfg.trueskill_draw_probability,
         rng=rng_judge,
         max_attempts=cfg.judge_max_attempts,
         repair_enabled=cfg.judge_repair_enabled,

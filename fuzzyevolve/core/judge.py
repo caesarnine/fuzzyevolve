@@ -22,10 +22,11 @@ class MetricRanking(BaseModel):
         ...,
         description="Metric name from the prompt.",
     )
-    ranked_ids: list[int] = Field(
+    ranked_tiers: list[list[int]] = Field(
         ...,
         description=(
-            "Candidate IDs ordered best to worst. "
+            "Candidate IDs grouped into tiers from best to worst. "
+            "Each tier is a list of IDs; IDs within a tier are tied. "
             "IDs must correspond to the bracketed IDs in the prompt."
         ),
     )
@@ -43,6 +44,11 @@ class LLMJudge:
         self,
         model: str,
         metrics: Sequence[str],
+        trueskill_mu: float = 25.0,
+        trueskill_sigma: float = 25.0 / 3.0,
+        trueskill_beta: float = 25.0 / 3.0,
+        trueskill_tau: float = 25.0 / 3.0 / 50.0,
+        trueskill_draw_probability: float = 0.2,
         rng: random.Random | None = None,
         model_settings: ModelSettings | None = None,
         max_attempts: int = 2,
@@ -51,7 +57,14 @@ class LLMJudge:
     ) -> None:
         self.model = model
         self.metrics = list(metrics)
-        self.envs = make_envs(self.metrics)
+        self.envs = make_envs(
+            self.metrics,
+            mu=trueskill_mu,
+            sigma=trueskill_sigma,
+            beta=trueskill_beta,
+            tau=trueskill_tau,
+            draw_probability=trueskill_draw_probability,
+        )
         self.rng = rng or random.Random()
         self.model_settings = model_settings or {"temperature": 0.0}
         self.max_attempts = max(1, max_attempts)
@@ -63,8 +76,9 @@ class LLMJudge:
             instructions=(
                 "Rank the provided candidates independently for each metric.\n"
                 "- Return ONLY the structured output (no prose).\n"
-                "- For each metric, rank ALL candidate IDs exactly once.\n"
-                "- Provide `rankings` as a list of {metric, ranked_ids} objects.\n"
+                "- For each metric, group ALL candidate IDs into ordered tiers.\n"
+                "- Use ties when candidates are effectively indistinguishable.\n"
+                "- Provide `rankings` as a list of {metric, ranked_tiers} objects.\n"
             ),
         )
 
@@ -165,16 +179,19 @@ class LLMJudge:
             updates: list[tuple[Elite, str, ts.Rating]] = []
             try:
                 for metric_name in self.metrics:
-                    ranked_ids = ranked_map[metric_name]
-                    ranked_players = [
-                        id_to_player[prompt_id] for prompt_id in ranked_ids
-                    ]
-                    rating_groups = [
-                        [player.ratings[metric_name]] for player in ranked_players
-                    ]
+                    tiers = ranked_map[metric_name]
+                    ranked_players: list[Elite] = []
+                    rating_groups: list[list[ts.Rating]] = []
+                    ranks: list[int] = []
+                    for rank, tier in enumerate(tiers):
+                        for prompt_id in tier:
+                            player = id_to_player[prompt_id]
+                            ranked_players.append(player)
+                            rating_groups.append([player.ratings[metric_name]])
+                            ranks.append(rank)
                     updated_ratings = self.envs[metric_name].rate(
                         rating_groups,
-                        ranks=list(range(len(ranked_players))),
+                        ranks=ranks,
                     )
                     for player, new_rating in zip(ranked_players, updated_ratings):
                         if player.frozen or id(player) in frozen_ids:
@@ -200,9 +217,9 @@ class LLMJudge:
 
     def _validate_rankings(
         self, rankings: Iterable[MetricRanking], total_players: int
-    ) -> tuple[dict[str, list[int]] | None, str | None]:
+    ) -> tuple[dict[str, list[list[int]]] | None, str | None]:
         expected_ids = set(range(total_players))
-        ranked_map: dict[str, list[int]] = {}
+        ranked_map: dict[str, list[list[int]]] = {}
         errors: list[str] = []
 
         for ranking in rankings:
@@ -213,20 +230,24 @@ class LLMJudge:
             if metric_name in ranked_map:
                 errors.append(f"duplicate metric '{metric_name}'")
                 continue
-            ranked_ids = ranking.ranked_ids
-            if len(ranked_ids) != total_players:
-                errors.append(
-                    f"metric '{metric_name}' has {len(ranked_ids)} ids, expected {total_players}"
-                )
+            tiers = ranking.ranked_tiers
+            if not tiers:
+                errors.append(f"metric '{metric_name}' has no tiers")
                 continue
-            if set(ranked_ids) != expected_ids:
-                missing = expected_ids - set(ranked_ids)
-                extra = set(ranked_ids) - expected_ids
+            empty_tiers = [idx for idx, tier in enumerate(tiers) if not tier]
+            if empty_tiers:
+                errors.append(f"metric '{metric_name}' has empty tiers at {empty_tiers}")
+                continue
+            ranked_ids = [prompt_id for tier in tiers for prompt_id in tier]
+            ranked_set = set(ranked_ids)
+            if ranked_set != expected_ids or len(ranked_ids) != total_players:
+                missing = expected_ids - ranked_set
+                extra = ranked_set - expected_ids
                 errors.append(
                     f"metric '{metric_name}' ids mismatch missing={sorted(missing)} extra={sorted(extra)}"
                 )
                 continue
-            ranked_map[metric_name] = ranked_ids
+            ranked_map[metric_name] = tiers
 
         missing_metrics = [m for m in self.metrics if m not in ranked_map]
         if missing_metrics:

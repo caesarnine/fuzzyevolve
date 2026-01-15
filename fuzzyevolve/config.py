@@ -58,6 +58,13 @@ class Config(BaseModel):
     archive_score_c: float = Field(2.0, ge=0.0)
     report_score_c: float = Field(2.0, ge=0.0)
 
+    # trueskill (LLM-as-judge is noisy; favor conservative updates + allow ties)
+    trueskill_mu: float = 25.0
+    trueskill_sigma: float = Field(25.0 / 3.0, gt=0.0)
+    trueskill_beta: float = Field(25.0 / 3.0, gt=0.0)
+    trueskill_tau: float = Field(25.0 / 3.0 / 50.0, ge=0.0)
+    trueskill_draw_probability: float = Field(0.2, ge=0.0, le=1.0)
+
     # new cell gate
     new_cell_gate_mode: str = "none"
     new_cell_gate_delta: float = -0.5

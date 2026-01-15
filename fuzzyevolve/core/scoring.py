@@ -5,8 +5,27 @@ from typing import Mapping, Sequence
 import trueskill as ts
 
 
-def make_envs(metrics: Sequence[str]) -> dict[str, ts.TrueSkill]:
-    return {metric: ts.TrueSkill(draw_probability=0.0) for metric in metrics}
+def make_envs(
+    metrics: Sequence[str],
+    *,
+    mu: float = 25.0,
+    sigma: float = 25.0 / 3.0,
+    beta: float | None = None,
+    tau: float | None = None,
+    draw_probability: float = 0.2,
+) -> dict[str, ts.TrueSkill]:
+    beta = beta if beta is not None else sigma / 2.0
+    tau = tau if tau is not None else sigma / 100.0
+    return {
+        metric: ts.TrueSkill(
+            mu=mu,
+            sigma=sigma,
+            beta=beta,
+            tau=tau,
+            draw_probability=draw_probability,
+        )
+        for metric in metrics
+    }
 
 
 def make_initial_ratings(

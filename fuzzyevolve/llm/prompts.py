@@ -33,7 +33,8 @@ _RANK_PROMPT_TEMPLATE = """You are judging {n} candidate texts.
 
 Metrics: {metrics_list_str}
 
-For each metric, rank ALL candidates from best to worst.
+For each metric, group ALL candidates into tiers from best to worst.
+If candidates are effectively indistinguishable for a metric, you may tie them by placing them in the same tier.
 Use the metric names exactly as provided above.
 
 Candidates:
