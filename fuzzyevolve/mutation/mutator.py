@@ -13,7 +13,7 @@ from fuzzyevolve.core.stats import EvolutionStats
 from fuzzyevolve.llm.client import ModelEnsemble
 from fuzzyevolve.llm.models import ModelSpec
 from fuzzyevolve.llm.prompts import build_mutation_prompt
-from fuzzyevolve.mutation.patcher import PatchConfig, apply_patch
+from fuzzyevolve.mutation.patcher import apply_patch
 
 log_mut = logging.getLogger("mutation")
 
@@ -57,7 +57,6 @@ class LLMMutator:
         goal: str,
         instructions: str,
         max_diffs: int,
-        patch_cfg: PatchConfig,
         show_metric_stats: bool,
         metric_c: float,
         rng: random.Random | None = None,
@@ -67,7 +66,6 @@ class LLMMutator:
         self.goal = goal
         self.instructions = instructions
         self.max_diffs = max_diffs
-        self.patch_cfg = patch_cfg
         self.show_metric_stats = show_metric_stats
         self.metric_c = metric_c
         self.stats = stats
@@ -112,7 +110,7 @@ class LLMMutator:
             self.stats.mutations_proposed += len(diffs)
         candidates: list[MutationCandidate] = []
         for diff in diffs:
-            patch = apply_patch(parent.text, diff.search, diff.replace, self.patch_cfg)
+            patch = apply_patch(parent.text, diff.search, diff.replace)
             if (
                 not patch.success
                 or patch.new_text is None
@@ -122,10 +120,7 @@ class LLMMutator:
                     self.stats.patch_fail += 1
                 continue
             if self.stats:
-                if patch.used_fuzzy:
-                    self.stats.patch_fuzzy_success += 1
-                else:
-                    self.stats.patch_exact_success += 1
+                self.stats.patch_exact_success += 1
             candidates.append(
                 MutationCandidate(
                     text=patch.new_text,

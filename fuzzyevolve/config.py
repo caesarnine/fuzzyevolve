@@ -50,13 +50,6 @@ class Config(BaseModel):
     judge_opponent_mode: str = "none"
     judge_opponent_p: float = Field(0.1, ge=0.0, le=1.0)
 
-    # patching
-    fuzzy_patch_enabled: bool = True
-    fuzzy_patch_threshold: float = Field(0.95, ge=0.0, le=1.0)
-    fuzzy_patch_margin: float = Field(0.03, ge=0.0, le=1.0)
-    fuzzy_patch_min_search_len: int = Field(20, ge=0)
-    fuzzy_patch_max_window_expansion: float = Field(0.2, ge=0.0)
-
     # child priors
     child_prior_mode: str = "inherit"
     child_prior_tau: float = Field(4.0, ge=0.0)

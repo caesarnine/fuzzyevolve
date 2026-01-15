@@ -32,7 +32,6 @@ dependencies = [
     # "pydantic-settings>=2.7.1", # Keep if future config plans exist, remove otherwise? Removed for now.
     "python-dotenv>=1.0.1",
     "prompt-toolkit>=3.0.0", # For improved CLI input handling
-    "rapidfuzz>=3.13.0", # For .env file loading (often used by google-genai)
     "rich>=13.9.4", # For CLI display
     "pyyaml>=6.0", # For loading roles.yaml
     # Add 'google-cloud-aiplatform' if USE_VERTEX_AI needs to be bundled

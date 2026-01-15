@@ -14,7 +14,6 @@ class EvolutionStats:
 
     mutations_proposed: int = 0
     patch_exact_success: int = 0
-    patch_fuzzy_success: int = 0
     patch_fail: int = 0
 
     children_judged: int = 0
@@ -35,7 +34,6 @@ class EvolutionStats:
             "judge_repair_attempts": self.judge_repair_attempts,
             "mutations_proposed": self.mutations_proposed,
             "patch_exact_success": self.patch_exact_success,
-            "patch_fuzzy_success": self.patch_fuzzy_success,
             "patch_fail": self.patch_fail,
             "children_judged": self.children_judged,
             "children_inserted": self.children_inserted,

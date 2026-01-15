@@ -29,7 +29,6 @@ from fuzzyevolve.core.scoring import score_ratings
 from fuzzyevolve.core.selection import ParentSelector
 from fuzzyevolve.core.stats import EvolutionStats
 from fuzzyevolve.mutation.mutator import LLMMutator
-from fuzzyevolve.mutation.patcher import PatchConfig
 
 app = typer.Typer()
 
@@ -145,19 +144,11 @@ def cli(
         repair_enabled=cfg.judge_repair_enabled,
         stats=stats,
     )
-    patch_cfg = PatchConfig(
-        fuzzy_enabled=cfg.fuzzy_patch_enabled,
-        threshold=cfg.fuzzy_patch_threshold,
-        margin=cfg.fuzzy_patch_margin,
-        min_search_len=cfg.fuzzy_patch_min_search_len,
-        max_window_expansion=cfg.fuzzy_patch_max_window_expansion,
-    )
     mutator = LLMMutator(
         cfg.llm_ensemble,
         cfg.mutation_prompt_goal,
         cfg.mutation_prompt_instructions,
         cfg.max_diffs,
-        patch_cfg=patch_cfg,
         show_metric_stats=cfg.mutation_prompt_show_metric_stats,
         metric_c=cfg.mutation_prompt_c,
         rng=rng_models,
