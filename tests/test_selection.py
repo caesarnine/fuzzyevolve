@@ -14,7 +14,12 @@ def test_optimistic_selector_prefers_high_score_cell():
     space = build_descriptor_space(
         {"lang": ["txt"], "len": {"bins": [0, 10, 100]}}
     )
-    archive = MapElitesArchive(space, elites_per_cell=1, rng=random.Random(0))
+    archive = MapElitesArchive(
+        space,
+        elites_per_cell=1,
+        rng=random.Random(0),
+        score_fn=lambda ratings: ratings["m"].mu,
+    )
     low = Elite(
         text="low",
         descriptor={"lang": "txt", "len": 5},

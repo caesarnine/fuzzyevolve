@@ -29,7 +29,12 @@ class TestMapElitesArchive:
             "len": {"bins": [0, 100, 500, 1000, 10000]},
         }
         space = build_descriptor_space(self.axes)
-        self.archive = MapElitesArchive(space, elites_per_cell=3, rng=random.Random(0))
+        self.archive = MapElitesArchive(
+            space,
+            elites_per_cell=3,
+            rng=random.Random(0),
+            score_fn=lambda ratings: ratings["metric"].mu,
+        )
 
     def test_initialization(self):
         assert self.archive.elites_per_cell == 3
@@ -56,8 +61,19 @@ class TestMapElitesArchive:
         self.archive.add(elite)
 
         assert self.archive.empty_cells == self.archive.space.total_cells - 1
-        assert elite.cell_key == ("txt", 0)
         assert list(self.archive.iter_elites())[0] == elite
+
+    def test_add_dedupes_by_text(self):
+        desc = {"lang": "txt", "len": 12}
+        elite1 = make_elite("dup", mu=10.0, desc=desc)
+        elite2 = make_elite("dup", mu=99.0, desc=desc)
+
+        self.archive.add(elite1)
+        self.archive.add(elite2)
+
+        elites = list(self.archive.iter_elites())
+        assert len(elites) == 1
+        assert elites[0].ratings["metric"].mu == 10.0
 
     def test_top_k_limit(self):
         desc = {"lang": "txt", "len": 50}

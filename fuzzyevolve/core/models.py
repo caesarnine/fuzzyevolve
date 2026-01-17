@@ -1,21 +1,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol
 
 import trueskill as ts
 
 Descriptor = dict[str, Any]
+Ratings = dict[str, ts.Rating]
+
+
+class RatedText(Protocol):
+    text: str
+    descriptor: Descriptor
+    ratings: Ratings
+    age: int
 
 
 @dataclass(slots=True)
 class Elite:
     text: str
     descriptor: Descriptor
-    ratings: dict[str, ts.Rating]
+    ratings: Ratings
     age: int
-    frozen: bool = False
-    cell_key: tuple[Any, ...] | None = None
 
     def clone(self) -> "Elite":
         ratings = {
@@ -27,9 +33,36 @@ class Elite:
             descriptor=dict(self.descriptor),
             ratings=ratings,
             age=self.age,
-            frozen=self.frozen,
-            cell_key=self.cell_key,
         )
+
+
+@dataclass(slots=True)
+class Anchor:
+    text: str
+    descriptor: Descriptor
+    ratings: Ratings
+    age: int
+    label: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class TextEdit:
+    search: str
+    replace: str
+
+
+@dataclass(frozen=True, slots=True)
+class MutationCandidate:
+    text: str
+    edits: tuple[TextEdit, ...] = ()
+
+    @property
+    def search_block(self) -> str:
+        return "\n\n".join(edit.search for edit in self.edits)
+
+    @property
+    def replace_block(self) -> str:
+        return "\n\n".join(edit.replace for edit in self.edits)
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,3 +87,4 @@ class IterationSnapshot:
 class EvolutionResult:
     best_elite: Elite
     best_score: float
+

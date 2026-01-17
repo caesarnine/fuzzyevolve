@@ -1,23 +1,18 @@
 from __future__ import annotations
 
 import logging
-import math
 import random
 from collections.abc import Callable, Sequence
-from typing import Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fuzzyevolve.config import Config
+from fuzzyevolve.core.anchors import AnchorManager, AnchorPolicy
 from fuzzyevolve.core.archive import MapElitesArchive
-from fuzzyevolve.core.descriptors import default_text_descriptor
-import trueskill as ts
-
-from fuzzyevolve.core.models import Elite, EvolutionResult, IterationSnapshot
-from fuzzyevolve.core.reference_pool import ReferencePool
-from fuzzyevolve.core.scoring import score_ratings
-from fuzzyevolve.core.selection import ParentSelector
-from fuzzyevolve.core.stats import EvolutionStats
-from fuzzyevolve.mutation.mutator import LLMMutator
-from fuzzyevolve.core.judge import LLMJudge
+from fuzzyevolve.core.battle import Battle, build_battle
+from fuzzyevolve.core.inspirations import InspirationPicker
+from fuzzyevolve.core.models import Anchor, Elite, EvolutionResult, IterationSnapshot
+from fuzzyevolve.core.ports import Mutator, Ranker
+from fuzzyevolve.core.ratings import RatingSystem
 
 log_evo = logging.getLogger("evolution")
 
@@ -25,181 +20,292 @@ log_evo = logging.getLogger("evolution")
 class EvolutionEngine:
     def __init__(
         self,
+        *,
         cfg: Config,
-        mutator: LLMMutator,
-        judge: LLMJudge,
         islands: Sequence[MapElitesArchive],
-        reference_pool: ReferencePool | None = None,
-        selector: ParentSelector | None = None,
-        descriptor_fn: Callable[[str], dict[str, Any]] = default_text_descriptor,
-        rng: random.Random | None = None,
-        stats: EvolutionStats | None = None,
+        describe: Callable[[str], dict],
+        rating: RatingSystem,
+        selector: Callable[[MapElitesArchive], Elite],
+        inspirations: InspirationPicker,
+        mutator: Mutator,
+        ranker: Ranker,
+        anchor_manager: AnchorManager | None,
+        rng: random.Random,
     ) -> None:
         self.cfg = cfg
-        self.mutator = mutator
-        self.judge = judge
         self.islands = list(islands)
         if not self.islands:
             raise ValueError("At least one island archive is required.")
-        self.descriptor_fn = descriptor_fn
-        self.rng = rng or random.Random()
-        self.reference_pool = reference_pool or ReferencePool(cfg.metrics, rng=self.rng)
+        self.describe = describe
+        self.rating = rating
         self.selector = selector
-        self.stats = stats
+        self.inspirations = inspirations
+        self.mutator = mutator
+        self.ranker = ranker
+        self.anchors = anchor_manager
+        self.rng = rng
 
     def run(
         self,
         seed_text: str,
+        *,
         on_iteration: Callable[[IterationSnapshot], None] | None = None,
     ) -> EvolutionResult:
-        self._seed_islands(seed_text)
+        self._seed(seed_text)
 
-        for iteration in range(self.cfg.iterations):
-            self._step(iteration)
-            best_elite = self.best_elite()
-            snapshot = IterationSnapshot(
-                iteration=iteration + 1,
-                best_score=score_ratings(best_elite.ratings, c=self.cfg.report_score_c),
-                empty_cells=self.islands[0].empty_cells,
-                best_elite=best_elite,
+        mutation_executor: ThreadPoolExecutor | None = None
+        if self.cfg.mutation.calls_per_iteration > 1:
+            max_workers = min(
+                self.cfg.mutation.calls_per_iteration,
+                self.cfg.mutation.max_workers,
             )
-            if on_iteration:
-                on_iteration(snapshot)
-            self._maybe_add_ghost_anchor(iteration + 1)
+            mutation_executor = ThreadPoolExecutor(max_workers=max_workers)
 
-        best_final = self.best_elite()
-        return EvolutionResult(
-            best_elite=best_final,
-            best_score=score_ratings(best_final.ratings, c=self.cfg.report_score_c),
-        )
+        try:
+            for iteration in range(self.cfg.run.iterations):
+                self.step(iteration, mutation_executor=mutation_executor)
+
+                best = self.best_elite()
+                snapshot = IterationSnapshot(
+                    iteration=iteration + 1,
+                    best_score=self.rating.score(best.ratings),
+                    empty_cells=self.islands[0].empty_cells,
+                    best_elite=best,
+                )
+                if on_iteration:
+                    on_iteration(snapshot)
+
+                if self.anchors and self.anchors.maybe_add_ghost(best, iteration=iteration + 1):
+                    log_evo.info("Added ghost anchor at iteration %d.", iteration + 1)
+
+        finally:
+            if mutation_executor is not None:
+                mutation_executor.shutdown(wait=True)
+
+        best = self.best_elite()
+        return EvolutionResult(best_elite=best, best_score=self.rating.score(best.ratings))
 
     def best_elite(self) -> Elite:
-        all_elites = [
-            elite for archive in self.islands for elite in archive.iter_elites()
-        ]
+        all_elites = [elite for archive in self.islands for elite in archive.iter_elites()]
         if not all_elites:
             raise ValueError("No elites available.")
-        return max(
-            all_elites,
-            key=lambda elite: score_ratings(elite.ratings, c=self.cfg.report_score_c),
-        )
+        return max(all_elites, key=lambda e: self.rating.score(e.ratings))
 
-    def _seed_islands(self, seed_text: str) -> None:
-        seed_elite = Elite(
+    def _seed(self, seed_text: str) -> None:
+        seed = Elite(
             text=seed_text,
-            descriptor=self.descriptor_fn(seed_text),
-            ratings=self.judge.new_ratings(),
+            descriptor=self.describe(seed_text),
+            ratings=self.rating.new_ratings(),
             age=0,
         )
         for archive in self.islands:
-            archive.add(seed_elite.clone())
-        if self.reference_pool:
-            self.reference_pool.add_seed_anchor(
-                seed_text,
-                descriptor_fn=self.descriptor_fn,
-                mu=self.cfg.anchor_mu,
-                sigma=self.cfg.anchor_sigma,
-            )
+            archive.add(seed.clone())
 
-    def _step(self, iteration: int) -> None:
+        if self.anchors:
+            self.anchors.seed(seed_text, descriptor_fn=self.describe)
+
+    def step(
+        self,
+        iteration: int,
+        *,
+        mutation_executor: ThreadPoolExecutor | None = None,
+    ) -> None:
         archive = self.rng.choice(self.islands)
-        parent = (
-            self.selector.select_parent(archive)
-            if self.selector
-            else archive.random_elite()
-        )
-        self.judge.ensure_ratings(parent)
-        inspirations = self._pick_inspirations(archive, parent)
+        parent = self.selector(archive)
+        self.rating.ensure_ratings(parent)
 
-        mutation = self.mutator.propose(parent, inspirations)
-        if not mutation.candidates:
+        inspiration_picks = self.inspirations.pick(
+            archive,
+            parent,
+            count=self.cfg.mutation.inspiration_count,
+        )
+        inspirations = [pick.elite for pick in inspiration_picks]
+        inspiration_labels = [pick.label for pick in inspiration_picks]
+
+        candidates = self._propose_children(
+            archive,
+            parent,
+            inspirations,
+            inspiration_labels=inspiration_labels,
+            mutation_executor=mutation_executor,
+        )
+        if not candidates:
+            self._maintenance(iteration)
             return
 
-        children: list[Elite] = []
-        for candidate in mutation.candidates:
-            child = Elite(
-                text=candidate.text,
-                descriptor=self.descriptor_fn(candidate.text),
-                ratings=self._init_child_ratings(parent),
-                age=iteration,
-            )
-            children.append(child)
-        children = self._downsample_children(children)
+        children = self._make_children(parent, candidates, age=iteration)
         if not children:
+            self._maintenance(iteration)
             return
 
         judge_inspiration = None
-        if self.cfg.judge_include_inspirations and inspirations:
+        if self.cfg.judging.include_inspiration and inspirations:
             judge_inspiration = self.rng.choice(inspirations)
-        anchors = self._maybe_pick_anchors([parent] + children)
-        opponent = self._maybe_pick_opponent(
-            archive, parent, [parent] + children + anchors
+
+        anchors = self._maybe_pick_anchors([parent, *children])
+        opponent = self._maybe_pick_opponent(archive, parent, [parent, *children, *anchors])
+
+        battle = build_battle(
+            parent=parent,
+            children=children,
+            anchors=anchors,
+            opponent=opponent,
+            inspiration=judge_inspiration,
+            max_battle_size=self.cfg.judging.max_battle_size,
+            rng=self.rng,
         )
-        group, judged_children = self._assemble_battle_group(
-            parent, children, anchors, opponent, judge_inspiration
-        )
-        if len(group) < 2:
+        if battle.size < 2:
+            self._maintenance(iteration)
             return
 
-        if self.stats:
-            self.stats.record_battle_size(len(group))
-            child_ids = {id(child) for child in judged_children}
-            self.stats.children_judged += sum(
-                1 for elite in group if id(elite) in child_ids
+        ranking = self.ranker.rank(
+            metrics=self.cfg.metrics.names,
+            battle=battle,
+            metric_descriptions=self.cfg.metrics.descriptions,
+        )
+        if ranking is None:
+            log_evo.warning("Judge failed; skipping archive update for iteration %d.", iteration + 1)
+            self._maintenance(iteration)
+            return
+
+        self.rating.apply_ranking(
+            battle.participants,
+            ranking,
+            frozen_indices=set(battle.frozen_indices),
+        )
+        for elite in battle.resort_elites:
+            archive.resort(elite)
+
+        for child in battle.judged_children:
+            if self._passes_new_cell_gate(archive, parent, child):
+                archive.add(child)
+
+        self._maintenance(iteration)
+
+    def _propose_children(
+        self,
+        archive: MapElitesArchive,
+        parent: Elite,
+        inspirations: Sequence[Elite],
+        *,
+        inspiration_labels: Sequence[str],
+        mutation_executor: ThreadPoolExecutor | None,
+    ) -> list[str]:
+        candidate_texts: list[str] = []
+        call_count = self.cfg.mutation.calls_per_iteration
+
+        def call_mutator() -> Sequence[str]:
+            out = self.mutator.propose(
+                parent=parent,
+                inspirations=inspirations,
+                inspiration_labels=inspiration_labels or None,
             )
-            anchor_ids = {id(anchor) for anchor in anchors}
-            if anchor_ids:
-                self.stats.anchor_injected_total += sum(
-                    1 for elite in group if id(elite) in anchor_ids
-                )
+            return [c.text for c in out]
 
-        frozen_ids = {id(elite) for elite in group if elite.frozen}
-        judge_success = self.judge.rank_and_rate(group, frozen=frozen_ids)
-        if judge_success:
-            archive.resort(parent)
-            if opponent is not None:
-                archive.resort(opponent)
-            if judge_inspiration is not None:
-                archive.resort(judge_inspiration)
-
-            for child in judged_children:
-                if self._passes_new_cell_gate(archive, parent, child):
-                    archive.add(child)
-                    if self.stats:
-                        self.stats.children_inserted += 1
-                elif self.stats:
-                    self.stats.children_rejected_new_cell_gate += 1
+        if call_count <= 1 or mutation_executor is None:
+            batches = [call_mutator()]
         else:
-            log_evo.warning(
-                "Judge failed; skipping archive update for iteration %d.",
-                iteration + 1,
+            futures = [mutation_executor.submit(call_mutator) for _ in range(call_count)]
+            batches = []
+            for fut in as_completed(futures):
+                try:
+                    batches.append(fut.result())
+                except Exception:
+                    log_evo.exception("Mutation call failed; skipping.")
+
+        seen = set()
+        for batch in batches:
+            for text in batch:
+                if text in seen:
+                    continue
+                if archive.contains_text(text):
+                    continue
+                seen.add(text)
+                candidate_texts.append(text)
+
+        if len(candidate_texts) > self.cfg.mutation.max_children:
+            candidate_texts = self.rng.sample(
+                candidate_texts, k=self.cfg.mutation.max_children
             )
+        return candidate_texts
 
-        if self.cfg.migration_interval > 0 and (
-            (iteration + 1) % self.cfg.migration_interval == 0
-        ):
-            self._migrate()
+    def _make_children(self, parent: Elite, texts: Sequence[str], *, age: int) -> list[Elite]:
+        children: list[Elite] = []
+        for text in texts:
+            child = Elite(
+                text=text,
+                descriptor=self.describe(text),
+                ratings=self.rating.init_child_ratings(parent),
+                age=age,
+            )
+            children.append(child)
+        return children
 
-        if self.cfg.sparring_interval > 0 and (
-            (iteration + 1) % self.cfg.sparring_interval == 0
-        ):
+    def _maybe_pick_anchors(self, group: Sequence[Elite]) -> list[Anchor]:
+        if not self.anchors:
+            return []
+        exclude = {e.text for e in group}
+        return self.anchors.maybe_sample(exclude_texts=exclude)
+
+    def _maybe_pick_opponent(
+        self,
+        archive: MapElitesArchive,
+        parent: Elite,
+        group: Sequence[Elite | Anchor],
+    ) -> Elite | None:
+        opponent_cfg = self.cfg.judging.opponent
+        if opponent_cfg.kind == "none":
+            return None
+        if self.rng.random() >= opponent_cfg.probability:
+            return None
+
+        exclude_texts = {e.text for e in group}
+
+        if opponent_cfg.kind == "cell_champion":
+            parent_key = archive.space.cell_key(parent.descriptor)
+            bucket = next(
+                (bucket for key, bucket in archive.iter_cells() if key == parent_key),
+                None,
+            )
+            if not bucket:
+                return None
+            for elite in bucket:
+                if elite.text not in exclude_texts:
+                    return elite
+            return None
+
+        if opponent_cfg.kind == "global_best":
+            candidates = [e for e in archive.iter_elites() if e.text not in exclude_texts]
+            if not candidates:
+                return None
+            return max(candidates, key=lambda e: self.rating.score(e.ratings))
+
+        raise ValueError(f"Unknown opponent kind '{opponent_cfg.kind}'.")
+
+    def _passes_new_cell_gate(self, archive: MapElitesArchive, parent: Elite, child: Elite) -> bool:
+        gate = self.cfg.new_cell_gate
+        if gate.kind == "none":
+            return True
+        if not archive.is_new_cell(child.descriptor):
+            return True
+        if gate.kind == "parent_lcb":
+            return self.rating.score(child.ratings) >= self.rating.score(parent.ratings) + gate.delta
+        raise ValueError(f"Unknown new cell gate kind '{gate.kind}'.")
+
+    def _maintenance(self, iteration: int) -> None:
+        mig = self.cfg.maintenance.migration
+        if mig.interval > 0 and (iteration + 1) % mig.interval == 0:
+            self._migrate(mig.size)
+
+        spar = self.cfg.maintenance.sparring
+        if spar.interval > 0 and (iteration + 1) % spar.interval == 0:
             self._spar()
 
-    def _pick_inspirations(
-        self, archive: MapElitesArchive, parent: Elite
-    ) -> list[Elite]:
-        if self.cfg.inspiration_count <= 0:
-            return []
-        candidates = [elite for elite in archive.iter_elites() if elite is not parent]
-        if not candidates:
-            return []
-        return self.rng.sample(
-            candidates, k=min(self.cfg.inspiration_count, len(candidates))
-        )
-
-    def _migrate(self) -> None:
+    def _migrate(self, size: int) -> None:
+        if len(self.islands) <= 1 or size <= 0:
+            return
         for idx, src in enumerate(self.islands):
-            migrants = src.sample_elites(self.cfg.migration_size)
+            migrants = src.sample_elites(size)
             dst = self.islands[(idx + 1) % len(self.islands)]
             for elite in migrants:
                 dst.add(elite.clone())
@@ -215,142 +321,52 @@ class EvolutionEngine:
         if len(pool) <= 1:
             return
 
-        log_evo.info("Global sparring with %d elites.", len(pool))
-        pool = pool + self._maybe_pick_anchors(pool)
-        frozen_ids = {id(elite) for elite in pool if elite.frozen}
-        if not self.judge.rank_and_rate(pool, frozen=frozen_ids):
-            log_evo.warning("Global sparring judge failed - skipping resort.")
+        anchors = self._maybe_pick_anchors(pool)
+        battle = Battle(
+            participants=tuple([*pool, *anchors]),
+            judged_children=tuple(),
+            resort_elites=tuple(pool),
+            frozen_indices=frozenset(
+                idx
+                for idx, player in enumerate([*pool, *anchors])
+                if isinstance(player, Anchor)
+            ),
+        )
+        ranking = self.ranker.rank(
+            metrics=self.cfg.metrics.names,
+            battle=battle,
+            metric_descriptions=self.cfg.metrics.descriptions,
+        )
+        if ranking is None:
+            log_evo.warning("Global sparring judge failed; skipping resort.")
             return
+
+        self.rating.apply_ranking(
+            battle.participants,
+            ranking,
+            frozen_indices=set(battle.frozen_indices),
+        )
         for elite in pool:
             origin = elite_to_island.get(id(elite))
             if origin:
                 origin.resort(elite)
 
-    def _maybe_pick_anchors(self, group: list[Elite]) -> list[Elite]:
-        if not self.reference_pool:
-            return []
-        if self.cfg.anchor_injection_prob <= 0:
-            return []
-        if self.rng.random() >= self.cfg.anchor_injection_prob:
-            return []
-        max_count = self.cfg.anchor_max_per_judgement
-        if max_count <= 0:
-            return []
-        return self.reference_pool.sample(
-            max_count,
-            exclude_texts={elite.text for elite in group},
-        )
 
-    def _maybe_add_ghost_anchor(self, iteration: int) -> None:
-        if not self.reference_pool:
-            return
-        if self.cfg.ghost_anchor_interval <= 0:
-            return
-        if iteration % self.cfg.ghost_anchor_interval != 0:
-            return
-        best = self.best_elite()
-        self.reference_pool.add_ghost_anchor(best, age=iteration)
-        log_evo.info("Added ghost anchor at iteration %d.", iteration)
+def build_anchor_manager(
+    *,
+    cfg: Config,
+    rng: random.Random,
+) -> AnchorManager | None:
+    if cfg.anchors.injection_probability <= 0 and cfg.anchors.ghost_interval <= 0:
+        return None
+    from fuzzyevolve.core.anchors import AnchorPool
 
-    def _init_child_ratings(self, parent: Elite) -> dict[str, ts.Rating]:
-        if self.cfg.child_prior_mode != "inherit":
-            return self.judge.new_ratings()
-        ratings: dict[str, ts.Rating] = {}
-        for metric, rating in parent.ratings.items():
-            sigma = math.sqrt(rating.sigma * rating.sigma + self.cfg.child_prior_tau**2)
-            ratings[metric] = ts.Rating(mu=rating.mu, sigma=sigma)
-        return ratings
-
-    def _downsample_children(self, children: list[Elite]) -> list[Elite]:
-        if len(children) <= self.cfg.max_children_judged:
-            return children
-        return self.rng.sample(children, k=self.cfg.max_children_judged)
-
-    def _maybe_pick_opponent(
-        self, archive: MapElitesArchive, parent: Elite, group: list[Elite]
-    ) -> Elite | None:
-        if self.cfg.judge_opponent_mode == "none":
-            return None
-        if self.rng.random() >= self.cfg.judge_opponent_p:
-            return None
-        exclude_ids = {id(elite) for elite in group}
-
-        if self.cfg.judge_opponent_mode == "cell_champion":
-            if parent.cell_key is None:
-                return None
-            bucket = next(
-                (
-                    bucket
-                    for key, bucket in archive.iter_cells()
-                    if key == parent.cell_key
-                ),
-                None,
-            )
-            if not bucket:
-                return None
-            for elite in bucket:
-                if id(elite) not in exclude_ids:
-                    return elite
-            return None
-
-        if self.cfg.judge_opponent_mode == "global_top_sample":
-            candidates = [
-                elite for elite in archive.iter_elites() if id(elite) not in exclude_ids
-            ]
-            if not candidates:
-                return None
-            return max(
-                candidates,
-                key=lambda elite: score_ratings(
-                    elite.ratings, c=self.cfg.archive_score_c
-                ),
-            )
-
-        raise ValueError(
-            f"Unknown judge_opponent_mode '{self.cfg.judge_opponent_mode}'."
-        )
-
-    def _assemble_battle_group(
-        self,
-        parent: Elite,
-        children: list[Elite],
-        anchors: list[Elite],
-        opponent: Elite | None,
-        inspiration: Elite | None,
-    ) -> tuple[list[Elite], list[Elite]]:
-        max_size = self.cfg.max_battle_size
-
-        child_budget = max_size - 1
-        group_children = list(children)
-        if len(group_children) > child_budget:
-            group_children = self.rng.sample(group_children, k=child_budget)
-
-        available = child_budget - len(group_children)
-        extras: list[Elite] = []
-        for anchor in anchors:
-            if available <= 0:
-                break
-            extras.append(anchor)
-            available -= 1
-
-        if opponent is not None and available > 0:
-            extras.append(opponent)
-            available -= 1
-
-        if inspiration is not None and inspiration not in extras and available > 0:
-            extras.append(inspiration)
-
-        return [parent] + group_children + extras, group_children
-
-    def _passes_new_cell_gate(
-        self, archive: MapElitesArchive, parent: Elite, child: Elite
-    ) -> bool:
-        if self.cfg.new_cell_gate_mode == "none":
-            return True
-        if not archive.is_new_cell(child.descriptor):
-            return True
-        parent_score = score_ratings(parent.ratings, c=self.cfg.report_score_c)
-        child_score = score_ratings(child.ratings, c=self.cfg.report_score_c)
-        if self.cfg.new_cell_gate_mode == "parent_lcb":
-            return child_score >= parent_score + self.cfg.new_cell_gate_delta
-        raise ValueError(f"Unknown new_cell_gate_mode '{self.cfg.new_cell_gate_mode}'.")
+    pool = AnchorPool(cfg.metrics.names, rng=rng)
+    policy = AnchorPolicy(
+        injection_probability=cfg.anchors.injection_probability,
+        max_per_battle=cfg.anchors.max_per_battle,
+        ghost_interval=cfg.anchors.ghost_interval,
+        seed_mu=cfg.anchors.seed_mu,
+        seed_sigma=cfg.anchors.seed_sigma,
+    )
+    return AnchorManager(pool, policy, rng=rng)

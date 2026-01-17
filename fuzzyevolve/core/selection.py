@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Any
 
 import trueskill as ts
 
 from fuzzyevolve.core.archive import MapElitesArchive
+from fuzzyevolve.core.models import Elite
 
 
 def optimistic_score(ratings: dict[str, ts.Rating], beta: float) -> float:
@@ -31,7 +31,7 @@ class ParentSelector:
         self.temp = temp
         self.rng = rng or random.Random()
 
-    def select_parent(self, archive: MapElitesArchive) -> Any:
+    def select_parent(self, archive: MapElitesArchive) -> Elite:
         if self.mode == "uniform_cell":
             return archive.random_elite()
         if self.mode != "optimistic_cell_softmax":

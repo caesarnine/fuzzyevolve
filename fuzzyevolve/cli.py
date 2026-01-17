@@ -6,7 +6,7 @@ import logging
 import random
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import typer
 from rich.progress import (
@@ -17,20 +17,20 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from fuzzyevolve.config import load_cfg
+from fuzzyevolve.adapters.llm.mutator import LLMMutator
+from fuzzyevolve.adapters.llm.ranker import LLMRanker
+from fuzzyevolve.config import Config, load_config
 from fuzzyevolve.console.logging import setup_logging
 from fuzzyevolve.core.archive import MapElitesArchive
-from fuzzyevolve.core.descriptors import build_descriptor_space
-from fuzzyevolve.core.descriptors_semantic import build_descriptor_fn
-from fuzzyevolve.core.engine import EvolutionEngine
-from fuzzyevolve.core.judge import LLMJudge
-from fuzzyevolve.core.reference_pool import ReferencePool
-from fuzzyevolve.core.scoring import score_ratings
+from fuzzyevolve.core.descriptor_system import build_descriptor_system
+from fuzzyevolve.core.engine import EvolutionEngine, build_anchor_manager
+from fuzzyevolve.core.inspirations import InspirationPicker
+from fuzzyevolve.core.ratings import RatingSystem
 from fuzzyevolve.core.selection import ParentSelector
-from fuzzyevolve.core.stats import EvolutionStats
-from fuzzyevolve.mutation.mutator import LLMMutator
 
-app = typer.Typer()
+app = typer.Typer(add_completion=False, no_args_is_help=False)
+
+_DEFAULT_CONFIG_FILENAMES: tuple[str, ...] = ("config.toml", "config.json")
 
 
 def _parse_log_level(value: str) -> int:
@@ -45,8 +45,25 @@ def _parse_log_level(value: str) -> int:
     )
 
 
-@app.command()
-def cli(
+def _resolve_config_path(
+    config: Path | None, *, cwd: Path | None = None
+) -> tuple[Path | None, str]:
+    if config is not None:
+        if not config.is_file():
+            raise typer.BadParameter(f"Config file not found: {config}")
+        return config, f"Using config file: {config}"
+
+    cwd = cwd or Path.cwd()
+    for filename in _DEFAULT_CONFIG_FILENAMES:
+        candidate = cwd / filename
+        if candidate.is_file():
+            return candidate, f"Using config file from CWD: {candidate}"
+
+    return None, "Using built-in default config (no config file found)."
+
+
+@app.callback(invoke_without_command=True)
+def main(
     input: Optional[str] = typer.Argument(
         None, help="Initial text to evolve. Can be a string or a file path."
     ),
@@ -57,19 +74,16 @@ def cli(
         Path("best.txt"), "-o", "--output", help="Path to save the best final result."
     ),
     iterations: Optional[int] = typer.Option(
-        None, "-i", "--iterations", help="Number of evolution iterations."
+        None, "-i", "--iterations", help="Override iterations from config."
     ),
     goal: Optional[str] = typer.Option(
-        None, "-g", "--goal", help="The high-level goal for the mutation prompt."
+        None, "-g", "--goal", help="Override the mutation goal from config."
     ),
-    metric: Optional[List[str]] = typer.Option(
+    metric: Optional[list[str]] = typer.Option(
         None,
         "-m",
         "--metric",
-        help="A metric to evaluate against. Can be specified multiple times.",
-    ),
-    judge_model: Optional[str] = typer.Option(
-        None, "--judge-model", help="The LLM to use for judging candidates."
+        help="Override metrics (can be specified multiple times).",
     ),
     log_level: str = typer.Option(
         "info",
@@ -84,100 +98,101 @@ def cli(
         "--quiet",
         help="Suppress the progress bar and non-essential logging.",
     ),
-):
-    """Evolve text with a language model."""
-    cfg = load_cfg(config)
+) -> None:
+    """Evolve text with LLM-backed mutation + ranking."""
+    config_path, config_message = _resolve_config_path(config)
+    cfg = load_config(str(config_path) if config_path else None)
 
     if iterations is not None:
-        cfg.iterations = iterations
+        cfg.run.iterations = iterations
     if goal is not None:
-        cfg.mutation_prompt_goal = goal
+        cfg.mutation.prompt.goal = goal
     if metric:
-        cfg.metrics = metric
-    if judge_model is not None:
-        cfg.judge_model = judge_model
+        cfg.metrics.names = metric
 
     seed_text = _read_seed_text(input)
 
     setup_logging(level=_parse_log_level(log_level), quiet=quiet, log_file=log_file)
+    logging.info("%s", config_message)
 
-    seed = cfg.random_seed
+    seed = cfg.run.random_seed
     if seed is None:
         seed = random.SystemRandom().randint(0, 2**32 - 1)
         logging.info("Generated random seed: %d", seed)
+
     master_rng = random.Random(seed)
     rng_engine = random.Random(master_rng.randrange(2**32))
     rng_selection = random.Random(master_rng.randrange(2**32))
-    rng_judge = random.Random(master_rng.randrange(2**32))
+    rng_inspirations = random.Random(master_rng.randrange(2**32))
+    rng_ranker = random.Random(master_rng.randrange(2**32))
     rng_models = random.Random(master_rng.randrange(2**32))
-    rng_reference = random.Random(master_rng.randrange(2**32))
+    rng_anchors = random.Random(master_rng.randrange(2**32))
     archive_rngs = [
-        random.Random(master_rng.randrange(2**32)) for _ in range(cfg.island_count)
+        random.Random(master_rng.randrange(2**32)) for _ in range(cfg.population.islands)
     ]
 
-    if cfg.descriptor_mode == "semantic":
-        axes_spec = {
-            "semantic_x": {"bins": cfg.semantic_bins_x},
-            "semantic_y": {"bins": cfg.semantic_bins_y},
-        }
-    else:
-        axes_spec = dict(cfg.axes)
-    space = build_descriptor_space(axes_spec)
+    describe, space = build_descriptor_system(cfg)
 
-    def score_fn(ratings):
-        return score_ratings(ratings, c=cfg.archive_score_c)
+    rating = RatingSystem(
+        cfg.metrics.names,
+        mu=cfg.rating.mu,
+        sigma=cfg.rating.sigma,
+        beta=cfg.rating.beta,
+        tau=cfg.rating.tau,
+        draw_probability=cfg.rating.draw_probability,
+        score_lcb_c=cfg.rating.score_lcb_c,
+        child_prior_tau=cfg.rating.child_prior_tau,
+    )
 
     islands = [
         MapElitesArchive(
-            space, cfg.elites_per_cell, rng=archive_rngs[idx], score_fn=score_fn
+            space,
+            elites_per_cell=cfg.population.elites_per_cell,
+            rng=archive_rngs[idx],
+            score_fn=rating.score,
         )
-        for idx in range(cfg.island_count)
+        for idx in range(cfg.population.islands)
     ]
 
-    stats = EvolutionStats()
-
-    judge = LLMJudge(
-        cfg.judge_model,
-        cfg.metrics,
-        trueskill_mu=cfg.trueskill_mu,
-        trueskill_sigma=cfg.trueskill_sigma,
-        trueskill_beta=cfg.trueskill_beta,
-        trueskill_tau=cfg.trueskill_tau,
-        trueskill_draw_probability=cfg.trueskill_draw_probability,
-        rng=rng_judge,
-        max_attempts=cfg.judge_max_attempts,
-        repair_enabled=cfg.judge_repair_enabled,
-        stats=stats,
-    )
-    mutator = LLMMutator(
-        cfg.llm_ensemble,
-        cfg.mutation_prompt_goal,
-        cfg.mutation_prompt_instructions,
-        cfg.max_diffs,
-        show_metric_stats=cfg.mutation_prompt_show_metric_stats,
-        metric_c=cfg.mutation_prompt_c,
-        rng=rng_models,
-        stats=stats,
-    )
-    reference_pool = ReferencePool(cfg.metrics, rng=rng_reference)
     selector = ParentSelector(
-        cfg.selection_mode,
-        cfg.selection_beta,
-        cfg.selection_temp,
+        mode=cfg.selection.kind,
+        beta=cfg.selection.ucb_beta,
+        temp=cfg.selection.temperature,
         rng=rng_selection,
     )
-    descriptor_fn = build_descriptor_fn(cfg)
+
+    inspiration_picker = InspirationPicker(rating=rating, rng=rng_inspirations)
+
+    mutator = LLMMutator(
+        ensemble=cfg.llm.ensemble,
+        metrics=cfg.metrics.names,
+        metric_descriptions=cfg.metrics.descriptions,
+        goal=cfg.mutation.prompt.goal,
+        instructions=cfg.mutation.prompt.instructions,
+        max_edits=cfg.mutation.max_edits,
+        show_metric_stats=cfg.mutation.prompt.show_metric_stats,
+        score_lcb_c=cfg.rating.score_lcb_c,
+        rng=rng_models,
+    )
+    ranker = LLMRanker(
+        model=cfg.llm.judge_model,
+        rng=rng_ranker,
+        max_attempts=cfg.judging.max_attempts,
+        repair_enabled=cfg.judging.repair_enabled,
+    )
+    anchor_manager = build_anchor_manager(cfg=cfg, rng=rng_anchors)
 
     engine = EvolutionEngine(
-        cfg,
-        mutator,
-        judge,
-        islands,
-        reference_pool=reference_pool,
-        selector=selector,
-        descriptor_fn=descriptor_fn,
+        cfg=cfg,
+        islands=islands,
+        describe=describe,
+        rating=rating,
+        selector=selector.select_parent,
+        inspirations=inspiration_picker,
+        mutator=mutator,
+        ranker=ranker,
+        anchor_manager=anchor_manager,
         rng=rng_engine,
-        stats=stats,
     )
 
     progress = Progress(
@@ -193,13 +208,13 @@ def cli(
     with progress:
         task = progress.add_task(
             "evolving",
-            total=cfg.iterations,
+            total=cfg.run.iterations,
             best=0.0,
             empty=islands[0].empty_cells,
         )
 
         def on_iteration(snapshot):
-            if cfg.log_interval and snapshot.iteration % cfg.log_interval == 0:
+            if cfg.run.log_interval and snapshot.iteration % cfg.run.log_interval == 0:
                 metric_parts = [
                     f"{metric}(μ={rating.mu:.2f}, σ={rating.sigma:.2f})"
                     for metric, rating in snapshot.best_elite.ratings.items()
@@ -221,7 +236,6 @@ def cli(
 
     output.write_text(result.best_elite.text)
     logging.info("DONE – best saved to %s (score %.3f)", output, result.best_score)
-    logging.info("run_stats=%s", stats.as_dict())
 
 
 def _read_seed_text(user_input: str | None) -> str:
@@ -230,7 +244,7 @@ def _read_seed_text(user_input: str | None) -> str:
             seed_text = sys.stdin.read()
         else:
             typer.echo(
-                "Error: No input provided. Please provide an input string, file path, or pipe data via stdin."
+                "Error: No input provided. Provide an input string, file path, or pipe via stdin."
             )
             raise typer.Exit(code=1)
     elif Path(user_input).is_file():
@@ -246,3 +260,4 @@ def _read_seed_text(user_input: str | None) -> str:
 
 if __name__ == "__main__":
     app()
+

@@ -1,9 +1,20 @@
 """Tests for config defaults and validation."""
 
-from fuzzyevolve.config import Config
+import pytest
+
+from fuzzyevolve.config import Config, MetricsConfig
 
 
-def test_default_score_cs_are_aligned():
+def test_default_config_has_metrics():
     cfg = Config()
-    assert cfg.archive_score_c == cfg.report_score_c
+    assert cfg.metrics.names
 
+
+def test_metrics_names_trimmed_and_nonempty():
+    cfg = Config(metrics=MetricsConfig(names=["  clarity  ", ""]))
+    assert cfg.metrics.names == ["clarity"]
+
+
+def test_metrics_names_reject_all_empty():
+    with pytest.raises(ValueError):
+        Config(metrics=MetricsConfig(names=["", "   "]))

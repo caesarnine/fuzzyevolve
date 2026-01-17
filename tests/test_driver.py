@@ -1,418 +1,249 @@
-"""Tests for the evolution engine."""
+"""Tests for the evolution engine orchestration."""
 
+from __future__ import annotations
+
+import itertools
 import random
+import threading
+from collections.abc import Sequence
 from unittest.mock import Mock
-
-import pytest
 
 from fuzzyevolve.config import Config
 from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.descriptors import build_descriptor_space
 from fuzzyevolve.core.engine import EvolutionEngine
-from fuzzyevolve.core.models import Elite
-from fuzzyevolve.mutation.mutator import MutationCandidate, MutationResult
-
-BASIC_AXES = {"lang": ["txt"], "len": {"bins": [0, 10, 100]}}
-
-
-class DummyRating:
-    def __init__(self, mu: float = 25.0, sigma: float = 8.333):
-        self.mu = mu
-        self.sigma = sigma
+from fuzzyevolve.core.inspirations import InspirationPicker
+from fuzzyevolve.core.models import Elite, MutationCandidate, TextEdit
+from fuzzyevolve.core.ratings import BattleRanking, RatingSystem
 
 
-def make_engine(cfg: Config, mutator: Mock, judge: Mock) -> EvolutionEngine:
-    rng = random.Random(0)
-    space = build_descriptor_space(cfg.axes)
-    islands = [
-        MapElitesArchive(space, cfg.elites_per_cell, rng=rng)
-        for _ in range(cfg.island_count)
-    ]
-    return EvolutionEngine(cfg, mutator, judge, islands, rng=rng)
+def length_descriptor(text: str) -> dict[str, object]:
+    return {"len": len(text)}
+
+
+def make_engine(
+    cfg: Config,
+    *,
+    mutator: Mock,
+    ranker: Mock,
+    rng: random.Random | None = None,
+) -> EvolutionEngine:
+    rng = rng or random.Random(0)
+    space = build_descriptor_space({"len": {"bins": [0, 10, 100]}})
+    rating = RatingSystem(
+        cfg.metrics.names,
+        score_lcb_c=cfg.rating.score_lcb_c,
+        child_prior_tau=cfg.rating.child_prior_tau,
+    )
+    archive = MapElitesArchive(
+        space,
+        elites_per_cell=cfg.population.elites_per_cell,
+        rng=random.Random(0),
+        score_fn=rating.score,
+    )
+    inspirations = InspirationPicker(rating=rating, rng=random.Random(0))
+    selector = lambda arc: arc.random_elite()
+    return EvolutionEngine(
+        cfg=cfg,
+        islands=[archive],
+        describe=length_descriptor,
+        rating=rating,
+        selector=selector,
+        inspirations=inspirations,
+        mutator=mutator,
+        ranker=ranker,
+        anchor_manager=None,
+        rng=rng,
+    )
+
+
+def rank_parent_best(metrics: Sequence[str], n: int) -> BattleRanking:
+    tiers = [[0], *[[i] for i in range(1, n)]]
+    return BattleRanking(tiers_by_metric={m: tiers for m in metrics})
 
 
 class TestEvolutionEngine:
-    def setup_method(self):
-        self.cfg = Config(
-            iterations=2,
-            island_count=1,
-            elites_per_cell=3,
-            metrics=["test_metric"],
-            max_diffs=2,
-            inspiration_count=0,
-            anchor_injection_prob=0.0,
-            axes=BASIC_AXES,
-        )
-        self.judge = Mock()
-        self.judge.new_ratings = Mock(
-            side_effect=lambda: {"test_metric": DummyRating()}
-        )
-        self.judge.ensure_ratings = Mock()
-        self.judge.rank_and_rate = Mock()
-        self.mutator = Mock()
-
-    def test_initialization(self):
-        engine = make_engine(self.cfg, self.mutator, self.judge)
-        assert engine.cfg == self.cfg
-        assert len(engine.islands) == 1
-
     def test_batch_judging_multiple_children(self):
-        cfg = Config(
-            iterations=1,
-            island_count=1,
-            elites_per_cell=3,
-            metrics=["test_metric"],
-            max_diffs=2,
-            inspiration_count=0,
-            anchor_injection_prob=0.0,
-            axes=BASIC_AXES,
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock()
+        cfg = Config()
+        cfg.run.iterations = 1
+        cfg.population.elites_per_cell = 10
+        cfg.metrics.names = ["m1"]
+        cfg.mutation.calls_per_iteration = 1
+        cfg.mutation.max_children = 10
+        cfg.judging.max_battle_size = 10
+
         mutator = Mock()
         mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[
-                    MutationCandidate(text="modified1", search="old1", replace="new1"),
-                    MutationCandidate(text="modified2", search="old2", replace="new2"),
-                ],
-            )
+            return_value=[
+                MutationCandidate(text="child1", edits=(TextEdit("a", "b"),)),
+                MutationCandidate(text="child2", edits=(TextEdit("a", "c"),)),
+            ]
         )
 
-        engine = make_engine(cfg, mutator, judge)
+        ranker = Mock()
+
+        def _rank(*, metrics, battle, metric_descriptions=None):
+            return rank_parent_best(metrics, len(battle.participants))
+
+        ranker.rank = Mock(side_effect=_rank)
+
+        engine = make_engine(cfg, mutator=mutator, ranker=ranker)
         engine.run("seed")
 
-        assert judge.rank_and_rate.call_count == 1
-        players = judge.rank_and_rate.call_args[0][0]
-        assert len(players) == 3
-        assert players[0].text == "seed"
-        assert {players[1].text, players[2].text} == {"modified1", "modified2"}
+        assert ranker.rank.call_count == 1
+        battle = ranker.rank.call_args.kwargs["battle"]
+        assert {p.text for p in battle.participants} == {"seed", "child1", "child2"}
 
-    @pytest.mark.parametrize("include_inspirations", [True, False])
-    def test_judge_include_inspirations_toggle(self, include_inspirations):
-        cfg = Config(
-            iterations=2,
-            island_count=1,
-            elites_per_cell=5,
-            metrics=["test_metric"],
-            max_diffs=1,
-            inspiration_count=1,
-            judge_include_inspirations=include_inspirations,
-            anchor_injection_prob=0.0,
-            axes=BASIC_AXES,
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock()
+    def test_multiple_mutation_calls_per_iteration(self):
+        cfg = Config()
+        cfg.run.iterations = 1
+        cfg.population.elites_per_cell = 10
+        cfg.metrics.names = ["m1"]
+        cfg.mutation.calls_per_iteration = 3
+        cfg.mutation.max_workers = 3
+        cfg.mutation.max_children = 10
+        cfg.judging.max_battle_size = 10
+
         mutator = Mock()
-        mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[MutationCandidate(text="seedX", search="old", replace="new")],
-            )
-        )
+        counter = itertools.count(1)
+        lock = threading.Lock()
 
-        engine = make_engine(cfg, mutator, judge)
+        def _propose(**kwargs):
+            with lock:
+                idx = next(counter)
+            return [MutationCandidate(text=f"c{idx}")]
+
+        mutator.propose = Mock(side_effect=_propose)
+
+        ranker = Mock()
+        ranker.rank = Mock(side_effect=lambda **kw: rank_parent_best(kw["metrics"], len(kw["battle"].participants)))
+
+        engine = make_engine(cfg, mutator=mutator, ranker=ranker)
         engine.run("seed")
 
-        assert judge.rank_and_rate.call_count == 2
-        group_sizes = [len(call.args[0]) for call in judge.rank_and_rate.call_args_list]
-        assert group_sizes[0] == 2
-        assert group_sizes[1] == (3 if include_inspirations else 2)
+        assert mutator.propose.call_count == 3
+        assert ranker.rank.call_count == 1
+        battle = ranker.rank.call_args.kwargs["battle"]
+        assert {p.text for p in battle.participants} == {"seed", "c1", "c2", "c3"}
 
     def test_empty_candidates_handling(self):
-        self.mutator.propose = Mock(
-            return_value=MutationResult(candidates=[])
-        )
-        engine = make_engine(self.cfg, self.mutator, self.judge)
+        cfg = Config()
+        cfg.run.iterations = 1
+        cfg.metrics.names = ["m1"]
+
+        mutator = Mock()
+        mutator.propose = Mock(return_value=[])
+        ranker = Mock()
+        ranker.rank = Mock()
+
+        engine = make_engine(cfg, mutator=mutator, ranker=ranker)
         engine.run("seed")
 
-        assert self.judge.rank_and_rate.call_count == 0
+        assert ranker.rank.call_count == 0
+        assert sum(1 for _ in engine.islands[0].iter_elites()) == 1
 
     def test_no_children_added_on_judge_failure(self):
-        cfg = Config(
-            iterations=1,
-            island_count=1,
-            elites_per_cell=3,
-            metrics=["test_metric"],
-            max_diffs=1,
-            inspiration_count=0,
-            anchor_injection_prob=0.0,
-            new_cell_gate_mode="none",
-            axes=BASIC_AXES,
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock(return_value=False)
-        mutator = Mock()
-        mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[MutationCandidate(text="seedX", search="old", replace="new")],
-            )
-        )
+        cfg = Config()
+        cfg.run.iterations = 1
+        cfg.metrics.names = ["m1"]
+        cfg.mutation.calls_per_iteration = 1
+        cfg.new_cell_gate.kind = "none"
 
-        engine = make_engine(cfg, mutator, judge)
+        mutator = Mock()
+        mutator.propose = Mock(return_value=[MutationCandidate(text="child")])
+        ranker = Mock()
+        ranker.rank = Mock(return_value=None)
+
+        engine = make_engine(cfg, mutator=mutator, ranker=ranker)
         engine.run("seed")
 
         assert sum(1 for _ in engine.islands[0].iter_elites()) == 1
 
     def test_max_battle_size_enforced(self):
-        cfg = Config(
-            iterations=1,
-            island_count=1,
-            elites_per_cell=3,
-            metrics=["test_metric"],
-            max_diffs=5,
-            inspiration_count=0,
-            anchor_injection_prob=0.0,
-            max_battle_size=3,
-            max_children_judged=5,
-            axes=BASIC_AXES,
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock(return_value=True)
-        mutator = Mock()
-        mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[
-                    MutationCandidate(text="c1", search="old1", replace="new1"),
-                    MutationCandidate(text="c2", search="old2", replace="new2"),
-                    MutationCandidate(text="c3", search="old3", replace="new3"),
-                    MutationCandidate(text="c4", search="old4", replace="new4"),
-                ],
-            )
-        )
-
-        engine = make_engine(cfg, mutator, judge)
-        engine.run("seed")
-
-        players = judge.rank_and_rate.call_args[0][0]
-        assert len(players) <= cfg.max_battle_size
-
-    def test_anchor_injection_does_not_displace_children(self):
-        cfg = Config(
-            iterations=1,
-            island_count=1,
-            elites_per_cell=3,
-            metrics=["test_metric"],
-            max_diffs=2,
-            inspiration_count=0,
-            max_battle_size=3,
-            max_children_judged=2,
-            anchor_injection_prob=1.0,
-            anchor_max_per_judgement=1,
-            new_cell_gate_mode="none",
-            axes=BASIC_AXES,
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock(return_value=True)
+        cfg = Config()
+        cfg.run.iterations = 1
+        cfg.population.elites_per_cell = 10
+        cfg.metrics.names = ["m1"]
+        cfg.mutation.max_children = 10
+        cfg.judging.max_battle_size = 3
 
         mutator = Mock()
         mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[
-                    MutationCandidate(text="c1", search="old1", replace="new1"),
-                    MutationCandidate(text="c2", search="old2", replace="new2"),
-                ],
-            )
-        )
-
-        engine = make_engine(cfg, mutator, judge)
-        engine._maybe_pick_anchors = Mock(
             return_value=[
-                Elite(
-                    text="anchor",
-                    descriptor={"lang": "txt", "len": 6},
-                    ratings={"test_metric": DummyRating(mu=25.0, sigma=1.0)},
-                    age=0,
-                    frozen=True,
-                )
+                MutationCandidate(text="c1"),
+                MutationCandidate(text="c2"),
+                MutationCandidate(text="c3"),
+                MutationCandidate(text="c4"),
             ]
         )
 
+        ranker = Mock()
+
+        def _rank(**kwargs):
+            battle = kwargs["battle"]
+            assert len(battle.participants) <= cfg.judging.max_battle_size
+            return rank_parent_best(kwargs["metrics"], len(battle.participants))
+
+        ranker.rank = Mock(side_effect=_rank)
+
+        engine = make_engine(cfg, mutator=mutator, ranker=ranker)
         engine.run("seed")
-
-        assert judge.rank_and_rate.call_count == 1
-        group = judge.rank_and_rate.call_args[0][0]
-        assert len(group) == cfg.max_battle_size
-        assert {elite.text for elite in group} == {"seed", "c1", "c2"}
-
-    def test_default_accepts_new_cells(self):
-        cfg = Config(
-            iterations=1,
-            island_count=1,
-            elites_per_cell=3,
-            metrics=["test_metric"],
-            max_diffs=1,
-            inspiration_count=0,
-            anchor_injection_prob=0.0,
-            axes=BASIC_AXES,
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock(return_value=True)
-
-        mutator = Mock()
-        mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[
-                    MutationCandidate(
-                        text="this is a longer child text",
-                        search="old",
-                        replace="new",
-                    )
-                ],
-            )
-        )
-
-        engine = make_engine(cfg, mutator, judge)
-        engine.run("seed")
-
-        assert sum(1 for _ in engine.islands[0].iter_elites()) == 2
 
     def test_new_cell_gate_blocks_low_child(self):
-        cfg = Config(
-            iterations=1,
-            island_count=1,
-            elites_per_cell=3,
-            metrics=["test_metric"],
-            max_diffs=1,
-            inspiration_count=0,
-            anchor_injection_prob=0.0,
-            new_cell_gate_mode="parent_lcb",
-            new_cell_gate_delta=0.0,
-            axes={
-                "lang": ["txt"],
-                "len": {"bins": [0, 10, 100]},
-            },
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock(return_value=True)
-        mutator = Mock()
-        mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[
-                    MutationCandidate(
-                        text="this is a longer child text",
-                        search="old",
-                        replace="new",
-                    )
-                ],
-            )
-        )
+        cfg = Config()
+        cfg.run.iterations = 1
+        cfg.population.elites_per_cell = 10
+        cfg.metrics.names = ["m1"]
+        cfg.descriptor.kind = "length"
+        cfg.descriptor.length_bins = [0, 5, 100]
+        cfg.new_cell_gate.kind = "parent_lcb"
+        cfg.new_cell_gate.delta = 0.0
+        cfg.judging.max_battle_size = 2
 
-        engine = make_engine(cfg, mutator, judge)
+        mutator = Mock()
+        mutator.propose = Mock(return_value=[MutationCandidate(text="this is long")])
+
+        ranker = Mock()
+
+        def _rank(**kwargs):
+            battle = kwargs["battle"]
+            # Put parent above child -> child gets worse after rating update.
+            tiers = [[0], [1]]
+            return BattleRanking(tiers_by_metric={m: tiers for m in kwargs["metrics"]})
+
+        ranker.rank = Mock(side_effect=_rank)
+
+        engine = make_engine(cfg, mutator=mutator, ranker=ranker)
         engine.run("seed")
 
         assert sum(1 for _ in engine.islands[0].iter_elites()) == 1
 
-    def test_migration(self):
-        cfg = Config(
-            iterations=1,
-            island_count=2,
-            elites_per_cell=5,
-            metrics=["test_metric"],
-            max_diffs=1,
-            inspiration_count=0,
-            migration_interval=1,
-            migration_size=1,
-            sparring_interval=1000,
-            anchor_injection_prob=0.0,
-            axes=BASIC_AXES,
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock()
-        mutator = Mock()
-        mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[MutationCandidate(text="seedX", search="old", replace="new")],
-            )
-        )
-
-        engine = make_engine(cfg, mutator, judge)
-        engine.run("seed")
-
-        counts = [sum(1 for _ in island.iter_elites()) for island in engine.islands]
-        assert all(count >= 2 for count in counts)
-
-    def test_cell_champion_opponent_added_to_battle_group(self):
-        cfg = Config(
-            iterations=1,
-            island_count=1,
-            elites_per_cell=5,
-            metrics=["test_metric"],
-            max_diffs=1,
-            inspiration_count=0,
-            anchor_injection_prob=0.0,
-            new_cell_gate_mode="none",
-            judge_opponent_mode="cell_champion",
-            judge_opponent_p=1.0,
-            axes=BASIC_AXES,
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock(return_value=True)
+    def test_step_skips_children_already_in_archive(self):
+        cfg = Config()
+        cfg.run.iterations = 1
+        cfg.population.elites_per_cell = 10
+        cfg.metrics.names = ["m1"]
+        cfg.mutation.calls_per_iteration = 1
+        cfg.mutation.max_children = 10
+        cfg.judging.max_battle_size = 10
 
         mutator = Mock()
         mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[MutationCandidate(text="child", search="old", replace="new")],
-            )
+            return_value=[MutationCandidate(text="dup"), MutationCandidate(text="dup")]
         )
 
-        engine = make_engine(cfg, mutator, judge)
+        ranker = Mock()
+        ranker.rank = Mock(side_effect=lambda **kw: rank_parent_best(kw["metrics"], len(kw["battle"].participants)))
+
+        engine = make_engine(cfg, mutator=mutator, ranker=ranker)
         engine.islands[0].add(
             Elite(
-                text="other",
-                descriptor={"lang": "txt", "len": 4},
-                ratings={"test_metric": DummyRating(mu=30.0, sigma=1.0)},
+                text="dup",
+                descriptor=length_descriptor("dup"),
+                ratings=engine.rating.new_ratings(),
                 age=0,
             )
         )
         engine.run("seed")
 
-        assert judge.rank_and_rate.call_count == 1
-        group = judge.rank_and_rate.call_args[0][0]
-        assert {elite.text for elite in group} == {"seed", "other", "child"}
-
-    def test_sparring(self):
-        cfg = Config(
-            iterations=1,
-            island_count=2,
-            elites_per_cell=5,
-            metrics=["test_metric"],
-            max_diffs=1,
-            inspiration_count=0,
-            sparring_interval=1,
-            migration_interval=1000,
-            anchor_injection_prob=0.0,
-            axes=BASIC_AXES,
-        )
-        judge = Mock()
-        judge.new_ratings = Mock(side_effect=lambda: {"test_metric": DummyRating()})
-        judge.ensure_ratings = Mock()
-        judge.rank_and_rate = Mock()
-        mutator = Mock()
-        mutator.propose = Mock(
-            return_value=MutationResult(
-                candidates=[MutationCandidate(text="seedX", search="old", replace="new")],
-            )
-        )
-
-        engine = make_engine(cfg, mutator, judge)
-        engine.run("seed")
-
-        assert judge.rank_and_rate.call_count == 2
+        assert ranker.rank.call_count == 0

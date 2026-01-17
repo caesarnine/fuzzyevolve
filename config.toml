@@ -1,0 +1,102 @@
+# Default configuration for fuzzyevolve (no backwards compatibility promised).
+#
+# Usage:
+#   fuzzyevolve --config config.toml "The sky shattered."
+
+[run]
+iterations = 10
+log_interval = 1
+# random_seed = 0
+
+[population]
+islands = 1
+elites_per_cell = 4
+
+[metrics]
+names = ["atmosphere", "creativity"]
+
+[metrics.descriptions]
+atmosphere = "Vivid mood, sensory texture, and immersive tone."
+creativity = "Novel imagery, surprising turns, and non-obvious phrasing."
+
+[descriptor]
+kind = "semantic_2d"
+
+[descriptor.semantic_2d]
+projection_seed = 123
+bins_x = [-2.0, -1.0, 0.0, 1.0, 2.0]
+bins_y = [-2.0, -1.0, 0.0, 1.0, 2.0]
+embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+
+[rating]
+mu = 25.0
+sigma = 8.333333333333334
+beta = 8.333333333333334
+tau = 0.16666666666666669
+draw_probability = 0.2
+score_lcb_c = 2.0
+child_prior_tau = 4.0
+
+[selection]
+kind = "uniform_cell"
+ucb_beta = 1.0
+temperature = 1.0
+
+[mutation]
+calls_per_iteration = 4
+max_workers = 8
+max_edits = 4
+max_children = 4
+inspiration_count = 0
+
+[mutation.prompt]
+goal = "Write me a riveting short story."
+instructions = """
+Propose one or more edits to improve the PARENT text.
+Use exact substring search/replace semantics: your `search` must appear verbatim in the PARENT text.
+Return multiple edits only when they should be applied together to create one improved child.
+You can rewrite, shorten, or completely change the text.
+"""
+show_metric_stats = true
+
+[judging]
+max_attempts = 2
+repair_enabled = true
+max_battle_size = 6
+include_inspiration = false
+
+[judging.opponent]
+kind = "none"
+probability = 0.1
+
+[anchors]
+injection_probability = 0.2
+max_per_battle = 2
+seed_mu = 25.0
+seed_sigma = 2.0
+ghost_interval = 10
+
+[new_cell_gate]
+kind = "none"
+delta = -0.5
+
+[maintenance.migration]
+interval = 0
+size = 4
+
+[maintenance.sparring]
+interval = 0
+
+[llm]
+judge_model = "google-gla:gemini-3-pro-preview"
+
+[[llm.ensemble]]
+model = "google-gla:gemini-3-flash-preview"
+weight = 0.85
+temperature = 1.0
+
+[[llm.ensemble]]
+model = "google-gla:gemini-3-pro-preview"
+weight = 0.15
+temperature = 1.0
+
