@@ -1,62 +1,75 @@
 # fuzzyevolve
 
-> Inspired by AlphaEvolve — but can evolve any text using fuzzy criteria like “creative”, “funny”, “interesting”, etc.
+Evolve text with LLM mutation + LLM judging, using TrueSkill for noisy multi-metric feedback and MAP-Elites for diversity.
 
-`fuzzyevolve` is a small experimental playground that:
+Inspired by AlphaEvolve, but designed for “fuzzy” criteria like *prose*, *coherence*, *originality*, *funny*, *interesting*, etc.
 
-- *Critiques* the selected parent via an LLM to produce structured guidance (preserve/issues/rewrite routes).
-- *Mutates* text via an LLM-backed set of **mutation operators** (full rewrites; exploit vs explore by default).
-- *Evaluates* candidates via an LLM that **ranks** texts across multiple metrics.
-- Updates per-metric **TrueSkill** ratings (μ/σ) from those rankings.
-- Maintains diversity with a **MAP-Elites** archive (top‑k per cell).
-
-The end result is an always-improving, always-diverse population of texts, steered by whatever metrics you configure.
-
----
-
-## Quick Start
+## Quick start
 
 ```bash
+export GOOGLE_API_KEY=... # default config uses google-gla:* models
 uv sync
-source .venv/bin/activate
 
 # Uses ./config.toml if present (or defaults)
-fuzzyevolve "This is my starting prompt."
+uv run fuzzyevolve "This is my starting prompt."
 ```
 
 Input can be a string, a file path, or stdin:
 
 ```bash
-fuzzyevolve seed.txt
-cat seed.txt | fuzzyevolve
+uv run fuzzyevolve seed.txt
+cat seed.txt | uv run fuzzyevolve
 ```
 
-The best result is written to `best.txt` by default.
+Output goes to `best.txt` by default (override with `--output`).
 
----
+Note: the repo’s `config.toml` uses semantic embeddings via `sentence-transformers`. Either install the extra or switch to hash/length descriptors:
+
+```bash
+uv sync --extra semantic
+```
+
+## What it does
+
+- Critiques the selected parent once per iteration (structured: preserve / issues / rewrite routes).
+- Generates children via a set of LLM-backed mutation operators (e.g. “exploit” vs “explore” full rewrites).
+- Judges parent/children by ranking them per metric (tiered rankings, ties allowed).
+- Updates per-metric TrueSkill ratings (μ/σ) from those rankings (with uncertainty-aware scoring).
+- Keeps diversity with a MAP‑Elites archive (top‑k per descriptor cell), optionally with multiple islands + migration.
+
+## Mental model
+
+- A text is a “player” with a TrueSkill rating per metric (e.g. one rating for `prose`, one for `coherence`).
+- The judge doesn’t assign absolute scores; it *ranks* candidates relative to each other for each metric.
+- The archive is a grid of “niches” (cells) defined by a descriptor (length or a 2D embedding projection).
+- Each iteration is: pick a parent → critique → propose children → rank a battle → update ratings → insert children into niches.
+
+## How it works (core loop)
+
+1. **Descriptor**: compute `descriptor = describe(text)` to place texts into MAP‑Elites cells (`length` or `embedding_2d`).
+2. **Select parent**: choose an elite from a random island archive (`uniform_cell` or an optimistic UCB-ish policy).
+3. **Critique** (optional): ask an LLM for actionable guidance (issues + distinct rewrite routes).
+4. **Mutate**: allocate a per-iteration job budget across operators; each job proposes one rewritten child.
+5. **Assemble battle**: parent + sampled children (+ optional frozen anchors/opponent), capped by `judging.max_battle_size`.
+6. **Judge**: ask an LLM to return tiered rankings for each metric (with validation + optional repair retries).
+7. **Update ratings**: apply per-metric TrueSkill updates; score uses a conservative LCB (`mu - c*sigma`) averaged across metrics.
+8. **Archive**: add children into MAP‑Elites (top‑k per cell), optionally gating “new cell” inserts.
 
 ## Configuration
 
-Config lives in one TOML/JSON file (pass with `--config`). If `config.toml` or `config.json` exists in the current directory, it will be used automatically.
+Config is a single TOML/JSON file. If `config.toml` or `config.json` exists in the current directory it’s auto-detected; pass an explicit file with `--config`.
 
-See the repo’s `config.toml` for a complete example. The structure is intentionally nested:
+See `config.toml` for a complete example. The structure is intentionally nested:
 
-- `[run]`: iterations, logging cadence, random seed
-- `[population]`: islands, elites per cell
-- `[descriptor]`: how texts map into MAP‑Elites cells (`embedding_2d` or `length`)
-- `[task]`: the overall goal for critique + mutation
-- `[metrics]`: metric names and optional descriptions (fed to LLM prompts)
-- `[prompts]`: prompt formatting toggles (e.g. metric stats)
-- `[critic]`: critique agent settings (routes, instructions)
-- `[rating]`: TrueSkill parameters + scoring and child priors
-- `[mutation]`: mutation job budget + operator definitions (including per-operator uncertainty)
-- `[judging]`: battle size + retry/repair + optional opponent
-- `[anchors]`: frozen reference anchors injected into battles
-- `[maintenance]`: migration and global sparring intervals
+- `[task]` and `[metrics]` define what “good” means (goal + metric names/descriptions).
+- `[mutation]` defines the operator set, job budget, and per-operator uncertainty.
+- `[judging]` controls battle size + judge retries + optional opponents.
+- `[rating]` controls TrueSkill parameters and the score’s LCB constant.
+- `[descriptor]` defines the MAP‑Elites “diversity axis” (length bins or 2D embedding bins).
+- `[anchors]` optionally injects frozen reference anchors (seed + periodic “ghosts”) into battles.
+- `[population]` / `[maintenance]` enable multiple islands, migration, and global sparring.
 
----
-
-## CLI Options
+## CLI
 
 - `--config` / `-c`: Path to TOML/JSON config
 - `--output` / `-o`: Output path (default `best.txt`)
@@ -67,39 +80,33 @@ See the repo’s `config.toml` for a complete example. The structure is intentio
 - `--log-file`: Write logs to a specific file
 - `--quiet` / `-q`: Hide the progress bar and non-essential logging
 
----
+## Requirements
 
-## Workflow & Architecture
+- Python 3.10+
+- [uv](https://docs.astral.sh/uv/) (recommended)
+- Any model supported by [`pydantic-ai`](https://ai.pydantic.dev/) (configure via `[llm].judge_model` and `[[llm.ensemble]].model`)
+- An API key for the provider you choose
 
-The core algorithm is intentionally “ports and adapters”:
+```bash
+export GOOGLE_API_KEY=...     # e.g. google-gla:*
+export OPENAI_API_KEY=...     # e.g. openai:*
+export ANTHROPIC_API_KEY=...  # e.g. anthropic:*
+```
 
-- `fuzzyevolve/core/`: domain logic (engine, archive, battle assembly, TrueSkill rating system)
-- `fuzzyevolve/adapters/`: integrations (LLM mutator + LLM ranker)
+Semantic embeddings require:
 
-High-level loop (per iteration):
-
-1. Select a parent elite from an island archive.
-2. Critique the parent once (preserve/issues/rewrite routes).
-3. Plan mutation jobs across operators (e.g. exploit vs explore) and generate candidate children.
-4. Assemble a “battle” (parent + children + optional anchors/opponent).
-5. Call the ranker LLM → per-metric tiered rankings.
-6. Apply TrueSkill updates; insert judged children into MAP‑Elites (top‑k per cell).
-7. Periodically migrate between islands / run global sparring.
-
----
+```bash
+uv sync --extra semantic
+```
 
 ## Development
 
 ```bash
 uv sync --extra dev
-
 uv run ruff format .
 uv run ruff check .
-
 uv run pytest -q
 ```
-
----
 
 ## License
 
