@@ -1,7 +1,14 @@
 """Tests for LLM prompt builders."""
 
+from __future__ import annotations
+
+from fuzzyevolve.adapters.llm.prompts import (
+    build_critique_prompt,
+    build_rank_prompt,
+    build_rewrite_prompt,
+)
+from fuzzyevolve.core.critique import Critique
 from fuzzyevolve.core.models import Elite
-from fuzzyevolve.adapters.llm.prompts import build_mutation_prompt, build_rank_prompt
 
 
 class DummyRating:
@@ -22,27 +29,23 @@ def make_elite(text: str) -> Elite:
     )
 
 
-class TestMutationPrompt:
+class TestCritiquePrompt:
     def test_no_thinking_tags(self):
         parent = make_elite("Hello world.")
-        prompt = build_mutation_prompt(
+        prompt = build_critique_prompt(
             parent=parent,
-            inspirations=[],
             goal="Improve the text.",
-            instructions="Make it clearer.",
-            max_edits=2,
             metrics=["clarity", "creativity"],
             metric_descriptions=None,
+            routes=3,
             show_metric_stats=True,
             score_lcb_c=1.0,
-            inspiration_labels=None,
         )
 
         lowered = prompt.lower()
         assert "<thinking>" not in lowered
-        assert "<diffs>" not in lowered
-        assert "return up to 2" in lowered
-        assert "`search`" in prompt
+        assert "<output>" not in lowered
+        assert "routes: 3 distinct" in lowered
 
     def test_score_uses_metric_c(self):
         parent = Elite(
@@ -51,67 +54,80 @@ class TestMutationPrompt:
             ratings={"clarity": DummyRating(mu=10.0, sigma=1.0)},
             age=0,
         )
-        inspiration = Elite(
-            text="Inspire.",
-            descriptor={"len": 8},
-            ratings={"clarity": DummyRating(mu=20.0, sigma=2.0)},
-            age=0,
-        )
-        prompt = build_mutation_prompt(
+        prompt = build_critique_prompt(
             parent=parent,
-            inspirations=[inspiration],
             goal="Improve the text.",
-            instructions="Make it clearer.",
-            max_edits=1,
             metrics=["clarity"],
             metric_descriptions=None,
+            routes=2,
             show_metric_stats=False,
             score_lcb_c=1.0,
-            inspiration_labels=None,
         )
 
-        assert "Score: 9.000" in prompt
-        assert "[1] score=18.000" in prompt
+        assert "Score (LCB avg): 9.000" in prompt
 
     def test_metric_definitions_included_when_provided(self):
         parent = make_elite("Hello world.")
-        prompt = build_mutation_prompt(
+        prompt = build_critique_prompt(
             parent=parent,
-            inspirations=[],
             goal="Improve the text.",
-            instructions="Make it clearer.",
-            max_edits=1,
             metrics=["clarity", "creativity"],
             metric_descriptions={
                 "clarity": "Easy to follow and unambiguous.",
                 "creativity": "Fresh and surprising ideas.",
             },
+            routes=2,
             show_metric_stats=False,
             score_lcb_c=1.0,
-            inspiration_labels=None,
         )
 
         assert "Metric definitions:" in prompt
         assert "- clarity: Easy to follow and unambiguous." in prompt
         assert "- creativity: Fresh and surprising ideas." in prompt
 
-    def test_inspiration_labels_rendered_when_provided(self):
-        parent = make_elite("Hello.")
-        inspiration = make_elite("Inspire.")
-        prompt = build_mutation_prompt(
+
+class TestRewritePrompt:
+    def test_explore_prompt_omits_parent_text(self):
+        parent = make_elite("Hello world.")
+        critique = Critique(summary="Needs more specificity.", routes=("Go surreal.",))
+        prompt = build_rewrite_prompt(
             parent=parent,
-            inspirations=[inspiration],
-            goal="Improve the text.",
-            instructions="Make it clearer.",
-            max_edits=1,
+            goal="Write a story.",
+            operator_name="explore",
+            role="explore",
+            operator_instructions="Rewrite freely.",
+            critique=critique,
+            focus="Go surreal.",
             metrics=["clarity", "creativity"],
             metric_descriptions=None,
             show_metric_stats=False,
             score_lcb_c=1.0,
-            inspiration_labels=["CHAMPION"],
         )
 
-        assert "[1] CHAMPION score=" in prompt
+        assert "Parent text intentionally omitted for exploration." in prompt
+        assert parent.text not in prompt
+
+    def test_exploit_prompt_includes_parent_text(self):
+        parent = make_elite("Hello world.")
+        critique = Critique(issues=("Tighten pacing.",))
+        prompt = build_rewrite_prompt(
+            parent=parent,
+            goal="Write a story.",
+            operator_name="exploit",
+            role="exploit",
+            operator_instructions="Rewrite to improve.",
+            critique=critique,
+            focus="Tighten pacing.",
+            metrics=["clarity", "creativity"],
+            metric_descriptions=None,
+            show_metric_stats=False,
+            score_lcb_c=1.0,
+        )
+
+        assert "Operator: exploit (exploit)" in prompt
+        assert "Focus (optional):" in prompt
+        assert "Tighten pacing." in prompt
+        assert parent.text in prompt
 
 
 class TestRankPrompt:
@@ -146,3 +162,4 @@ class TestRankPrompt:
         assert "Metric definitions:" in prompt
         assert "- clarity: Easy to follow and unambiguous." in prompt
         assert "- creativity: Fresh and surprising ideas." in prompt
+

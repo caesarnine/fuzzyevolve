@@ -17,14 +17,17 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from fuzzyevolve.adapters.llm.mutator import LLMMutator
+from pydantic_ai.settings import ModelSettings
+
+from fuzzyevolve.adapters.llm.critic import LLMCritic
+from fuzzyevolve.adapters.llm.operators import LLMRewriteOperator
 from fuzzyevolve.adapters.llm.ranker import LLMRanker
 from fuzzyevolve.config import load_config
 from fuzzyevolve.console.logging import setup_logging
 from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.descriptor_system import build_descriptor_system
 from fuzzyevolve.core.engine import EvolutionEngine, build_anchor_manager
-from fuzzyevolve.core.inspirations import InspirationPicker
+from fuzzyevolve.core.mutation import OperatorMutator, OperatorSpec
 from fuzzyevolve.core.ratings import RatingSystem
 from fuzzyevolve.core.selection import ParentSelector
 
@@ -106,7 +109,7 @@ def main(
     if iterations is not None:
         cfg.run.iterations = iterations
     if goal is not None:
-        cfg.mutation.prompt.goal = goal
+        cfg.task.goal = goal
     if metric:
         cfg.metrics.names = metric
 
@@ -123,9 +126,8 @@ def main(
     master_rng = random.Random(seed)
     rng_engine = random.Random(master_rng.randrange(2**32))
     rng_selection = random.Random(master_rng.randrange(2**32))
-    rng_inspirations = random.Random(master_rng.randrange(2**32))
     rng_ranker = random.Random(master_rng.randrange(2**32))
-    rng_models = random.Random(master_rng.randrange(2**32))
+    rng_mutation = random.Random(master_rng.randrange(2**32))
     rng_anchors = random.Random(master_rng.randrange(2**32))
     archive_rngs = [
         random.Random(master_rng.randrange(2**32))
@@ -162,18 +164,55 @@ def main(
         rng=rng_selection,
     )
 
-    inspiration_picker = InspirationPicker(rating=rating, rng=rng_inspirations)
+    critic = None
+    if cfg.critic.enabled:
+        critic_model = cfg.llm.critic_model or cfg.llm.judge_model
+        critic_settings: ModelSettings = {"temperature": cfg.llm.critic_temperature}
+        critic = LLMCritic(
+            model=critic_model,
+            model_settings=critic_settings,
+            goal=cfg.task.goal,
+            metrics=cfg.metrics.names,
+            metric_descriptions=cfg.metrics.descriptions,
+            routes=cfg.critic.routes,
+            instructions=cfg.critic.instructions,
+            show_metric_stats=cfg.prompts.show_metric_stats,
+            score_lcb_c=cfg.rating.score_lcb_c,
+        )
 
-    mutator = LLMMutator(
-        ensemble=cfg.llm.ensemble,
-        metrics=cfg.metrics.names,
-        metric_descriptions=cfg.metrics.descriptions,
-        goal=cfg.mutation.prompt.goal,
-        instructions=cfg.mutation.prompt.instructions,
-        max_edits=cfg.mutation.max_edits,
-        show_metric_stats=cfg.mutation.prompt.show_metric_stats,
-        score_lcb_c=cfg.rating.score_lcb_c,
-        rng=rng_models,
+    operators = {}
+    specs: list[OperatorSpec] = []
+    for op_cfg in [op for op in cfg.mutation.operators if op.enabled]:
+        op_rng = random.Random(master_rng.randrange(2**32))
+        ensemble = op_cfg.ensemble or cfg.llm.ensemble
+        operators[op_cfg.name] = LLMRewriteOperator(
+            name=op_cfg.name,
+            role=op_cfg.role,
+            ensemble=ensemble,
+            temperature=op_cfg.temperature,
+            goal=cfg.task.goal,
+            metrics=cfg.metrics.names,
+            metric_descriptions=cfg.metrics.descriptions,
+            instructions=op_cfg.instructions,
+            show_metric_stats=cfg.prompts.show_metric_stats,
+            score_lcb_c=cfg.rating.score_lcb_c,
+            rng=op_rng,
+        )
+        specs.append(
+            OperatorSpec(
+                name=op_cfg.name,
+                role=op_cfg.role,
+                min_jobs=op_cfg.min_jobs,
+                weight=op_cfg.weight,
+                uncertainty_scale=op_cfg.uncertainty_scale,
+            )
+        )
+
+    mutator = OperatorMutator(
+        operators=operators,
+        specs=specs,
+        jobs_per_iteration=cfg.mutation.jobs_per_iteration,
+        rng=rng_mutation,
     )
     ranker = LLMRanker(
         model=cfg.llm.judge_model,
@@ -189,7 +228,7 @@ def main(
         describe=describe,
         rating=rating,
         selector=selector.select_parent,
-        inspirations=inspiration_picker,
+        critic=critic,
         mutator=mutator,
         ranker=ranker,
         anchor_manager=anchor_manager,

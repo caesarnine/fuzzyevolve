@@ -63,17 +63,25 @@ class RatingSystem:
     def metric_lcb(self, rating: ts.Rating) -> float:
         return rating.mu - self.score_lcb_c * rating.sigma
 
-    def init_child_ratings(self, parent: RatedText) -> Ratings:
-        if self.child_prior_tau <= 0:
+    def init_child_ratings(
+        self,
+        parent: RatedText,
+        *,
+        uncertainty_scale: float = 1.0,
+    ) -> Ratings:
+        if uncertainty_scale < 0:
+            raise ValueError("uncertainty_scale must be >= 0.")
+        if self.child_prior_tau <= 0 or uncertainty_scale <= 0:
             return {
                 metric: ts.Rating(rating.mu, rating.sigma)
                 for metric, rating in parent.ratings.items()
                 if metric in self.metrics
             }
         ratings: Ratings = {}
+        tau = self.child_prior_tau * uncertainty_scale
         for metric in self.metrics:
             base = parent.ratings[metric]
-            sigma = math.sqrt(base.sigma * base.sigma + self.child_prior_tau**2)
+            sigma = math.sqrt(base.sigma * base.sigma + tau * tau)
             ratings[metric] = ts.Rating(mu=base.mu, sigma=sigma)
         return ratings
 

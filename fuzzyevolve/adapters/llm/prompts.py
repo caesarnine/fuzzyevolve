@@ -2,37 +2,142 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 
+from fuzzyevolve.core.critique import Critique
 from fuzzyevolve.core.models import Elite
 
-_MUTATION_TEMPLATE = """
+_CRITIQUE_TEMPLATE = """You are critiquing a text for an evolutionary rewriting system.
+
 Overall goal: {goal}
-Task instructions: {instructions}
+Metrics: {metrics_list_str}
 {metric_section}
 
-Return up to {max_edits} edits to apply to the PARENT text (in order).
-Each edit must specify:
-- `search`: an exact substring from the PARENT text (verbatim)
-- `replace`: replacement text for that substring
+Return structured critique with:
+- summary: 1–3 sentences on what's working and what's not.
+- preserve: 3–7 things worth keeping (voice, constraints, standout elements).
+- issues: 3–10 prioritized, actionable improvements.
+- routes: {routes} distinct rewrite routes. Each route is a short directive (1–3 sentences) that could guide a full rewrite.
+- constraints: 0–6 hard constraints (optional).
 
-Constraints:
-- All edits will be applied together to produce ONE child candidate.
-- Each `search` must appear verbatim in the PARENT text.
-- Edits must not overlap.
-- Prefer a `search` span with enough context to be unique.
-- If you can't find a safe exact-match `search` span, return no edits.
+Do not write any new story text.
+Do not mention TrueSkill, ratings, or evaluation mechanics.
 
 ──────────────── PARENT ────────────────
-Score: {p_score:.3f}
+Score (LCB avg): {p_score:.3f}
 {p_stats}
 {p_text}
-
-──────────── INSPIRATIONS (optional) ────────────
-Use these as reference examples only.
-- They may be worse than the PARENT.
-- Do NOT copy phrasing verbatim; prefer improving the PARENT directly.
-{insp_text}
-──────────────────────────────────────────
+────────────────────────────────────────
 """
+
+
+_REWRITE_TEMPLATE = """You are generating ONE child text for an evolutionary rewriting system.
+
+Overall goal: {goal}
+Operator: {operator_name} ({role})
+Operator instructions: {operator_instructions}
+Metrics: {metrics_list_str}
+{metric_section}
+
+Use the critique as guidance. If a focus is provided, prioritize it.
+Do not mention evaluation metrics, ratings, or judging.
+Return structured output only.
+
+Focus (optional):
+{focus}
+
+Critique summary:
+{summary}
+
+Preserve:
+{preserve}
+
+Issues:
+{issues}
+
+Constraints:
+{constraints}
+
+{parent_section}
+"""
+
+
+_PARENT_SECTION = """──────────────── PARENT ────────────────
+Score (LCB avg): {p_score:.3f}
+{p_stats}
+{p_text}
+────────────────────────────────────────
+"""
+
+
+def build_critique_prompt(
+    *,
+    parent: Elite,
+    goal: str,
+    metrics: Sequence[str],
+    metric_descriptions: Mapping[str, str] | None,
+    routes: int,
+    show_metric_stats: bool,
+    score_lcb_c: float,
+) -> str:
+    p_stats = (
+        _format_metric_stats(parent, metrics, score_lcb_c) if show_metric_stats else ""
+    )
+    metrics_list_str = ", ".join(metrics)
+    metric_section = _format_metric_definitions(metrics, metric_descriptions)
+    return _CRITIQUE_TEMPLATE.format(
+        goal=goal,
+        metrics_list_str=metrics_list_str,
+        metric_section=metric_section,
+        routes=routes,
+        p_score=_score_lcb(parent, metrics, score_lcb_c),
+        p_stats=p_stats,
+        p_text=parent.text,
+    )
+
+
+def build_rewrite_prompt(
+    *,
+    parent: Elite,
+    goal: str,
+    operator_name: str,
+    role: str,
+    operator_instructions: str,
+    critique: Critique | None,
+    focus: str | None,
+    metrics: Sequence[str],
+    metric_descriptions: Mapping[str, str] | None,
+    show_metric_stats: bool,
+    score_lcb_c: float,
+) -> str:
+    metrics_list_str = ", ".join(metrics)
+    metric_section = _format_metric_definitions(metrics, metric_descriptions)
+    p_stats = (
+        _format_metric_stats(parent, metrics, score_lcb_c) if show_metric_stats else ""
+    )
+
+    if role == "explore":
+        parent_section = "(Parent text intentionally omitted for exploration.)"
+    else:
+        parent_section = _PARENT_SECTION.format(
+            p_score=_score_lcb(parent, metrics, score_lcb_c),
+            p_stats=p_stats,
+            p_text=parent.text,
+        )
+
+    return _REWRITE_TEMPLATE.format(
+        goal=goal,
+        operator_name=operator_name,
+        role=role,
+        operator_instructions=operator_instructions,
+        metrics_list_str=metrics_list_str,
+        metric_section=metric_section,
+        focus=(focus.strip() if focus else "(none)"),
+        summary=(critique.summary.strip() if critique and critique.summary else "(none)"),
+        preserve=_format_lines(critique.preserve if critique else ()),
+        issues=_format_lines(critique.issues if critique else ()),
+        constraints=_format_lines(critique.constraints if critique else ()),
+        parent_section=parent_section,
+    )
+
 
 _RANK_TEMPLATE = """You are judging {n} candidate texts.
 
@@ -46,48 +151,6 @@ Use the metric names exactly as provided above.
 Candidates:
 {candidates_str}
 """
-
-
-def build_mutation_prompt(
-    *,
-    parent: Elite,
-    inspirations: Sequence[Elite],
-    goal: str,
-    instructions: str,
-    max_edits: int,
-    metrics: Sequence[str],
-    metric_descriptions: Mapping[str, str] | None,
-    show_metric_stats: bool,
-    score_lcb_c: float,
-    inspiration_labels: Sequence[str] | None,
-) -> str:
-    p_stats = (
-        _format_metric_stats(parent, metrics, score_lcb_c) if show_metric_stats else ""
-    )
-    metric_section = _format_metric_definitions(metrics, metric_descriptions)
-    insp_lines = [
-        _format_inspiration(
-            elite,
-            i,
-            metrics=metrics,
-            score_lcb_c=score_lcb_c,
-            show_metric_stats=show_metric_stats,
-            label=inspiration_labels[i - 1]
-            if inspiration_labels and i - 1 < len(inspiration_labels)
-            else None,
-        )
-        for i, elite in enumerate(inspirations, 1)
-    ]
-    return _MUTATION_TEMPLATE.format(
-        goal=goal,
-        instructions=instructions,
-        metric_section=metric_section,
-        max_edits=max_edits,
-        p_score=_score_lcb(parent, metrics, score_lcb_c),
-        p_stats=p_stats,
-        p_text=parent.text,
-        insp_text="\n\n".join(insp_lines) or "(none)",
-    )
 
 
 def build_rank_prompt(
@@ -110,6 +173,13 @@ def build_rank_prompt(
     )
 
 
+def _format_lines(lines: Iterable[str]) -> str:
+    cleaned = [line.strip() for line in lines if line and line.strip()]
+    if not cleaned:
+        return "(none)"
+    return "\n".join(f"- {line}" for line in cleaned)
+
+
 def _score_lcb(elite: Elite, metrics: Sequence[str], c: float) -> float:
     if not metrics:
         return 0.0
@@ -123,7 +193,7 @@ def _score_lcb(elite: Elite, metrics: Sequence[str], c: float) -> float:
 
 
 def _format_metric_stats(elite: Elite, metrics: Sequence[str], c: float) -> str:
-    lines = []
+    lines: list[str] = []
     for metric in metrics:
         rating = elite.ratings.get(metric)
         if rating is None:
@@ -132,24 +202,9 @@ def _format_metric_stats(elite: Elite, metrics: Sequence[str], c: float) -> str:
         lines.append(
             f"{metric}: mu={rating.mu:.2f}, sigma={rating.sigma:.2f}, lcb={lcb:.2f}"
         )
+    if not lines:
+        return ""
     return "Per-metric stats:\n" + "\n".join(lines)
-
-
-def _format_inspiration(
-    elite: Elite,
-    idx: int,
-    *,
-    metrics: Sequence[str],
-    score_lcb_c: float,
-    show_metric_stats: bool,
-    label: str | None,
-) -> str:
-    label_part = f" {label}" if label else ""
-    header = f"[{idx}]{label_part} score={_score_lcb(elite, metrics, score_lcb_c):.3f}"
-    if show_metric_stats:
-        stats = _format_metric_stats(elite, metrics, score_lcb_c)
-        return f"{header}\n{stats}\n{elite.text}"
-    return f"{header}\n{elite.text}"
 
 
 def _format_metric_definitions(
@@ -173,3 +228,4 @@ def _format_metric_definitions(
     if not lines:
         return ""
     return "Metric definitions:\n" + "\n".join(lines) + "\n"
+

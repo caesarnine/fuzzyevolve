@@ -4,7 +4,7 @@
 #   fuzzyevolve --config config.toml "The sky shattered."
 
 [run]
-iterations = 10
+iterations = 100
 log_interval = 1
 # random_seed = 0
 
@@ -13,23 +13,25 @@ islands = 1
 elites_per_cell = 4
 
 [metrics]
-names = ["atmosphere", "creativity"]
+names = ["prose", "coherence", "evocativeness", "originality"]
 
 [metrics.descriptions]
-atmosphere = "Vivid mood, sensory texture, and immersive tone."
-creativity = "Novel imagery, surprising turns, and non-obvious phrasing."
+prose = "Sentence-level craft: natural voice, varied syntax, clean rhythm, strong verbs. Avoid purple prose and generic phrasing."
+coherence = "Consistent POV/tense, clear continuity, no contradictions. Every detail should feel intentional."
+evocativeness = "Specific sensory detail, emotional charge, and subtext. Prefer concrete images over abstraction; show-don't-tell."
+originality = "Fresh imagery and choices; avoids clichés, boilerplate morals, and familiar tropes unless subverted."
 
 [descriptor]
 kind = "embedding_2d"
 
 [descriptor.embedding_2d]
 projection_seed = 123
-bins_x = [-2.0, -1.0, 0.0, 1.0, 2.0]
-bins_y = [-2.0, -1.0, 0.0, 1.0, 2.0]
+bins_x = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
+bins_y = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
 # Use "hash" for a fast, dependency-free embedding.
 # For real semantic embeddings, install `fuzzyevolve[semantic]` and set e.g.:
 # embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-embedding_model = "hash"
+embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
 
 [rating]
 mu = 25.0
@@ -37,44 +39,85 @@ sigma = 8.333333333333334
 beta = 8.333333333333334
 tau = 0.16666666666666669
 draw_probability = 0.2
-score_lcb_c = 2.0
-child_prior_tau = 4.0
+score_lcb_c = 1.5
+child_prior_tau = 2.0
 
 [selection]
 kind = "uniform_cell"
-ucb_beta = 1.0
-temperature = 1.0
+ucb_beta = 0.7
+temperature = 0.9
 
-[mutation]
-calls_per_iteration = 4
-max_workers = 8
-max_edits = 4
-max_children = 4
-inspiration_count = 0
+[task]
+goal = "A literary-quality short story (~300 words) with a distinct human voice."
 
-[mutation.prompt]
-goal = "Write me a riveting short story."
-instructions = """
-Propose one or more edits to improve the PARENT text.
-Use exact substring search/replace semantics: your `search` must appear verbatim in the PARENT text.
-Return multiple edits only when they should be applied together to create one improved child.
-You can rewrite, shorten, or completely change the text.
-"""
+[prompts]
 show_metric_stats = true
 
+[critic]
+enabled = true
+routes = 8
+instructions = """
+You are a critique agent helping an evolutionary text system.
+
+Requirements:
+- Be concrete and actionable (avoid generic advice).
+- Avoid quoting large spans of the parent text.
+- Provide multiple distinct rewrite routes that meaningfully differ in voice/structure/genre.
+"""
+
+[mutation]
+jobs_per_iteration = 6
+max_workers = 6
+max_children = 4
+
+[[mutation.operators]]
+name = "exploit"
+role = "exploit"
+enabled = true
+min_jobs = 3
+weight = 1.0
+uncertainty_scale = 0.7
+temperature = 0.7
+instructions = """
+Rewrite the PARENT to improve quality and maximize the metrics.
+
+Guidance:
+- Keep the core premise and intent, but you may restructure as needed.
+- Use the critique issues as a to-do list when provided.
+- Avoid clichés, generic endings, and boilerplate metaphors.
+- Do not mention evaluation metrics.
+"""
+
+[[mutation.operators]]
+name = "explore"
+role = "explore"
+enabled = true
+min_jobs = 3
+weight = 1.0
+uncertainty_scale = 2.5
+temperature = 1.2
+instructions = """
+Rewrite freely from scratch for exploration.
+
+Guidance:
+- You may change everything: plot, voice, POV, style, genre, structure.
+- Use a provided rewrite route as the main creative constraint.
+- Do not copy phrases from the parent.
+- Do not mention evaluation metrics.
+"""
+
 [judging]
-max_attempts = 2
+max_attempts = 3
 repair_enabled = true
 max_battle_size = 6
-include_inspiration = false
 
 [judging.opponent]
-kind = "none"
-probability = 0.1
+kind = "global_best"
+probability = 0.15
 
 [anchors]
-injection_probability = 0.2
-max_per_battle = 2
+injection_probability = 0.25
+max_per_battle = 1
 seed_mu = 25.0
 seed_sigma = 2.0
 ghost_interval = 10

@@ -46,23 +46,10 @@ class Anchor:
 
 
 @dataclass(frozen=True, slots=True)
-class TextEdit:
-    search: str
-    replace: str
-
-
-@dataclass(frozen=True, slots=True)
 class MutationCandidate:
     text: str
-    edits: tuple[TextEdit, ...] = ()
-
-    @property
-    def search_block(self) -> str:
-        return "\n\n".join(edit.search for edit in self.edits)
-
-    @property
-    def replace_block(self) -> str:
-        return "\n\n".join(edit.replace for edit in self.edits)
+    operator: str = ""
+    uncertainty_scale: float = 1.0
 
 
 @dataclass(frozen=True, slots=True)

@@ -3,15 +3,16 @@ from __future__ import annotations
 import logging
 import random
 from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
 from fuzzyevolve.config import Config
 from fuzzyevolve.core.anchors import AnchorManager, AnchorPolicy
 from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.battle import Battle, build_battle
-from fuzzyevolve.core.inspirations import InspirationPicker
+from fuzzyevolve.core.critique import Critique
 from fuzzyevolve.core.models import Anchor, Elite, EvolutionResult, IterationSnapshot
-from fuzzyevolve.core.ports import Mutator, Ranker
+from fuzzyevolve.core.models import MutationCandidate
+from fuzzyevolve.core.ports import Critic, Mutator, Ranker
 from fuzzyevolve.core.ratings import RatingSystem
 
 log_evo = logging.getLogger("evolution")
@@ -26,7 +27,7 @@ class EvolutionEngine:
         describe: Callable[[str], dict],
         rating: RatingSystem,
         selector: Callable[[MapElitesArchive], Elite],
-        inspirations: InspirationPicker,
+        critic: Critic | None,
         mutator: Mutator,
         ranker: Ranker,
         anchor_manager: AnchorManager | None,
@@ -39,7 +40,7 @@ class EvolutionEngine:
         self.describe = describe
         self.rating = rating
         self.selector = selector
-        self.inspirations = inspirations
+        self.critic = critic
         self.mutator = mutator
         self.ranker = ranker
         self.anchors = anchor_manager
@@ -54,9 +55,9 @@ class EvolutionEngine:
         self._seed(seed_text)
 
         mutation_executor: ThreadPoolExecutor | None = None
-        if self.cfg.mutation.calls_per_iteration > 1:
+        if self.cfg.mutation.jobs_per_iteration > 1:
             max_workers = min(
-                self.cfg.mutation.calls_per_iteration,
+                self.cfg.mutation.jobs_per_iteration,
                 self.cfg.mutation.max_workers,
             )
             mutation_executor = ThreadPoolExecutor(max_workers=max_workers)
@@ -120,19 +121,14 @@ class EvolutionEngine:
         parent = self.selector(archive)
         self.rating.ensure_ratings(parent)
 
-        inspiration_picks = self.inspirations.pick(
-            archive,
-            parent,
-            count=self.cfg.mutation.inspiration_count,
-        )
-        inspirations = [pick.elite for pick in inspiration_picks]
-        inspiration_labels = [pick.label for pick in inspiration_picks]
+        critique = None
+        if self.critic:
+            critique = self.critic.critique(parent=parent)
 
         candidates = self._propose_children(
             archive,
             parent,
-            inspirations,
-            inspiration_labels=inspiration_labels,
+            critique=critique,
             mutation_executor=mutation_executor,
         )
         if not candidates:
@@ -144,10 +140,6 @@ class EvolutionEngine:
             self._maintenance(iteration)
             return
 
-        judge_inspiration = None
-        if self.cfg.judging.include_inspiration and inspirations:
-            judge_inspiration = self.rng.choice(inspirations)
-
         anchors = self._maybe_pick_anchors([parent, *children])
         opponent = self._maybe_pick_opponent(
             archive, parent, [parent, *children, *anchors]
@@ -158,7 +150,6 @@ class EvolutionEngine:
             children=children,
             anchors=anchors,
             opponent=opponent,
-            inspiration=judge_inspiration,
             max_battle_size=self.cfg.judging.max_battle_size,
             rng=self.rng,
         )
@@ -196,60 +187,49 @@ class EvolutionEngine:
         self,
         archive: MapElitesArchive,
         parent: Elite,
-        inspirations: Sequence[Elite],
         *,
-        inspiration_labels: Sequence[str],
+        critique: Critique | None,
         mutation_executor: ThreadPoolExecutor | None,
-    ) -> list[str]:
-        candidate_texts: list[str] = []
-        call_count = self.cfg.mutation.calls_per_iteration
-
-        def call_mutator() -> Sequence[str]:
-            out = self.mutator.propose(
+    ) -> list[MutationCandidate]:
+        try:
+            raw = self.mutator.propose(
                 parent=parent,
-                inspirations=inspirations,
-                inspiration_labels=inspiration_labels or None,
+                critique=critique,
+                max_candidates=self.cfg.mutation.max_children,
+                mutation_executor=mutation_executor,
             )
-            return [c.text for c in out]
+        except Exception:
+            log_evo.exception("Mutation step failed; skipping iteration.")
+            raw = []
 
-        if call_count <= 1 or mutation_executor is None:
-            batches = [call_mutator()]
-        else:
-            futures = [
-                mutation_executor.submit(call_mutator) for _ in range(call_count)
-            ]
-            batches = []
-            for fut in as_completed(futures):
-                try:
-                    batches.append(fut.result())
-                except Exception:
-                    log_evo.exception("Mutation call failed; skipping.")
-
-        seen = set()
-        for batch in batches:
-            for text in batch:
-                if text in seen:
-                    continue
-                if archive.contains_text(text):
-                    continue
-                seen.add(text)
-                candidate_texts.append(text)
-
-        if len(candidate_texts) > self.cfg.mutation.max_children:
-            candidate_texts = self.rng.sample(
-                candidate_texts, k=self.cfg.mutation.max_children
-            )
-        return candidate_texts
+        seen: set[str] = set()
+        unique: list[MutationCandidate] = []
+        for cand in raw:
+            text = cand.text
+            if text in seen:
+                continue
+            if archive.contains_text(text):
+                continue
+            seen.add(text)
+            unique.append(cand)
+        return unique
 
     def _make_children(
-        self, parent: Elite, texts: Sequence[str], *, age: int
+        self,
+        parent: Elite,
+        candidates: Sequence[MutationCandidate],
+        *,
+        age: int,
     ) -> list[Elite]:
         children: list[Elite] = []
-        for text in texts:
+        for cand in candidates:
+            text = cand.text
             child = Elite(
                 text=text,
                 descriptor=self.describe(text),
-                ratings=self.rating.init_child_ratings(parent),
+                ratings=self.rating.init_child_ratings(
+                    parent, uncertainty_scale=cand.uncertainty_scale
+                ),
                 age=age,
             )
             children.append(child)

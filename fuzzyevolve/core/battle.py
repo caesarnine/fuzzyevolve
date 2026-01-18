@@ -25,7 +25,6 @@ def build_battle(
     children: Sequence[Elite],
     anchors: Sequence[Anchor] = (),
     opponent: Elite | None = None,
-    inspiration: Elite | None = None,
     max_battle_size: int,
     rng: random.Random,
 ) -> Battle:
@@ -50,9 +49,6 @@ def build_battle(
         participants.append(opponent)
         available -= 1
 
-    if inspiration is not None and inspiration not in participants and available > 0:
-        participants.append(inspiration)
-
     frozen_indices = frozenset(
         idx for idx, player in enumerate(participants) if isinstance(player, Anchor)
     )
@@ -60,12 +56,6 @@ def build_battle(
     resort_elites: list[Elite] = [parent]
     if opponent is not None and opponent in participants:
         resort_elites.append(opponent)
-    if (
-        inspiration is not None
-        and inspiration in participants
-        and inspiration is not parent
-    ):
-        resort_elites.append(inspiration)
 
     return Battle(
         participants=tuple(participants),

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import itertools
 import random
-import threading
 from collections.abc import Sequence
 from unittest.mock import Mock
 
@@ -12,8 +10,7 @@ from fuzzyevolve.config import Config
 from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.descriptors import build_descriptor_space
 from fuzzyevolve.core.engine import EvolutionEngine
-from fuzzyevolve.core.inspirations import InspirationPicker
-from fuzzyevolve.core.models import Elite, MutationCandidate, TextEdit
+from fuzzyevolve.core.models import Elite, MutationCandidate
 from fuzzyevolve.core.ratings import BattleRanking, RatingSystem
 
 
@@ -41,7 +38,6 @@ def make_engine(
         rng=random.Random(0),
         score_fn=rating.score,
     )
-    inspirations = InspirationPicker(rating=rating, rng=random.Random(0))
 
     def selector(arc: MapElitesArchive) -> Elite:
         return arc.random_elite()
@@ -52,7 +48,7 @@ def make_engine(
         describe=length_descriptor,
         rating=rating,
         selector=selector,
-        inspirations=inspirations,
+        critic=None,
         mutator=mutator,
         ranker=ranker,
         anchor_manager=None,
@@ -71,15 +67,14 @@ class TestEvolutionEngine:
         cfg.run.iterations = 1
         cfg.population.elites_per_cell = 10
         cfg.metrics.names = ["m1"]
-        cfg.mutation.calls_per_iteration = 1
         cfg.mutation.max_children = 10
         cfg.judging.max_battle_size = 10
 
         mutator = Mock()
         mutator.propose = Mock(
             return_value=[
-                MutationCandidate(text="child1", edits=(TextEdit("a", "b"),)),
-                MutationCandidate(text="child2", edits=(TextEdit("a", "c"),)),
+                MutationCandidate(text="child1"),
+                MutationCandidate(text="child2"),
             ]
         )
 
@@ -96,42 +91,6 @@ class TestEvolutionEngine:
         assert ranker.rank.call_count == 1
         battle = ranker.rank.call_args.kwargs["battle"]
         assert {p.text for p in battle.participants} == {"seed", "child1", "child2"}
-
-    def test_multiple_mutation_calls_per_iteration(self):
-        cfg = Config()
-        cfg.run.iterations = 1
-        cfg.population.elites_per_cell = 10
-        cfg.metrics.names = ["m1"]
-        cfg.mutation.calls_per_iteration = 3
-        cfg.mutation.max_workers = 3
-        cfg.mutation.max_children = 10
-        cfg.judging.max_battle_size = 10
-
-        mutator = Mock()
-        counter = itertools.count(1)
-        lock = threading.Lock()
-
-        def _propose(**kwargs):
-            with lock:
-                idx = next(counter)
-            return [MutationCandidate(text=f"c{idx}")]
-
-        mutator.propose = Mock(side_effect=_propose)
-
-        ranker = Mock()
-        ranker.rank = Mock(
-            side_effect=lambda **kw: rank_parent_best(
-                kw["metrics"], len(kw["battle"].participants)
-            )
-        )
-
-        engine = make_engine(cfg, mutator=mutator, ranker=ranker)
-        engine.run("seed")
-
-        assert mutator.propose.call_count == 3
-        assert ranker.rank.call_count == 1
-        battle = ranker.rank.call_args.kwargs["battle"]
-        assert {p.text for p in battle.participants} == {"seed", "c1", "c2", "c3"}
 
     def test_empty_candidates_handling(self):
         cfg = Config()
@@ -153,7 +112,6 @@ class TestEvolutionEngine:
         cfg = Config()
         cfg.run.iterations = 1
         cfg.metrics.names = ["m1"]
-        cfg.mutation.calls_per_iteration = 1
         cfg.new_cell_gate.kind = "none"
 
         mutator = Mock()
@@ -229,7 +187,6 @@ class TestEvolutionEngine:
         cfg.run.iterations = 1
         cfg.population.elites_per_cell = 10
         cfg.metrics.names = ["m1"]
-        cfg.mutation.calls_per_iteration = 1
         cfg.mutation.max_children = 10
         cfg.judging.max_battle_size = 10
 
