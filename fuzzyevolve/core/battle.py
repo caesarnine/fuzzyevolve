@@ -50,11 +50,7 @@ def build_battle(
         participants.append(opponent)
         available -= 1
 
-    if (
-        inspiration is not None
-        and inspiration not in participants
-        and available > 0
-    ):
+    if inspiration is not None and inspiration not in participants and available > 0:
         participants.append(inspiration)
 
     frozen_indices = frozenset(
@@ -64,7 +60,11 @@ def build_battle(
     resort_elites: list[Elite] = [parent]
     if opponent is not None and opponent in participants:
         resort_elites.append(opponent)
-    if inspiration is not None and inspiration in participants and inspiration is not parent:
+    if (
+        inspiration is not None
+        and inspiration in participants
+        and inspiration is not parent
+    ):
         resort_elites.append(inspiration)
 
     return Battle(
@@ -73,4 +73,3 @@ def build_battle(
         resort_elites=tuple(resort_elites),
         frozen_indices=frozen_indices,
     )
-

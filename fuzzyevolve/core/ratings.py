@@ -56,7 +56,9 @@ class RatingSystem:
     def score(self, ratings: Mapping[str, ts.Rating]) -> float:
         c = self.score_lcb_c
         weight = 1.0 / len(self.metrics)
-        return sum(weight * (ratings[m].mu - c * ratings[m].sigma) for m in self.metrics)
+        return sum(
+            weight * (ratings[m].mu - c * ratings[m].sigma) for m in self.metrics
+        )
 
     def metric_lcb(self, rating: ts.Rating) -> float:
         return rating.mu - self.score_lcb_c * rating.sigma
@@ -144,4 +146,3 @@ class RatingSystem:
                 if idx in frozen_indices:
                     continue
                 player.ratings[metric] = new_rating[0]
-

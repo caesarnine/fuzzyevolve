@@ -9,6 +9,7 @@ import trueskill as ts
 from fuzzyevolve.core.descriptors import DescriptorSpace
 from fuzzyevolve.core.models import Elite
 
+
 class MapElitesArchive:
     def __init__(
         self,

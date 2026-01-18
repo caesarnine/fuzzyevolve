@@ -109,10 +109,11 @@ class LLMMutator:
         if not diffs:
             return []
 
-        edits = tuple(TextEdit(search=diff.search, replace=diff.replace) for diff in diffs)
+        edits = tuple(
+            TextEdit(search=diff.search, replace=diff.replace) for diff in diffs
+        )
         patch = apply_edits(parent.text, [(e.search, e.replace) for e in edits])
         if not patch.success or patch.new_text is None or patch.new_text == parent.text:
             return []
 
         return [MutationCandidate(text=patch.new_text, edits=edits)]
-

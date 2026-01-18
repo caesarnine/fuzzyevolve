@@ -24,26 +24,13 @@ classifiers = [
     "Intended Audience :: Developers",
 ]
 dependencies = [
-    # "chardet>=5.2.0", # Removed - seemed unused
     "google-genai>=0.3.0",
-    "lxml>=5.3.2",
-    "pathspec>=0.12.1", # For Gemini model via Google AI Studio
-    "pydantic-ai[logfire]>=0.0.49", # Core agent library (consider if logfire is needed)
-    # "pydantic-settings>=2.7.1", # Keep if future config plans exist, remove otherwise? Removed for now.
-    "python-dotenv>=1.0.1",
-    "prompt-toolkit>=3.0.0", # For improved CLI input handling
-    "rich>=13.9.4", # For CLI display
-    "pyyaml>=6.0", # For loading roles.yaml
-    # Add 'google-cloud-aiplatform' if USE_VERTEX_AI needs to be bundled
-    "readabilipy>=0.3.0",
-    "markdownify>=1.1.0",
+    "pydantic>=2.0.0",
+    "pydantic-ai>=0.0.49",
     "numpy>=2.2.6",
-    "sentence-transformers>=2.6.1",
-    "unidiff>=0.7.5",
+    "rich>=13.9.4",
     "trueskill>=0.4.5",
-    "flask>=3.1.1",
-    "flask-socketio>=5.5.1",
-    "typer[all]>=0.12.3",
+    "typer>=0.12.3",
     "tomli>=2.0.1; python_version < '3.11'",
 ]
 
@@ -75,7 +62,6 @@ semantic = ["sentence-transformers>=2.6.1"]
 [tool.ruff]
 # Exclude the same directories from all checks & fixes.
 extend-exclude = [
-    "tests",
     "migrations",
     ".venv",        # Exclude virtual env
     ".git",         # Exclude git dir
@@ -97,7 +83,7 @@ target-version = "py310"
 # Enable flake8-import-conventions (I).
 # Enable pyupgrade rules (UP).
 # Add others as needed (e.g., B for flake8-bugbear, SIM for flake8-simplify)
-ignore = ["E501", "F841"] # REMOVED E722 (bare except) - Prefer 'except Exception:' or specific types.
+ignore = ["E501"] # REMOVED E722 (bare except) - Prefer 'except Exception:' or specific types.
 unfixable = ["F401"] # Prevent auto-removal of unused imports
 
 # Allow unused variables when underscore-prefixed.

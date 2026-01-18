@@ -28,14 +28,14 @@ def test_resolve_config_prefers_toml_over_json(tmp_path: Path):
     toml_cfg = tmp_path / "config.toml"
     json_cfg = tmp_path / "config.json"
     toml_cfg.write_text("iterations = 1\n")
-    json_cfg.write_text("{\"iterations\": 2}\n")
+    json_cfg.write_text('{"iterations": 2}\n')
     path, _ = _resolve_config_path(None, cwd=tmp_path)
     assert path == toml_cfg
 
 
 def test_resolve_config_falls_back_to_json(tmp_path: Path):
     cfg = tmp_path / "config.json"
-    cfg.write_text("{\"iterations\": 2}\n")
+    cfg.write_text('{"iterations": 2}\n')
     path, _ = _resolve_config_path(None, cwd=tmp_path)
     assert path == cfg
 

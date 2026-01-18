@@ -39,4 +39,3 @@ def test_anchor_pool_dedupes_by_text():
     ghost2 = pool.add_ghost(_make_elite("ghost"))
     assert ghost2 is ghost1
     assert len(pool._anchors) == 2
-

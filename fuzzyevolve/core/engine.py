@@ -75,7 +75,9 @@ class EvolutionEngine:
                 if on_iteration:
                     on_iteration(snapshot)
 
-                if self.anchors and self.anchors.maybe_add_ghost(best, iteration=iteration + 1):
+                if self.anchors and self.anchors.maybe_add_ghost(
+                    best, iteration=iteration + 1
+                ):
                     log_evo.info("Added ghost anchor at iteration %d.", iteration + 1)
 
         finally:
@@ -83,10 +85,14 @@ class EvolutionEngine:
                 mutation_executor.shutdown(wait=True)
 
         best = self.best_elite()
-        return EvolutionResult(best_elite=best, best_score=self.rating.score(best.ratings))
+        return EvolutionResult(
+            best_elite=best, best_score=self.rating.score(best.ratings)
+        )
 
     def best_elite(self) -> Elite:
-        all_elites = [elite for archive in self.islands for elite in archive.iter_elites()]
+        all_elites = [
+            elite for archive in self.islands for elite in archive.iter_elites()
+        ]
         if not all_elites:
             raise ValueError("No elites available.")
         return max(all_elites, key=lambda e: self.rating.score(e.ratings))
@@ -143,7 +149,9 @@ class EvolutionEngine:
             judge_inspiration = self.rng.choice(inspirations)
 
         anchors = self._maybe_pick_anchors([parent, *children])
-        opponent = self._maybe_pick_opponent(archive, parent, [parent, *children, *anchors])
+        opponent = self._maybe_pick_opponent(
+            archive, parent, [parent, *children, *anchors]
+        )
 
         battle = build_battle(
             parent=parent,
@@ -164,7 +172,9 @@ class EvolutionEngine:
             metric_descriptions=self.cfg.metrics.descriptions,
         )
         if ranking is None:
-            log_evo.warning("Judge failed; skipping archive update for iteration %d.", iteration + 1)
+            log_evo.warning(
+                "Judge failed; skipping archive update for iteration %d.", iteration + 1
+            )
             self._maintenance(iteration)
             return
 
@@ -205,7 +215,9 @@ class EvolutionEngine:
         if call_count <= 1 or mutation_executor is None:
             batches = [call_mutator()]
         else:
-            futures = [mutation_executor.submit(call_mutator) for _ in range(call_count)]
+            futures = [
+                mutation_executor.submit(call_mutator) for _ in range(call_count)
+            ]
             batches = []
             for fut in as_completed(futures):
                 try:
@@ -229,7 +241,9 @@ class EvolutionEngine:
             )
         return candidate_texts
 
-    def _make_children(self, parent: Elite, texts: Sequence[str], *, age: int) -> list[Elite]:
+    def _make_children(
+        self, parent: Elite, texts: Sequence[str], *, age: int
+    ) -> list[Elite]:
         children: list[Elite] = []
         for text in texts:
             child = Elite(
@@ -275,21 +289,28 @@ class EvolutionEngine:
             return None
 
         if opponent_cfg.kind == "global_best":
-            candidates = [e for e in archive.iter_elites() if e.text not in exclude_texts]
+            candidates = [
+                e for e in archive.iter_elites() if e.text not in exclude_texts
+            ]
             if not candidates:
                 return None
             return max(candidates, key=lambda e: self.rating.score(e.ratings))
 
         raise ValueError(f"Unknown opponent kind '{opponent_cfg.kind}'.")
 
-    def _passes_new_cell_gate(self, archive: MapElitesArchive, parent: Elite, child: Elite) -> bool:
+    def _passes_new_cell_gate(
+        self, archive: MapElitesArchive, parent: Elite, child: Elite
+    ) -> bool:
         gate = self.cfg.new_cell_gate
         if gate.kind == "none":
             return True
         if not archive.is_new_cell(child.descriptor):
             return True
         if gate.kind == "parent_lcb":
-            return self.rating.score(child.ratings) >= self.rating.score(parent.ratings) + gate.delta
+            return (
+                self.rating.score(child.ratings)
+                >= self.rating.score(parent.ratings) + gate.delta
+            )
         raise ValueError(f"Unknown new cell gate kind '{gate.kind}'.")
 
     def _maintenance(self, iteration: int) -> None:

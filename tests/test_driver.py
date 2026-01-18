@@ -42,7 +42,10 @@ def make_engine(
         score_fn=rating.score,
     )
     inspirations = InspirationPicker(rating=rating, rng=random.Random(0))
-    selector = lambda arc: arc.random_elite()
+
+    def selector(arc: MapElitesArchive) -> Elite:
+        return arc.random_elite()
+
     return EvolutionEngine(
         cfg=cfg,
         islands=[archive],
@@ -116,7 +119,11 @@ class TestEvolutionEngine:
         mutator.propose = Mock(side_effect=_propose)
 
         ranker = Mock()
-        ranker.rank = Mock(side_effect=lambda **kw: rank_parent_best(kw["metrics"], len(kw["battle"].participants)))
+        ranker.rank = Mock(
+            side_effect=lambda **kw: rank_parent_best(
+                kw["metrics"], len(kw["battle"].participants)
+            )
+        )
 
         engine = make_engine(cfg, mutator=mutator, ranker=ranker)
         engine.run("seed")
@@ -206,7 +213,6 @@ class TestEvolutionEngine:
         ranker = Mock()
 
         def _rank(**kwargs):
-            battle = kwargs["battle"]
             # Put parent above child -> child gets worse after rating update.
             tiers = [[0], [1]]
             return BattleRanking(tiers_by_metric={m: tiers for m in kwargs["metrics"]})
@@ -233,7 +239,11 @@ class TestEvolutionEngine:
         )
 
         ranker = Mock()
-        ranker.rank = Mock(side_effect=lambda **kw: rank_parent_best(kw["metrics"], len(kw["battle"].participants)))
+        ranker.rank = Mock(
+            side_effect=lambda **kw: rank_parent_best(
+                kw["metrics"], len(kw["battle"].participants)
+            )
+        )
 
         engine = make_engine(cfg, mutator=mutator, ranker=ranker)
         engine.islands[0].add(

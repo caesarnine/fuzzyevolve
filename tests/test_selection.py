@@ -11,9 +11,7 @@ from fuzzyevolve.core.selection import ParentSelector
 
 
 def test_optimistic_selector_prefers_high_score_cell():
-    space = build_descriptor_space(
-        {"lang": ["txt"], "len": {"bins": [0, 10, 100]}}
-    )
+    space = build_descriptor_space({"lang": ["txt"], "len": {"bins": [0, 10, 100]}})
     archive = MapElitesArchive(
         space,
         elites_per_cell=1,

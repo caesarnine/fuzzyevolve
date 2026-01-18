@@ -11,7 +11,9 @@ from fuzzyevolve.core.models import Anchor, Elite, Ratings
 
 
 class AnchorPool:
-    def __init__(self, metrics: Sequence[str], rng: random.Random | None = None) -> None:
+    def __init__(
+        self, metrics: Sequence[str], rng: random.Random | None = None
+    ) -> None:
         self.metrics = list(metrics)
         if not self.metrics:
             raise ValueError("At least one metric is required for anchors.")
@@ -67,7 +69,9 @@ class AnchorPool:
         )
         return self._add_anchor(anchor)
 
-    def sample(self, max_count: int, *, exclude_texts: set[str] | None = None) -> list[Anchor]:
+    def sample(
+        self, max_count: int, *, exclude_texts: set[str] | None = None
+    ) -> list[Anchor]:
         if max_count <= 0:
             return []
         if not self._anchors:
@@ -120,7 +124,9 @@ class AnchorManager:
         self.policy = policy
         self.rng = rng
 
-    def seed(self, text: str, *, descriptor_fn: Callable[[str], dict[str, Any]]) -> Anchor:
+    def seed(
+        self, text: str, *, descriptor_fn: Callable[[str], dict[str, Any]]
+    ) -> Anchor:
         return self.pool.add_seed(
             text,
             descriptor_fn=descriptor_fn,
@@ -144,4 +150,3 @@ class AnchorManager:
             return False
         self.pool.add_ghost(best, age=iteration)
         return True
-

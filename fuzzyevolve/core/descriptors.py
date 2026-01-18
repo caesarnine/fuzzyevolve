@@ -77,7 +77,3 @@ def build_descriptor_space(spec: Mapping[str, Any]) -> DescriptorSpace:
                 "Axis spec must be a list of categories or a dict with 'bins'."
             )
     return DescriptorSpace(axes=axes)
-
-
-def default_text_descriptor(text: str) -> dict[str, Any]:
-    return {"lang": "txt", "len": len(text)}

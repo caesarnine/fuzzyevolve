@@ -26,4 +26,3 @@ class Ranker(Protocol):
         battle: Battle,
         metric_descriptions: Mapping[str, str] | None = None,
     ) -> BattleRanking | None: ...
-

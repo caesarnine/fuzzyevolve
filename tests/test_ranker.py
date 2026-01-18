@@ -41,7 +41,9 @@ def test_ranker_allows_ties():
 
 
 def test_ranker_repair_success():
-    ranker = LLMRanker(model="mock", rng=random.Random(0), max_attempts=2, repair_enabled=True)
+    ranker = LLMRanker(
+        model="mock", rng=random.Random(0), max_attempts=2, repair_enabled=True
+    )
     battle = make_battle([make_elite("a", "m1"), make_elite("b", "m1")])
 
     invalid = RankerOutput(rankings=[MetricRanking(metric="m1", ranked_tiers=[[0]])])
@@ -59,9 +61,10 @@ def test_ranker_repair_success():
 
 
 def test_ranker_invalid_after_retries():
-    ranker = LLMRanker(model="mock", rng=random.Random(0), max_attempts=2, repair_enabled=True)
+    ranker = LLMRanker(
+        model="mock", rng=random.Random(0), max_attempts=2, repair_enabled=True
+    )
     battle = make_battle([make_elite("a", "m1"), make_elite("b", "m1")])
     invalid = RankerOutput(rankings=[MetricRanking(metric="m1", ranked_tiers=[[0]])])
     ranker.agent.run_sync = lambda *args, **kwargs: SimpleNamespace(output=invalid)
     assert ranker.rank(metrics=["m1"], battle=battle) is None
-

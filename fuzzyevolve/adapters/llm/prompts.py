@@ -129,7 +129,9 @@ def _format_metric_stats(elite: Elite, metrics: Sequence[str], c: float) -> str:
         if rating is None:
             continue
         lcb = rating.mu - c * rating.sigma
-        lines.append(f"{metric}: mu={rating.mu:.2f}, sigma={rating.sigma:.2f}, lcb={lcb:.2f}")
+        lines.append(
+            f"{metric}: mu={rating.mu:.2f}, sigma={rating.sigma:.2f}, lcb={lcb:.2f}"
+        )
     return "Per-metric stats:\n" + "\n".join(lines)
 
 
@@ -161,7 +163,9 @@ def _format_metric_definitions(
         desc = descriptions.get(metric_name)
         if not desc or not desc.strip():
             continue
-        desc_lines = [line.strip() for line in desc.strip().splitlines() if line.strip()]
+        desc_lines = [
+            line.strip() for line in desc.strip().splitlines() if line.strip()
+        ]
         if not desc_lines:
             continue
         lines.append(f"- {metric_name}: {desc_lines[0]}")
@@ -169,4 +173,3 @@ def _format_metric_definitions(
     if not lines:
         return ""
     return "Metric definitions:\n" + "\n".join(lines) + "\n"
-

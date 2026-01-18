@@ -66,16 +66,6 @@ class MutationCandidate:
 
 
 @dataclass(frozen=True, slots=True)
-class MutationEvent:
-    iteration: int
-    island: int
-    parent_score: float
-    child_score: float
-    search: str
-    replace: str
-
-
-@dataclass(frozen=True, slots=True)
 class IterationSnapshot:
     iteration: int
     best_score: float
@@ -87,4 +77,3 @@ class IterationSnapshot:
 class EvolutionResult:
     best_elite: Elite
     best_score: float
-

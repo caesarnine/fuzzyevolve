@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Sequence
 
 from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.models import Elite
@@ -81,7 +80,9 @@ class InspirationPicker:
         remaining = available()
         if remaining:
             parent_score = self.rating.score(parent.ratings)
-            island_best = max([parent, *candidates], key=lambda e: self.rating.score(e.ratings))
+            island_best = max(
+                [parent, *candidates], key=lambda e: self.rating.score(e.ratings)
+            )
             if island_best.text not in seen_texts:
                 champion = island_best
                 label = f"CHAMPION (island best, Δscore={self.rating.score(champion.ratings) - parent_score:+.3f})"
@@ -101,4 +102,3 @@ class InspirationPicker:
             add(pick, "RANDOM")
 
         return chosen
-

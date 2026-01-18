@@ -20,13 +20,16 @@ atmosphere = "Vivid mood, sensory texture, and immersive tone."
 creativity = "Novel imagery, surprising turns, and non-obvious phrasing."
 
 [descriptor]
-kind = "semantic_2d"
+kind = "embedding_2d"
 
-[descriptor.semantic_2d]
+[descriptor.embedding_2d]
 projection_seed = 123
 bins_x = [-2.0, -1.0, 0.0, 1.0, 2.0]
 bins_y = [-2.0, -1.0, 0.0, 1.0, 2.0]
-embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+# Use "hash" for a fast, dependency-free embedding.
+# For real semantic embeddings, install `fuzzyevolve[semantic]` and set e.g.:
+# embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+embedding_model = "hash"
 
 [rating]
 mu = 25.0
@@ -99,4 +102,3 @@ temperature = 1.0
 model = "google-gla:gemini-3-pro-preview"
 weight = 0.15
 temperature = 1.0
-

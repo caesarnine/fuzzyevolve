@@ -102,7 +102,9 @@ class LLMRanker:
                 continue
 
             parsed = rsp.output.rankings
-            ranked_map, error = _validate_rankings(parsed, metrics, len(battle.participants))
+            ranked_map, error = _validate_rankings(
+                parsed, metrics, len(battle.participants)
+            )
             if ranked_map is None:
                 log_llm.warning(
                     "Ranker returned invalid rankings (%s) — attempt %d/%d.",
@@ -178,4 +180,3 @@ def _build_repair_prompt(prompt: str, error_msg: str) -> str:
         "Return corrected structured output only.\n\n"
         f"Original prompt:\n{prompt}"
     )
-

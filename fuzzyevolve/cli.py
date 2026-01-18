@@ -19,7 +19,7 @@ from rich.progress import (
 
 from fuzzyevolve.adapters.llm.mutator import LLMMutator
 from fuzzyevolve.adapters.llm.ranker import LLMRanker
-from fuzzyevolve.config import Config, load_config
+from fuzzyevolve.config import load_config
 from fuzzyevolve.console.logging import setup_logging
 from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.descriptor_system import build_descriptor_system
@@ -128,7 +128,8 @@ def main(
     rng_models = random.Random(master_rng.randrange(2**32))
     rng_anchors = random.Random(master_rng.randrange(2**32))
     archive_rngs = [
-        random.Random(master_rng.randrange(2**32)) for _ in range(cfg.population.islands)
+        random.Random(master_rng.randrange(2**32))
+        for _ in range(cfg.population.islands)
     ]
 
     describe, space = build_descriptor_system(cfg)
@@ -260,4 +261,3 @@ def _read_seed_text(user_input: str | None) -> str:
 
 if __name__ == "__main__":
     app()
-

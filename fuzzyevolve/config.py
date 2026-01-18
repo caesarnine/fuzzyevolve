@@ -11,7 +11,7 @@ except ImportError:  # pragma: no cover - fallback for <3.11
 
 from pydantic import BaseModel, Field, model_validator
 
-DEFAULT_SEMANTIC_BINS = [-2.0, -1.0, 0.0, 1.0, 2.0]
+DEFAULT_EMBEDDING_BINS = [-2.0, -1.0, 0.0, 1.0, 2.0]
 
 
 class RunConfig(BaseModel):
@@ -63,22 +63,22 @@ class RatingConfig(BaseModel):
     child_prior_tau: float = Field(4.0, ge=0.0)
 
 
-class Semantic2DConfig(BaseModel):
-    embedding_model: str | None = "sentence-transformers/all-MiniLM-L6-v2"
+class Embedding2DConfig(BaseModel):
+    embedding_model: str | None = "hash"
     projection_seed: int = 123
-    bins_x: list[float] = Field(default_factory=lambda: list(DEFAULT_SEMANTIC_BINS))
-    bins_y: list[float] = Field(default_factory=lambda: list(DEFAULT_SEMANTIC_BINS))
+    bins_x: list[float] = Field(default_factory=lambda: list(DEFAULT_EMBEDDING_BINS))
+    bins_y: list[float] = Field(default_factory=lambda: list(DEFAULT_EMBEDDING_BINS))
 
     @model_validator(mode="after")
-    def _validate_bins(self) -> "Semantic2DConfig":
+    def _validate_bins(self) -> "Embedding2DConfig":
         if len(self.bins_x) < 2 or len(self.bins_y) < 2:
-            raise ValueError("semantic_2d bins must each have at least two values.")
+            raise ValueError("embedding_2d bins must each have at least two values.")
         return self
 
 
 class DescriptorConfig(BaseModel):
-    kind: Literal["semantic_2d", "length"] = "semantic_2d"
-    semantic_2d: Semantic2DConfig = Field(default_factory=Semantic2DConfig)
+    kind: Literal["embedding_2d", "length"] = "embedding_2d"
+    embedding_2d: Embedding2DConfig = Field(default_factory=Embedding2DConfig)
     length_bins: list[float] = Field(default_factory=lambda: [0, 50, 200, 1000, 10_000])
 
     @model_validator(mode="after")
@@ -89,7 +89,7 @@ class DescriptorConfig(BaseModel):
 
 
 class SelectionConfig(BaseModel):
-    kind: Literal["uniform_cell", "optimistic_cell_softmax"] = "optimistic_cell_softmax"
+    kind: Literal["uniform_cell", "optimistic_cell_softmax"] = "uniform_cell"
     ucb_beta: float = Field(1.0, ge=0.0)
     temperature: float = Field(1.0, gt=0.0)
 
@@ -106,7 +106,7 @@ class MutationPromptConfig(BaseModel):
 
 
 class MutationConfig(BaseModel):
-    calls_per_iteration: int = Field(1, ge=1)
+    calls_per_iteration: int = Field(4, ge=1)
     max_workers: int = Field(8, ge=1)
     max_edits: int = Field(4, ge=1)
     max_children: int = Field(4, ge=1)

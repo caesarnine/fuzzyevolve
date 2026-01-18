@@ -42,7 +42,7 @@ See the repo’s `config.toml` for a complete example. The structure is intentio
 
 - `[run]`: iterations, logging cadence, random seed
 - `[population]`: islands, elites per cell
-- `[descriptor]`: how texts map into MAP‑Elites cells (`semantic_2d` or `length`)
+- `[descriptor]`: how texts map into MAP‑Elites cells (`embedding_2d` or `length`)
 - `[metrics]`: metric names and optional descriptions (fed to LLM prompts)
 - `[rating]`: TrueSkill parameters + scoring and child priors
 - `[mutation]`: mutation call budget + prompt goal/instructions
@@ -100,4 +100,3 @@ uv run pytest -q
 ## License
 
 Apache 2.0 — see `LICENSE`.
-
