@@ -4,7 +4,7 @@
 #   fuzzyevolve --config config.toml "The sky shattered."
 
 [run]
-iterations = 100
+iterations = 50
 log_interval = 1
 # random_seed = 0
 
@@ -26,8 +26,8 @@ kind = "embedding_2d"
 
 [descriptor.embedding_2d]
 projection_seed = 123
-bins_x = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
-bins_y = [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0]
+bins_x = [-2.0, -1.0, 0.0, 1.0, 2.0]
+bins_y = [-2.0, -1.0, 0.0, 1.0, 2.0]
 # Use "hash" for a fast, dependency-free embedding.
 # For real semantic embeddings, install `fuzzyevolve[semantic]` and set e.g.:
 # embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
@@ -48,7 +48,7 @@ ucb_beta = 0.7
 temperature = 0.9
 
 [task]
-goal = "A literary-quality short story (~300 words) with a distinct human voice."
+goal = "A literary-quality short story (~500 words) with a distinct human voice."
 
 [prompts]
 show_metric_stats = true
