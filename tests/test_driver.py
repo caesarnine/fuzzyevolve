@@ -6,6 +6,8 @@ import random
 from collections.abc import Sequence
 from unittest.mock import Mock
 
+import pytest
+
 from fuzzyevolve.config import Config
 from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.descriptors import build_descriptor_space
@@ -68,7 +70,6 @@ class TestEvolutionEngine:
         cfg.population.elites_per_cell = 10
         cfg.metrics.names = ["m1"]
         cfg.mutation.max_children = 10
-        cfg.judging.max_battle_size = 10
 
         mutator = Mock()
         mutator.propose = Mock(
@@ -120,39 +121,9 @@ class TestEvolutionEngine:
         ranker.rank = Mock(return_value=None)
 
         engine = make_engine(cfg, mutator=mutator, ranker=ranker)
-        engine.run("seed")
-
+        with pytest.raises(RuntimeError):
+            engine.run("seed")
         assert sum(1 for _ in engine.islands[0].iter_elites()) == 1
-
-    def test_max_battle_size_enforced(self):
-        cfg = Config()
-        cfg.run.iterations = 1
-        cfg.population.elites_per_cell = 10
-        cfg.metrics.names = ["m1"]
-        cfg.mutation.max_children = 10
-        cfg.judging.max_battle_size = 3
-
-        mutator = Mock()
-        mutator.propose = Mock(
-            return_value=[
-                MutationCandidate(text="c1"),
-                MutationCandidate(text="c2"),
-                MutationCandidate(text="c3"),
-                MutationCandidate(text="c4"),
-            ]
-        )
-
-        ranker = Mock()
-
-        def _rank(**kwargs):
-            battle = kwargs["battle"]
-            assert len(battle.participants) <= cfg.judging.max_battle_size
-            return rank_parent_best(kwargs["metrics"], len(battle.participants))
-
-        ranker.rank = Mock(side_effect=_rank)
-
-        engine = make_engine(cfg, mutator=mutator, ranker=ranker)
-        engine.run("seed")
 
     def test_new_cell_gate_blocks_low_child(self):
         cfg = Config()
@@ -163,7 +134,6 @@ class TestEvolutionEngine:
         cfg.descriptor.length_bins = [0, 5, 100]
         cfg.new_cell_gate.kind = "parent_lcb"
         cfg.new_cell_gate.delta = 0.0
-        cfg.judging.max_battle_size = 2
 
         mutator = Mock()
         mutator.propose = Mock(return_value=[MutationCandidate(text="this is long")])
@@ -188,7 +158,6 @@ class TestEvolutionEngine:
         cfg.population.elites_per_cell = 10
         cfg.metrics.names = ["m1"]
         cfg.mutation.max_children = 10
-        cfg.judging.max_battle_size = 10
 
         mutator = Mock()
         mutator.propose = Mock(
@@ -214,3 +183,80 @@ class TestEvolutionEngine:
         engine.run("seed")
 
         assert ranker.rank.call_count == 0
+
+    def test_opponent_topk_other_cell_champion_included_and_resorted(self):
+        cfg = Config()
+        cfg.run.iterations = 1
+        cfg.population.elites_per_cell = 10
+        cfg.metrics.names = ["m1"]
+        cfg.mutation.max_children = 1
+        cfg.judging.opponent.kind = "topk_other_cell_champion"
+        cfg.judging.opponent.probability = 1.0
+        cfg.judging.opponent.top_k = 1
+
+        # Build a deterministic archive with elites in two different cells.
+        space = build_descriptor_space({"len": {"bins": [0, 10, 100]}})
+        rating = RatingSystem(
+            cfg.metrics.names,
+            score_lcb_c=cfg.rating.score_lcb_c,
+            child_prior_tau=cfg.rating.child_prior_tau,
+        )
+        archive = MapElitesArchive(
+            space,
+            elites_per_cell=cfg.population.elites_per_cell,
+            rng=random.Random(0),
+            score_fn=rating.score,
+        )
+
+        parent = Elite(
+            text="seed",
+            descriptor=length_descriptor("seed"),
+            ratings=rating.new_ratings(),
+            age=0,
+        )
+        other_cell_elite = Elite(
+            text="this is definitely longer",
+            descriptor=length_descriptor("this is definitely longer"),
+            ratings=rating.new_ratings(),
+            age=0,
+        )
+        archive.add(parent.clone())
+        archive.add(other_cell_elite.clone())
+
+        archive.resort = Mock(wraps=archive.resort)
+
+        mutator = Mock()
+        mutator.propose = Mock(return_value=[MutationCandidate(text="child")])
+
+        ranker = Mock()
+        ranker.rank = Mock(
+            side_effect=lambda **kw: rank_parent_best(
+                kw["metrics"], len(kw["battle"].participants)
+            )
+        )
+
+        engine = EvolutionEngine(
+            cfg=cfg,
+            islands=[archive],
+            describe=length_descriptor,
+            rating=rating,
+            selector=lambda _arc: parent,
+            critic=None,
+            mutator=mutator,
+            ranker=ranker,
+            anchor_manager=None,
+            rng=random.Random(0),
+        )
+
+        engine.run("seed")
+
+        battle = ranker.rank.call_args.kwargs["battle"]
+        assert {p.text for p in battle.participants} == {
+            "seed",
+            "child",
+            "this is definitely longer",
+        }
+
+        resorted = [call.args[0].text for call in archive.resort.call_args_list]
+        assert "seed" in resorted
+        assert "this is definitely longer" in resorted

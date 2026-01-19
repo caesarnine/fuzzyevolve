@@ -109,11 +109,11 @@ Guidance:
 [judging]
 max_attempts = 3
 repair_enabled = true
-max_battle_size = 6
 
 [judging.opponent]
-kind = "global_best"
-probability = 0.15
+kind = "topk_other_cell_champion"
+probability = 1.0
+top_k = 10
 
 [anchors]
 injection_probability = 0.25

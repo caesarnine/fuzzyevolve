@@ -208,14 +208,26 @@ class MutationConfig(BaseModel):
 
 
 class OpponentConfig(BaseModel):
-    kind: Literal["none", "cell_champion", "global_best"] = "none"
-    probability: float = Field(0.1, ge=0.0, le=1.0)
+    kind: Literal[
+        "none",
+        "cell_champion",
+        "global_best",
+        "topk_other_cell_champion",
+    ] = "none"
+    probability: float = Field(1.0, ge=0.0, le=1.0)
+    top_k: int = Field(
+        10,
+        ge=0,
+        description=(
+            "When kind is 'topk_other_cell_champion', sample uniformly from the top-K "
+            "other-cell champions by score (0 = all)."
+        ),
+    )
 
 
 class JudgingConfig(BaseModel):
     max_attempts: int = Field(2, ge=1)
     repair_enabled: bool = True
-    max_battle_size: int = Field(6, ge=2)
     opponent: OpponentConfig = Field(default_factory=OpponentConfig)
 
 

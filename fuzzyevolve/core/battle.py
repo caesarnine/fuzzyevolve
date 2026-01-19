@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass
 from typing import Sequence
 
@@ -25,36 +24,18 @@ def build_battle(
     children: Sequence[Elite],
     anchors: Sequence[Anchor] = (),
     opponent: Elite | None = None,
-    max_battle_size: int,
-    rng: random.Random,
 ) -> Battle:
-    if max_battle_size < 2:
-        raise ValueError("max_battle_size must be >= 2")
-
-    child_budget = max_battle_size - 1
     chosen_children = list(children)
-    if len(chosen_children) > child_budget:
-        chosen_children = rng.sample(chosen_children, k=child_budget)
-
-    participants: list[RatedText] = [parent, *chosen_children]
-
-    available = max_battle_size - len(participants)
-    for anchor in anchors:
-        if available <= 0:
-            break
-        participants.append(anchor)
-        available -= 1
-
-    if opponent is not None and available > 0:
+    participants: list[RatedText] = [parent, *chosen_children, *anchors]
+    if opponent is not None:
         participants.append(opponent)
-        available -= 1
 
     frozen_indices = frozenset(
         idx for idx, player in enumerate(participants) if isinstance(player, Anchor)
     )
 
     resort_elites: list[Elite] = [parent]
-    if opponent is not None and opponent in participants:
+    if opponent is not None:
         resort_elites.append(opponent)
 
     return Battle(

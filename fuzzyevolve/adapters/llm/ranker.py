@@ -82,9 +82,9 @@ class LLMRanker:
         metrics: Sequence[str],
         battle: Battle,
         metric_descriptions: Mapping[str, str] | None = None,
-    ) -> BattleRanking | None:
+    ) -> BattleRanking:
         if len(battle.participants) < 2:
-            return None
+            raise ValueError("Battle must contain at least 2 participants.")
 
         shuffled_indices = list(range(len(battle.participants)))
         self.rng.shuffle(shuffled_indices)
@@ -102,6 +102,7 @@ class LLMRanker:
         )
         log_llm.debug("Ranker prompt:\n%s", prompt)
 
+        last_error: str | None = None
         for attempt in range(1, self.max_attempts + 1):
             try:
                 rsp = self.agent.run_sync(
@@ -115,6 +116,7 @@ class LLMRanker:
                     attempt,
                     self.max_attempts,
                 )
+                last_error = "ranker_call_failed"
                 if self.store:
                     try:
                         self.store.record_llm_call(
@@ -129,7 +131,9 @@ class LLMRanker:
                     except Exception:
                         log_llm.exception("Failed to record ranker call.")
                 if attempt >= self.max_attempts:
-                    return None
+                    raise RuntimeError(
+                        f"Ranker failed after {self.max_attempts} attempts ({last_error})."
+                    )
                 continue
 
             out = rsp.output
@@ -137,6 +141,7 @@ class LLMRanker:
             ranked_map, error = _validate_rankings(
                 parsed, metrics, len(battle.participants)
             )
+            last_error = error
             if self.store:
                 try:
                     self.store.record_llm_call(
@@ -158,7 +163,9 @@ class LLMRanker:
                     self.max_attempts,
                 )
                 if not self.repair_enabled or attempt >= self.max_attempts:
-                    return None
+                    raise RuntimeError(
+                        f"Ranker returned invalid rankings after {self.max_attempts} attempts ({error})."
+                    )
                 prompt = _build_repair_prompt(prompt, error or "invalid output")
                 continue
 
@@ -170,7 +177,9 @@ class LLMRanker:
                 ]
             return BattleRanking(tiers_by_metric=tiers_by_metric)
 
-        return None
+        raise RuntimeError(
+            f"Ranker failed after {self.max_attempts} attempts ({last_error or 'unknown error'})."
+        )
 
 
 def _validate_rankings(

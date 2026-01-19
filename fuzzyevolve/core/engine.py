@@ -271,8 +271,6 @@ class EvolutionEngine:
             children=children,
             anchors=anchors,
             opponent=opponent,
-            max_battle_size=self.cfg.judging.max_battle_size,
-            rng=self.rng,
         )
         if battle.size < 2:
             self._maintenance(iteration)
@@ -317,11 +315,9 @@ class EvolutionEngine:
             metric_descriptions=self.cfg.metrics.descriptions,
         )
         if ranking is None:
-            log_evo.warning(
-                "Judge failed; skipping archive update for iteration %d.", iteration + 1
+            raise RuntimeError(
+                f"Ranker returned no ranking at iteration {iteration + 1}."
             )
-            self._maintenance(iteration)
-            return
         if self.store:
             try:
                 self.store.record_event(
@@ -448,6 +444,33 @@ class EvolutionEngine:
                 return None
             return max(candidates, key=lambda e: self.rating.score(e.ratings))
 
+        if opponent_cfg.kind == "topk_other_cell_champion":
+            top_k = int(opponent_cfg.top_k)
+            parent_key = archive.space.cell_key(parent.descriptor)
+
+            champions: list[tuple[float, Elite]] = []
+            for cell_key, bucket in archive.iter_cells():
+                if not bucket or cell_key == parent_key:
+                    continue
+                best: Elite | None = None
+                best_score: float | None = None
+                for elite in bucket:
+                    if elite.text in exclude_texts:
+                        continue
+                    score = self.rating.score(elite.ratings)
+                    if best is None or best_score is None or score > best_score:
+                        best = elite
+                        best_score = score
+                if best is not None and best_score is not None:
+                    champions.append((best_score, best))
+
+            if not champions:
+                return None
+
+            champions.sort(key=lambda item: item[0], reverse=True)
+            pool = champions if top_k <= 0 else champions[: min(top_k, len(champions))]
+            return pool[self.rng.randrange(len(pool))][1]
+
         raise ValueError(f"Unknown opponent kind '{opponent_cfg.kind}'.")
 
     def _passes_new_cell_gate(
@@ -510,9 +533,6 @@ class EvolutionEngine:
             battle=battle,
             metric_descriptions=self.cfg.metrics.descriptions,
         )
-        if ranking is None:
-            log_evo.warning("Global sparring judge failed; skipping resort.")
-            return
 
         self.rating.apply_ranking(
             battle.participants,

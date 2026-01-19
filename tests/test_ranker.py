@@ -5,6 +5,7 @@ from __future__ import annotations
 import random
 from types import SimpleNamespace
 
+import pytest
 import trueskill as ts
 
 from fuzzyevolve.adapters.llm.ranker import LLMRanker, MetricRanking, RankerOutput
@@ -67,4 +68,5 @@ def test_ranker_invalid_after_retries():
     battle = make_battle([make_elite("a", "m1"), make_elite("b", "m1")])
     invalid = RankerOutput(rankings=[MetricRanking(metric="m1", ranked_tiers=[[0]])])
     ranker.agent.run_sync = lambda *args, **kwargs: SimpleNamespace(output=invalid)
-    assert ranker.rank(metrics=["m1"], battle=battle) is None
+    with pytest.raises(RuntimeError):
+        ranker.rank(metrics=["m1"], battle=battle)

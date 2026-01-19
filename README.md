@@ -66,7 +66,7 @@ uv sync --extra semantic
 2. **Select parent**: choose an elite from a random island archive (`uniform_cell` or an optimistic UCB-ish policy).
 3. **Critique** (optional): ask an LLM for actionable guidance (issues + distinct rewrite routes).
 4. **Mutate**: allocate a per-iteration job budget across operators; each job proposes one rewritten child.
-5. **Assemble battle**: parent + sampled children (+ optional frozen anchors/opponent), capped by `judging.max_battle_size`.
+5. **Assemble battle**: parent + children (+ optional frozen anchors/opponent), sized by `mutation.max_children` and anchor/opponent settings.
 6. **Judge**: ask an LLM to return tiered rankings for each metric (with validation + optional repair retries).
 7. **Update ratings**: apply per-metric TrueSkill updates; score uses a conservative LCB (`mu - c*sigma`) averaged across metrics.
 8. **Archive**: add children into MAP‑Elites (top‑k per cell), optionally gating “new cell” inserts.
@@ -79,7 +79,7 @@ See `config.toml` for a complete example. The structure is intentionally nested:
 
 - `[task]` and `[metrics]` define what “good” means (goal + metric names/descriptions).
 - `[mutation]` defines the operator set, job budget, and per-operator uncertainty.
-- `[judging]` controls battle size + judge retries + optional opponents.
+- `[judging]` controls judge retries + optional opponents.
 - `[rating]` controls TrueSkill parameters and the score’s LCB constant.
 - `[descriptor]` defines the MAP‑Elites “diversity axis” (length bins or 2D embedding bins).
 - `[anchors]` optionally injects frozen reference anchors (seed + periodic “ghosts”) into battles.
