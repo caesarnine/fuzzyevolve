@@ -29,6 +29,14 @@ By default, each run is recorded under `.fuzzyevolve/runs/<run_id>/` (checkpoint
 uv run fuzzyevolve --resume .fuzzyevolve/runs/<run_id> --iterations 100
 ```
 
+Browse runs in the TUI:
+
+```bash
+uv run fuzzyevolve tui
+# or open a specific run/checkpoint:
+uv run fuzzyevolve tui --run .fuzzyevolve/runs/<run_id>
+```
+
 Disable recording with `--no-store`.
 
 Note: the repo’s `config.toml` uses semantic embeddings via `sentence-transformers`. Either install the extra or switch to hash/length descriptors:

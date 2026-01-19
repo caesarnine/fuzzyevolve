@@ -32,7 +32,11 @@ from fuzzyevolve.core.ratings import RatingSystem
 from fuzzyevolve.core.selection import ParentSelector
 from fuzzyevolve.run_store import RunStore
 
-app = typer.Typer(add_completion=False, no_args_is_help=False)
+app = typer.Typer(
+    add_completion=False,
+    no_args_is_help=False,
+    context_settings={"allow_extra_args": True},
+)
 
 _DEFAULT_CONFIG_FILENAMES: tuple[str, ...] = ("config.toml", "config.json")
 
@@ -68,9 +72,7 @@ def _resolve_config_path(
 
 @app.callback(invoke_without_command=True)
 def main(
-    input: Optional[str] = typer.Argument(
-        None, help="Initial text to evolve. Can be a string or a file path."
-    ),
+    ctx: typer.Context,
     config: Optional[Path] = typer.Option(
         None, "-c", "--config", help="Path to a TOML or JSON config file."
     ),
@@ -114,6 +116,9 @@ def main(
     ),
 ) -> None:
     """Evolve text with LLM-backed mutation + ranking."""
+    if ctx.invoked_subcommand is not None:
+        return
+
     setup_logging(level=_parse_log_level(log_level), quiet=quiet, log_file=log_file)
     run_store: RunStore | None = None
     seed_text: str | None = None
@@ -123,7 +128,7 @@ def main(
     if resume is not None:
         if config is not None:
             raise typer.BadParameter("Do not use --config when resuming.")
-        if input is not None:
+        if ctx.args:
             raise typer.BadParameter("Do not provide input text when resuming.")
         run_store = RunStore.open(resume)
         checkpoint_path = resume if resume.is_file() else None
@@ -133,7 +138,8 @@ def main(
         config_path, config_message = _resolve_config_path(config)
         cfg = load_config(str(config_path) if config_path else None)
         logging.info("%s", config_message)
-        seed_text = _read_seed_text(input)
+        raw_input = " ".join(ctx.args) if ctx.args else None
+        seed_text = _read_seed_text(raw_input)
 
     if iterations is not None:
         cfg.run.iterations = iterations
@@ -355,6 +361,30 @@ def main(
     if run_store and store:
         (run_store.run_dir / "best.txt").write_text(result.best_elite.text)
     logging.info("DONE – best saved to %s (score %.3f)", output, result.best_score)
+
+
+@app.command()
+def tui(
+    run: Optional[Path] = typer.Option(
+        None,
+        "--run",
+        help="Run directory (or checkpoint file) to open. If omitted, shows a run picker.",
+    ),
+    data_dir: Path = typer.Option(
+        Path(".fuzzyevolve"),
+        "--data-dir",
+        help="Directory containing runs/ (defaults to .fuzzyevolve).",
+    ),
+    attach: bool = typer.Option(
+        True,
+        "--attach/--no-attach",
+        help="Periodically refresh from disk (follow a running evolution).",
+    ),
+) -> None:
+    """Browse recorded runs in a Textual TUI."""
+    from fuzzyevolve.tui.app import run_tui
+
+    run_tui(data_dir=data_dir, run_dir=run, attach=attach)
 
 
 def _read_seed_text(user_input: str | None) -> str:
