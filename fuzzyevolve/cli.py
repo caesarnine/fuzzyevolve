@@ -1,4 +1,11 @@
-"""Command-line interface for fuzzyevolve."""
+"""Command-line interface for fuzzyevolve.
+
+Design goals:
+- `fuzzyevolve "seed text"` should work (run is the default command).
+- Subcommands like `fuzzyevolve tui` should remain intuitive.
+- Keep parsing predictable: a real `run` command owns its options; we don't
+  rely on Click's "extra args" escape hatches.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 import typer
+from typer.core import TyperGroup
 from rich.progress import (
     BarColumn,
     Progress,
@@ -32,11 +40,31 @@ from fuzzyevolve.core.ratings import RatingSystem
 from fuzzyevolve.core.selection import ParentSelector
 from fuzzyevolve.run_store import RunStore
 
-app = typer.Typer(
-    add_completion=False,
-    no_args_is_help=False,
-    context_settings={"allow_extra_args": True},
-)
+_HELP_FLAG = {"-h", "--help"}
+
+
+class DefaultToRunGroup(TyperGroup):
+    """A Typer/Click group that defaults to `run`.
+
+    Click groups treat the first non-option token as a subcommand name, which
+    means `fuzzyevolve "seed text"` fails unless we provide a default command.
+
+    We implement the common UX pattern of "default to run" by inserting `run`
+    into argv before Click parses options/args, unless the first token is an
+    explicitly known subcommand (or the user asked for top-level help).
+    """
+
+    default_command = "run"
+
+    def parse_args(self, ctx: typer.Context, args: list[str]) -> list[str]:
+        if not args:
+            args = [self.default_command]
+        elif args[0] not in self.commands and args[0] not in _HELP_FLAG:
+            args = [self.default_command, *args]
+        return super().parse_args(ctx, args)
+
+
+app = typer.Typer(add_completion=False, no_args_is_help=False, cls=DefaultToRunGroup)
 
 _DEFAULT_CONFIG_FILENAMES: tuple[str, ...] = ("config.toml", "config.json")
 
@@ -70,56 +98,30 @@ def _resolve_config_path(
     return None, "Using built-in default config (no config file found)."
 
 
-@app.callback(invoke_without_command=True)
-def main(
-    ctx: typer.Context,
-    config: Optional[Path] = typer.Option(
-        None, "-c", "--config", help="Path to a TOML or JSON config file."
-    ),
-    output: Path = typer.Option(
-        Path("best.txt"), "-o", "--output", help="Path to save the best final result."
-    ),
-    iterations: Optional[int] = typer.Option(
-        None, "-i", "--iterations", help="Override iterations from config."
-    ),
-    goal: Optional[str] = typer.Option(
-        None, "-g", "--goal", help="Override the mutation goal from config."
-    ),
-    metric: Optional[list[str]] = typer.Option(
-        None,
-        "-m",
-        "--metric",
-        help="Override metrics (can be specified multiple times).",
-    ),
-    log_level: str = typer.Option(
-        "info",
-        "-l",
-        "--log-level",
-        help="Logging level (debug, info, warning, error, critical) or a number.",
-    ),
-    log_file: Optional[Path] = typer.Option(None, help="Path to write detailed logs."),
-    quiet: bool = typer.Option(
-        False,
-        "-q",
-        "--quiet",
-        help="Suppress the progress bar and non-essential logging.",
-    ),
-    resume: Optional[Path] = typer.Option(
-        None,
-        "--resume",
-        help="Resume from a previous run directory (or a checkpoint file).",
-    ),
-    store: bool = typer.Option(
-        True,
-        "--store/--no-store",
-        help="Record run state, checkpoints, and LLM I/O under .fuzzyevolve/.",
-    ),
-) -> None:
-    """Evolve text with LLM-backed mutation + ranking."""
-    if ctx.invoked_subcommand is not None:
-        return
+def _seed_parts_to_input(seed_parts: list[str] | None) -> str | None:
+    if not seed_parts:
+        return None
+    if len(seed_parts) == 1:
+        return seed_parts[0]
+    return " ".join(seed_parts)
 
+
+def _execute_run(
+    *,
+    seed_parts: list[str] | None,
+    config: Path | None,
+    output: Path,
+    iterations: int | None,
+    goal: str | None,
+    metric: list[str] | None,
+    log_level: str,
+    log_file: Path | None,
+    quiet: bool,
+    resume: Path | None,
+    store: bool,
+) -> None:
     setup_logging(level=_parse_log_level(log_level), quiet=quiet, log_file=log_file)
+
     run_store: RunStore | None = None
     seed_text: str | None = None
     checkpoint_path: Path | None = None
@@ -128,7 +130,7 @@ def main(
     if resume is not None:
         if config is not None:
             raise typer.BadParameter("Do not use --config when resuming.")
-        if ctx.args:
+        if seed_parts:
             raise typer.BadParameter("Do not provide input text when resuming.")
         run_store = RunStore.open(resume)
         checkpoint_path = resume if resume.is_file() else None
@@ -138,8 +140,7 @@ def main(
         config_path, config_message = _resolve_config_path(config)
         cfg = load_config(str(config_path) if config_path else None)
         logging.info("%s", config_message)
-        raw_input = " ".join(ctx.args) if ctx.args else None
-        seed_text = _read_seed_text(raw_input)
+        seed_text = _read_seed_text(_seed_parts_to_input(seed_parts))
 
     if iterations is not None:
         cfg.run.iterations = iterations
@@ -191,6 +192,7 @@ def main(
     anchor_manager = None
     start_iteration = 0
     if resume is not None:
+
         def _space_factory(_cfg):
             return space
 
@@ -364,6 +366,77 @@ def main(
 
 
 @app.command()
+def run(
+    ctx: typer.Context,
+    seed: list[str] = typer.Argument(
+        None,
+        help=(
+            "Seed text, a file path, or '-' for stdin. "
+            "If omitted, reads stdin when piped."
+        ),
+    ),
+    config: Optional[Path] = typer.Option(
+        None, "-c", "--config", help="Path to a TOML or JSON config file."
+    ),
+    output: Path = typer.Option(
+        Path("best.txt"), "-o", "--output", help="Path to save the best final result."
+    ),
+    iterations: Optional[int] = typer.Option(
+        None, "-i", "--iterations", help="Override iterations from config."
+    ),
+    goal: Optional[str] = typer.Option(
+        None, "-g", "--goal", help="Override the mutation goal from config."
+    ),
+    metric: Optional[list[str]] = typer.Option(
+        None,
+        "-m",
+        "--metric",
+        help="Override metrics (can be specified multiple times).",
+    ),
+    log_level: str = typer.Option(
+        "info",
+        "-l",
+        "--log-level",
+        help="Logging level (debug, info, warning, error, critical) or a number.",
+    ),
+    log_file: Optional[Path] = typer.Option(None, help="Path to write detailed logs."),
+    quiet: bool = typer.Option(
+        False,
+        "-q",
+        "--quiet",
+        help="Suppress the progress bar and non-essential logging.",
+    ),
+    resume: Optional[Path] = typer.Option(
+        None,
+        "--resume",
+        help="Resume from a previous run directory (or a checkpoint file).",
+    ),
+    store: bool = typer.Option(
+        True,
+        "--store/--no-store",
+        help="Record run state, checkpoints, and LLM I/O under .fuzzyevolve/.",
+    ),
+) -> None:
+    """Evolve text with LLM-backed mutation + ranking."""
+    if resume is None and not seed and sys.stdin.isatty():
+        typer.echo(ctx.get_help())
+        raise typer.Exit(code=1)
+    _execute_run(
+        seed_parts=seed,
+        config=config,
+        output=output,
+        iterations=iterations,
+        goal=goal,
+        metric=metric,
+        log_level=log_level,
+        log_file=log_file,
+        quiet=quiet,
+        resume=resume,
+        store=store,
+    )
+
+
+@app.command()
 def tui(
     run: Optional[Path] = typer.Option(
         None,
@@ -388,22 +461,22 @@ def tui(
 
 
 def _read_seed_text(user_input: str | None) -> str:
-    if user_input is None:
+    if user_input == "-":
+        seed_text = sys.stdin.read()
+    elif user_input is None:
         if not sys.stdin.isatty():
             seed_text = sys.stdin.read()
         else:
-            typer.echo(
-                "Error: No input provided. Provide an input string, file path, or pipe via stdin."
+            raise typer.BadParameter(
+                "No input provided. Provide a seed string, a file path, '-' for stdin, or pipe via stdin."
             )
-            raise typer.Exit(code=1)
     elif Path(user_input).is_file():
         seed_text = Path(user_input).read_text()
     else:
         seed_text = user_input
 
     if not seed_text.strip():
-        typer.echo("Error: Input text is empty.")
-        raise typer.Exit(code=1)
+        raise typer.BadParameter("Input text is empty.")
     return seed_text
 
 

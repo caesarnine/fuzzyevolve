@@ -87,11 +87,28 @@ See `config.toml` for a complete example. The structure is intentionally nested:
 
 ## CLI
 
+`run` is the default command, so these are equivalent:
+
+```bash
+uv run fuzzyevolve "Seed text..."
+uv run fuzzyevolve run "Seed text..."
+```
+
+To open the run browser:
+
+```bash
+uv run fuzzyevolve tui
+```
+
+### `run` options
+
 - `--config` / `-c`: Path to TOML/JSON config
 - `--output` / `-o`: Output path (default `best.txt`)
 - `--iterations` / `-i`: Override `run.iterations`
 - `--goal` / `-g`: Override `task.goal`
 - `--metric` / `-m`: Override `metrics.names` (repeatable)
+- `--resume`: Resume from a previous run directory (or checkpoint file)
+- `--store/--no-store`: Enable/disable recording under `.fuzzyevolve/`
 - `--log-level` / `-l`: Logging level (`debug|info|warning|error|critical` or a number)
 - `--log-file`: Write logs to a specific file
 - `--quiet` / `-q`: Hide the progress bar and non-essential logging
