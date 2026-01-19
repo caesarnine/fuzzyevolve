@@ -4,6 +4,7 @@ import logging
 import random
 import threading
 from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
@@ -15,6 +16,23 @@ from fuzzyevolve.core.critique import Critique
 from fuzzyevolve.core.models import Elite
 
 log_llm = logging.getLogger("llm.operator")
+
+
+class Recorder(Protocol):
+    def put_text(self, text: str) -> str: ...
+
+    def record_llm_call(
+        self,
+        *,
+        name: str,
+        model: str,
+        model_settings: Mapping[str, Any] | None,
+        prompt: str,
+        output: Any | None,
+        error: str | None = None,
+        iteration: int | None = None,
+        extra: Mapping[str, Any] | None = None,
+    ) -> None: ...
 
 
 class RewriteOutput(BaseModel):
@@ -36,6 +54,7 @@ class LLMRewriteOperator:
         show_metric_stats: bool,
         score_lcb_c: float,
         rng: random.Random | None = None,
+        store: Recorder | None = None,
     ) -> None:
         self.name = name
         self.role = role
@@ -47,6 +66,7 @@ class LLMRewriteOperator:
         self.instructions = instructions
         self.show_metric_stats = show_metric_stats
         self.score_lcb_c = score_lcb_c
+        self.store = store
         self._agent_local = threading.local()
         self._agent_instructions = (
             "Generate exactly one rewritten child text.\n"
@@ -96,11 +116,44 @@ class LLMRewriteOperator:
         try:
             rsp = agent.run_sync(prompt, model=model, model_settings=model_settings)
         except Exception:
-            log_llm.exception("Operator '%s' call failed; returning no candidates.", self.name)
+            log_llm.exception(
+                "Operator '%s' call failed; returning no candidates.", self.name
+            )
+            if self.store:
+                try:
+                    self.store.record_llm_call(
+                        name=f"operator.{self.name}",
+                        model=model,
+                        model_settings=model_settings,
+                        prompt=prompt,
+                        output=None,
+                        error="operator_call_failed",
+                        extra={"operator": self.name, "role": self.role, "focus": focus},
+                    )
+                except Exception:
+                    log_llm.exception("Failed to record operator call.")
             return []
 
-        text = rsp.output.text.strip()
+        out = rsp.output
+        if self.store:
+            try:
+                self.store.record_llm_call(
+                    name=f"operator.{self.name}",
+                    model=model,
+                    model_settings=model_settings,
+                    prompt=prompt,
+                    output=out,
+                    extra={"operator": self.name, "role": self.role, "focus": focus},
+                )
+            except Exception:
+                log_llm.exception("Failed to record operator call.")
+
+        text = out.text.strip()
         if not text or text == parent.text:
             return []
+        if self.store:
+            try:
+                self.store.put_text(text)
+            except Exception:
+                log_llm.exception("Failed to store operator output text.")
         return [text]
-

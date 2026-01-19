@@ -23,6 +23,14 @@ cat seed.txt | uv run fuzzyevolve
 
 Output goes to `best.txt` by default (override with `--output`).
 
+By default, each run is recorded under `.fuzzyevolve/runs/<run_id>/` (checkpoints, events, and raw LLM prompts/outputs). Resume with:
+
+```bash
+uv run fuzzyevolve --resume .fuzzyevolve/runs/<run_id> --iterations 100
+```
+
+Disable recording with `--no-store`.
+
 Note: the repo’s `config.toml` uses semantic embeddings via `sentence-transformers`. Either install the extra or switch to hash/length descriptors:
 
 ```bash

@@ -17,6 +17,11 @@ DEFAULT_EMBEDDING_BINS = [-2.0, -1.0, 0.0, 1.0, 2.0]
 class RunConfig(BaseModel):
     iterations: int = Field(10, ge=1)
     log_interval: int = Field(1, ge=0)
+    checkpoint_interval: int = Field(
+        1,
+        ge=0,
+        description="Save a checkpoint every N iterations (0 disables periodic checkpoints; latest is still written).",
+    )
     random_seed: int | None = None
 
 

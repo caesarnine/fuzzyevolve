@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import random
 from collections.abc import Mapping, Sequence
+from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
@@ -13,6 +14,21 @@ from fuzzyevolve.core.battle import Battle
 from fuzzyevolve.core.ratings import BattleRanking
 
 log_llm = logging.getLogger("llm.ranker")
+
+
+class Recorder(Protocol):
+    def record_llm_call(
+        self,
+        *,
+        name: str,
+        model: str,
+        model_settings: Mapping[str, Any] | None,
+        prompt: str,
+        output: Any | None,
+        error: str | None = None,
+        iteration: int | None = None,
+        extra: Mapping[str, Any] | None = None,
+    ) -> None: ...
 
 
 class MetricRanking(BaseModel):
@@ -40,12 +56,14 @@ class LLMRanker:
         model_settings: ModelSettings | None = None,
         max_attempts: int = 2,
         repair_enabled: bool = True,
+        store: Recorder | None = None,
     ) -> None:
         self.model = model
         self.rng = rng or random.Random()
         self.model_settings = model_settings or {"temperature": 0.0}
         self.max_attempts = max(1, max_attempts)
         self.repair_enabled = repair_enabled
+        self.store = store
         self.agent = Agent(
             output_type=RankerOutput,
             name="ranker",
@@ -97,14 +115,41 @@ class LLMRanker:
                     attempt,
                     self.max_attempts,
                 )
+                if self.store:
+                    try:
+                        self.store.record_llm_call(
+                            name="ranker",
+                            model=self.model,
+                            model_settings=self.model_settings,
+                            prompt=prompt,
+                            output=None,
+                            error="ranker_call_failed",
+                            extra={"attempt": attempt},
+                        )
+                    except Exception:
+                        log_llm.exception("Failed to record ranker call.")
                 if attempt >= self.max_attempts:
                     return None
                 continue
 
-            parsed = rsp.output.rankings
+            out = rsp.output
+            parsed = out.rankings
             ranked_map, error = _validate_rankings(
                 parsed, metrics, len(battle.participants)
             )
+            if self.store:
+                try:
+                    self.store.record_llm_call(
+                        name="ranker",
+                        model=self.model,
+                        model_settings=self.model_settings,
+                        prompt=prompt,
+                        output=out,
+                        error=error,
+                        extra={"attempt": attempt},
+                    )
+                except Exception:
+                    log_llm.exception("Failed to record ranker call.")
             if ranked_map is None:
                 log_llm.warning(
                     "Ranker returned invalid rankings (%s) — attempt %d/%d.",

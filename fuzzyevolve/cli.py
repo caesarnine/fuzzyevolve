@@ -30,6 +30,7 @@ from fuzzyevolve.core.engine import EvolutionEngine, build_anchor_manager
 from fuzzyevolve.core.mutation import OperatorMutator, OperatorSpec
 from fuzzyevolve.core.ratings import RatingSystem
 from fuzzyevolve.core.selection import ParentSelector
+from fuzzyevolve.run_store import RunStore
 
 app = typer.Typer(add_completion=False, no_args_is_help=False)
 
@@ -101,10 +102,38 @@ def main(
         "--quiet",
         help="Suppress the progress bar and non-essential logging.",
     ),
+    resume: Optional[Path] = typer.Option(
+        None,
+        "--resume",
+        help="Resume from a previous run directory (or a checkpoint file).",
+    ),
+    store: bool = typer.Option(
+        True,
+        "--store/--no-store",
+        help="Record run state, checkpoints, and LLM I/O under .fuzzyevolve/.",
+    ),
 ) -> None:
     """Evolve text with LLM-backed mutation + ranking."""
-    config_path, config_message = _resolve_config_path(config)
-    cfg = load_config(str(config_path) if config_path else None)
+    setup_logging(level=_parse_log_level(log_level), quiet=quiet, log_file=log_file)
+    run_store: RunStore | None = None
+    seed_text: str | None = None
+    checkpoint_path: Path | None = None
+    config_path: Path | None = None
+
+    if resume is not None:
+        if config is not None:
+            raise typer.BadParameter("Do not use --config when resuming.")
+        if input is not None:
+            raise typer.BadParameter("Do not provide input text when resuming.")
+        run_store = RunStore.open(resume)
+        checkpoint_path = resume if resume.is_file() else None
+        cfg = run_store.load_config()
+        logging.info("Resuming run from %s", run_store.run_dir)
+    else:
+        config_path, config_message = _resolve_config_path(config)
+        cfg = load_config(str(config_path) if config_path else None)
+        logging.info("%s", config_message)
+        seed_text = _read_seed_text(input)
 
     if iterations is not None:
         cfg.run.iterations = iterations
@@ -113,15 +142,11 @@ def main(
     if metric:
         cfg.metrics.names = metric
 
-    seed_text = _read_seed_text(input)
-
-    setup_logging(level=_parse_log_level(log_level), quiet=quiet, log_file=log_file)
-    logging.info("%s", config_message)
-
     seed = cfg.run.random_seed
     if seed is None:
         seed = random.SystemRandom().randint(0, 2**32 - 1)
         logging.info("Generated random seed: %d", seed)
+        cfg.run.random_seed = seed
 
     master_rng = random.Random(seed)
     rng_engine = random.Random(master_rng.randrange(2**32))
@@ -129,10 +154,6 @@ def main(
     rng_ranker = random.Random(master_rng.randrange(2**32))
     rng_mutation = random.Random(master_rng.randrange(2**32))
     rng_anchors = random.Random(master_rng.randrange(2**32))
-    archive_rngs = [
-        random.Random(master_rng.randrange(2**32))
-        for _ in range(cfg.population.islands)
-    ]
 
     describe, space = build_descriptor_system(cfg)
 
@@ -147,15 +168,62 @@ def main(
         child_prior_tau=cfg.rating.child_prior_tau,
     )
 
-    islands = [
-        MapElitesArchive(
-            space,
-            elites_per_cell=cfg.population.elites_per_cell,
-            rng=archive_rngs[idx],
-            score_fn=rating.score,
+    recorder = run_store if (store and run_store is not None) else None
+
+    if run_store is None and store:
+        data_dir = RunStore.default_data_dir(cwd=Path.cwd())
+        run_store = RunStore.create(
+            data_dir=data_dir,
+            cfg=cfg,
+            seed_text=seed_text,
+            config_path=config_path,
         )
-        for idx in range(cfg.population.islands)
-    ]
+        recorder = run_store
+        logging.info("Recording run to %s", run_store.run_dir)
+
+    islands: list[MapElitesArchive]
+    anchor_manager = None
+    start_iteration = 0
+    if resume is not None:
+        def _space_factory(_cfg):
+            return space
+
+        def _archive_factory(space_obj):
+            return MapElitesArchive(
+                space_obj,
+                elites_per_cell=cfg.population.elites_per_cell,
+                rng=random.Random(master_rng.randrange(2**32)),
+                score_fn=rating.score,
+            )
+
+        def _anchor_factory(_cfg):
+            return build_anchor_manager(cfg=cfg, rng=rng_anchors)
+
+        loaded = run_store.load_checkpoint(
+            cfg=cfg,
+            checkpoint_path=checkpoint_path,
+            space_factory=_space_factory,
+            archive_factory=_archive_factory,
+            anchor_factory=_anchor_factory,
+        )
+        islands = loaded.islands
+        anchor_manager = loaded.anchors
+        start_iteration = loaded.next_iteration
+    else:
+        archive_rngs = [
+            random.Random(master_rng.randrange(2**32))
+            for _ in range(cfg.population.islands)
+        ]
+        islands = [
+            MapElitesArchive(
+                space,
+                elites_per_cell=cfg.population.elites_per_cell,
+                rng=archive_rngs[idx],
+                score_fn=rating.score,
+            )
+            for idx in range(cfg.population.islands)
+        ]
+        anchor_manager = build_anchor_manager(cfg=cfg, rng=rng_anchors)
 
     selector = ParentSelector(
         mode=cfg.selection.kind,
@@ -178,6 +246,7 @@ def main(
             instructions=cfg.critic.instructions,
             show_metric_stats=cfg.prompts.show_metric_stats,
             score_lcb_c=cfg.rating.score_lcb_c,
+            store=recorder,
         )
 
     operators = {}
@@ -197,6 +266,7 @@ def main(
             show_metric_stats=cfg.prompts.show_metric_stats,
             score_lcb_c=cfg.rating.score_lcb_c,
             rng=op_rng,
+            store=recorder,
         )
         specs.append(
             OperatorSpec(
@@ -219,8 +289,8 @@ def main(
         rng=rng_ranker,
         max_attempts=cfg.judging.max_attempts,
         repair_enabled=cfg.judging.repair_enabled,
+        store=recorder,
     )
-    anchor_manager = build_anchor_manager(cfg=cfg, rng=rng_anchors)
 
     engine = EvolutionEngine(
         cfg=cfg,
@@ -233,6 +303,7 @@ def main(
         ranker=ranker,
         anchor_manager=anchor_manager,
         rng=rng_engine,
+        store=recorder,
     )
 
     progress = Progress(
@@ -272,9 +343,17 @@ def main(
                 empty=snapshot.empty_cells,
             )
 
-        result = engine.run(seed_text, on_iteration=on_iteration)
+        if resume is not None:
+            result = engine.resume(
+                start_iteration=start_iteration,
+                on_iteration=on_iteration,
+            )
+        else:
+            result = engine.run(seed_text or "", on_iteration=on_iteration)
 
     output.write_text(result.best_elite.text)
+    if run_store and store:
+        (run_store.run_dir / "best.txt").write_text(result.best_elite.text)
     logging.info("DONE – best saved to %s (score %.3f)", output, result.best_score)
 
 

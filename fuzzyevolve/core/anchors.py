@@ -69,6 +69,22 @@ class AnchorPool:
         )
         return self._add_anchor(anchor)
 
+    def iter_anchors(self) -> Sequence[Anchor]:
+        return tuple(self._anchors)
+
+    def load(self, anchors: Sequence[Anchor]) -> None:
+        """Replace the pool contents (used for resuming runs)."""
+        self._anchors = []
+        self._text_index = {}
+        self.seed_anchor = None
+        for anchor in anchors:
+            if anchor.text in self._text_index:
+                continue
+            self._anchors.append(anchor)
+            self._text_index[anchor.text] = anchor
+            if anchor.label == "SEED" and self.seed_anchor is None:
+                self.seed_anchor = anchor
+
     def sample(
         self, max_count: int, *, exclude_texts: set[str] | None = None
     ) -> list[Anchor]:

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 import random
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Protocol
 
 from fuzzyevolve.config import Config
 from fuzzyevolve.core.anchors import AnchorManager, AnchorPolicy
@@ -16,6 +17,28 @@ from fuzzyevolve.core.ports import Critic, Mutator, Ranker
 from fuzzyevolve.core.ratings import RatingSystem
 
 log_evo = logging.getLogger("evolution")
+
+class Recorder(Protocol):
+    def set_iteration(self, iteration: int) -> None: ...
+
+    def put_text(self, text: str) -> str: ...
+
+    def record_event(
+        self, kind: str, data: Mapping[str, Any], *, iteration: int | None = None
+    ) -> None: ...
+
+    def record_stats(
+        self, *, iteration: int, best_score: float, empty_cells: int
+    ) -> None: ...
+
+    def save_checkpoint(
+        self,
+        *,
+        iteration: int,
+        islands: Sequence[MapElitesArchive],
+        anchor_manager: AnchorManager | None,
+        keep: bool,
+    ) -> None: ...
 
 
 class EvolutionEngine:
@@ -32,6 +55,7 @@ class EvolutionEngine:
         ranker: Ranker,
         anchor_manager: AnchorManager | None,
         rng: random.Random,
+        store: Recorder | None = None,
     ) -> None:
         self.cfg = cfg
         self.islands = list(islands)
@@ -45,6 +69,7 @@ class EvolutionEngine:
         self.ranker = ranker
         self.anchors = anchor_manager
         self.rng = rng
+        self.store = store
 
     def run(
         self,
@@ -53,7 +78,24 @@ class EvolutionEngine:
         on_iteration: Callable[[IterationSnapshot], None] | None = None,
     ) -> EvolutionResult:
         self._seed(seed_text)
+        return self._run_loop(start_iteration=0, on_iteration=on_iteration)
 
+    def resume(
+        self,
+        *,
+        start_iteration: int,
+        on_iteration: Callable[[IterationSnapshot], None] | None = None,
+    ) -> EvolutionResult:
+        if start_iteration < 0:
+            raise ValueError("start_iteration must be >= 0.")
+        return self._run_loop(start_iteration=start_iteration, on_iteration=on_iteration)
+
+    def _run_loop(
+        self,
+        *,
+        start_iteration: int,
+        on_iteration: Callable[[IterationSnapshot], None] | None,
+    ) -> EvolutionResult:
         mutation_executor: ThreadPoolExecutor | None = None
         if self.cfg.mutation.jobs_per_iteration > 1:
             max_workers = min(
@@ -63,7 +105,10 @@ class EvolutionEngine:
             mutation_executor = ThreadPoolExecutor(max_workers=max_workers)
 
         try:
-            for iteration in range(self.cfg.run.iterations):
+            end_iteration = start_iteration + self.cfg.run.iterations
+            for iteration in range(start_iteration, end_iteration):
+                if self.store:
+                    self.store.set_iteration(iteration + 1)
                 self.step(iteration, mutation_executor=mutation_executor)
 
                 best = self.best_elite()
@@ -80,6 +125,36 @@ class EvolutionEngine:
                     best, iteration=iteration + 1
                 ):
                     log_evo.info("Added ghost anchor at iteration %d.", iteration + 1)
+
+                if self.store:
+                    try:
+                        self.store.record_stats(
+                            iteration=snapshot.iteration,
+                            best_score=snapshot.best_score,
+                            empty_cells=snapshot.empty_cells,
+                        )
+                        checkpoint_interval = getattr(
+                            self.cfg.run, "checkpoint_interval", 1
+                        )
+                        keep = checkpoint_interval > 0 and (
+                            snapshot.iteration % checkpoint_interval == 0
+                        )
+                        self.store.save_checkpoint(
+                            iteration=snapshot.iteration,
+                            islands=self.islands,
+                            anchor_manager=self.anchors,
+                            keep=keep,
+                        )
+                        self.store.record_event(
+                            "iteration",
+                            {
+                                "best_text_id": self.store.put_text(best.text),
+                                "best_score": snapshot.best_score,
+                            },
+                            iteration=snapshot.iteration,
+                        )
+                    except Exception:
+                        log_evo.exception("Failed to record iteration state.")
 
         finally:
             if mutation_executor is not None:
@@ -117,13 +192,41 @@ class EvolutionEngine:
         *,
         mutation_executor: ThreadPoolExecutor | None = None,
     ) -> None:
-        archive = self.rng.choice(self.islands)
+        island_idx = self.rng.randrange(len(self.islands))
+        archive = self.islands[island_idx]
         parent = self.selector(archive)
         self.rating.ensure_ratings(parent)
+        if self.store:
+            try:
+                self.store.record_event(
+                    "step_start",
+                    {
+                        "island": island_idx,
+                        "parent_text_id": self.store.put_text(parent.text),
+                    },
+                    iteration=iteration + 1,
+                )
+            except Exception:
+                log_evo.exception("Failed to record step_start.")
 
         critique = None
         if self.critic:
             critique = self.critic.critique(parent=parent)
+            if critique and self.store:
+                try:
+                    self.store.record_event(
+                        "critique",
+                        {
+                            "summary": critique.summary,
+                            "preserve": list(critique.preserve),
+                            "issues": list(critique.issues),
+                            "routes": list(critique.routes),
+                            "constraints": list(critique.constraints),
+                        },
+                        iteration=iteration + 1,
+                    )
+                except Exception:
+                    log_evo.exception("Failed to record critique.")
 
         candidates = self._propose_children(
             archive,
@@ -134,6 +237,24 @@ class EvolutionEngine:
         if not candidates:
             self._maintenance(iteration)
             return
+        if self.store:
+            try:
+                self.store.record_event(
+                    "candidates",
+                    {
+                        "items": [
+                            {
+                                "text_id": self.store.put_text(c.text),
+                                "operator": c.operator,
+                                "uncertainty_scale": c.uncertainty_scale,
+                            }
+                            for c in candidates
+                        ]
+                    },
+                    iteration=iteration + 1,
+                )
+            except Exception:
+                log_evo.exception("Failed to record candidates.")
 
         children = self._make_children(parent, candidates, age=iteration)
         if not children:
@@ -156,6 +277,39 @@ class EvolutionEngine:
         if battle.size < 2:
             self._maintenance(iteration)
             return
+        if self.store:
+            try:
+                child_set = {id(child) for child in battle.judged_children}
+                anchor_set = {id(a) for a in anchors}
+                opponent_id = id(opponent) if opponent is not None else None
+                participants = []
+                for idx, p in enumerate(battle.participants):
+                    if isinstance(p, Anchor):
+                        role = "anchor"
+                    elif id(p) == id(parent):
+                        role = "parent"
+                    elif id(p) in child_set:
+                        role = "child"
+                    elif opponent_id is not None and id(p) == opponent_id:
+                        role = "opponent"
+                    else:
+                        role = "elite"
+                    participants.append(
+                        {
+                            "idx": idx,
+                            "role": role,
+                            "text_id": self.store.put_text(p.text),
+                            "frozen": idx in battle.frozen_indices,
+                            "is_anchor": id(p) in anchor_set,
+                        }
+                    )
+                self.store.record_event(
+                    "battle",
+                    {"participants": participants},
+                    iteration=iteration + 1,
+                )
+            except Exception:
+                log_evo.exception("Failed to record battle.")
 
         ranking = self.ranker.rank(
             metrics=self.cfg.metrics.names,
@@ -168,6 +322,15 @@ class EvolutionEngine:
             )
             self._maintenance(iteration)
             return
+        if self.store:
+            try:
+                self.store.record_event(
+                    "ranking",
+                    {"tiers_by_metric": ranking.tiers_by_metric},
+                    iteration=iteration + 1,
+                )
+            except Exception:
+                log_evo.exception("Failed to record ranking.")
 
         self.rating.apply_ranking(
             battle.participants,
@@ -180,6 +343,15 @@ class EvolutionEngine:
         for child in battle.judged_children:
             if self._passes_new_cell_gate(archive, parent, child):
                 archive.add(child)
+                if self.store:
+                    try:
+                        self.store.record_event(
+                            "archive_add",
+                            {"text_id": self.store.put_text(child.text)},
+                            iteration=iteration + 1,
+                        )
+                    except Exception:
+                        log_evo.exception("Failed to record archive_add.")
 
         self._maintenance(iteration)
 
