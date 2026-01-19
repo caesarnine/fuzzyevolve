@@ -196,6 +196,9 @@ class RunScreen(Screen[None]):
         self._stats: list[dict[str, Any]] = []
         self._events: list[dict[str, Any]] = []
         self._llm: list[dict[str, Any]] = []
+        self._selected_archive_text_id: str | None = None
+        self._selected_llm_prompt_file: str | None = None
+        self._selected_map_cell: tuple[int, int] | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -352,6 +355,11 @@ class RunScreen(Screen[None]):
                     row.append(Text(str(n) if n else "·", style=style))
                 table.add_row(*row, label=label)
 
+            if self._selected_map_cell is not None:
+                x, y = self._selected_map_cell
+                if 0 <= x < nx and 0 <= y < ny:
+                    table.move_cursor(row=y, column=x, animate=False)
+
         elif self.state.descriptor_kind == "length" and self.state.length_bins:
             bins = self.state.length_bins
             nb = len(bins) - 1
@@ -396,6 +404,12 @@ class RunScreen(Screen[None]):
                 elite.text_id[:10],
                 key=elite.text_id,
             )
+        if self._selected_archive_text_id:
+            try:
+                row_idx = table.get_row_index(self._selected_archive_text_id)
+                table.move_cursor(row=row_idx, column=0, animate=False)
+            except Exception:
+                pass
 
     def _update_battle(self) -> None:
         summary = self.query_one("#battle_summary", Static)
@@ -459,20 +473,32 @@ class RunScreen(Screen[None]):
             table.add_columns("it", "name", "model", "error")
         table.clear()
 
-        for idx, call in enumerate(reversed(self._llm[-400:])):
+        for call in reversed(self._llm[-400:]):
+            prompt_file = call.get("prompt_file")
+            if not isinstance(prompt_file, str) or not prompt_file:
+                continue
             table.add_row(
                 str(call.get("iteration", "")),
                 str(call.get("name", "")),
                 str(call.get("model", "")),
                 str(call.get("error") or ""),
-                key=str(idx),
+                key=prompt_file,
             )
+        if self._selected_llm_prompt_file:
+            try:
+                row_idx = table.get_row_index(self._selected_llm_prompt_file)
+                table.move_cursor(row=row_idx, column=0, animate=False)
+            except Exception:
+                pass
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         if event.data_table.id == "archive_table":
+            if not event.data_table.has_focus:
+                return
             text_id = event.row_key.value if event.row_key else None
             if not text_id:
                 return
+            self._selected_archive_text_id = text_id
             elite = next(
                 (
                     e
@@ -489,16 +515,22 @@ class RunScreen(Screen[None]):
                     score_lcb_c=self.state.cfg.rating.score_lcb_c,
                 )
         elif event.data_table.id == "llm_table":
-            # row key is the reversed index into self._llm[-400:]
-            try:
-                idx = int(event.row_key.value) if event.row_key else 0
-            except Exception:
+            if not event.data_table.has_focus:
                 return
-            calls = list(reversed(self._llm[-400:]))
-            if 0 <= idx < len(calls):
-                self.query_one("#inspector", Inspector).show_llm_call(
-                    self.run_dir, calls[idx]
-                )
+            prompt_file = event.row_key.value if event.row_key else None
+            if not isinstance(prompt_file, str) or not prompt_file:
+                return
+            self._selected_llm_prompt_file = prompt_file
+            call = next(
+                (
+                    c
+                    for c in reversed(self._llm[-400:])
+                    if str(c.get("prompt_file") or "") == prompt_file
+                ),
+                None,
+            )
+            if call is not None:
+                self.query_one("#inspector", Inspector).show_llm_call(self.run_dir, call)
 
     def on_data_table_cell_highlighted(self, event: DataTable.CellHighlighted) -> None:
         if event.data_table.id != "map_table":
@@ -506,9 +538,12 @@ class RunScreen(Screen[None]):
         # Map cells do not have stable keys in DataTable; compute from position.
         if self.state.descriptor_kind != "embedding_2d":
             return
+        if not event.data_table.has_focus:
+            return
         x = event.coordinate.column
         y = event.coordinate.row
         cell_key = (x, y)
+        self._selected_map_cell = cell_key
         elites = [
             e
             for island in self.state.islands
