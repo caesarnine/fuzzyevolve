@@ -21,7 +21,7 @@ uv run fuzzyevolve seed.txt
 cat seed.txt | uv run fuzzyevolve
 ```
 
-Output goes to `best.txt` by default (override with `--output`).
+Output goes to `best_by_cell.md` by default (override with `--output`). By default it includes the top 20 best-per-cell champions (override with `--top-cells`).
 
 By default, each run is recorded under `.fuzzyevolve/runs/<run_id>/` (checkpoints, events, and raw LLM prompts/outputs). Resume with:
 
@@ -103,7 +103,8 @@ uv run fuzzyevolve tui
 ### `run` options
 
 - `--config` / `-c`: Path to TOML/JSON config
-- `--output` / `-o`: Output path (default `best.txt`)
+- `--output` / `-o`: Output path (default `best_by_cell.md`)
+- `--top-cells`: How many best-per-cell champions to include (default 20; `0` = all)
 - `--iterations` / `-i`: Override `run.iterations`
 - `--goal` / `-g`: Override `task.goal`
 - `--metric` / `-m`: Override `metrics.names` (repeatable)

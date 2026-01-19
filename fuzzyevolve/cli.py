@@ -38,6 +38,7 @@ from fuzzyevolve.core.engine import EvolutionEngine, build_anchor_manager
 from fuzzyevolve.core.mutation import OperatorMutator, OperatorSpec
 from fuzzyevolve.core.ratings import RatingSystem
 from fuzzyevolve.core.selection import ParentSelector
+from fuzzyevolve.reporting import render_best_by_cell_markdown
 from fuzzyevolve.run_store import RunStore
 
 _HELP_FLAG = {"-h", "--help"}
@@ -111,6 +112,7 @@ def _execute_run(
     seed_parts: list[str] | None,
     config: Path | None,
     output: Path,
+    top_cells: int,
     iterations: int | None,
     goal: str | None,
     metric: list[str] | None,
@@ -120,6 +122,9 @@ def _execute_run(
     resume: Path | None,
     store: bool,
 ) -> None:
+    if top_cells < 0:
+        raise typer.BadParameter("--top-cells must be >= 0 (use 0 for no limit).")
+
     setup_logging(level=_parse_log_level(log_level), quiet=quiet, log_file=log_file)
 
     run_store: RunStore | None = None
@@ -359,10 +364,18 @@ def _execute_run(
         else:
             result = engine.run(seed_text or "", on_iteration=on_iteration)
 
-    output.write_text(result.best_elite.text)
+    report = render_best_by_cell_markdown(
+        cfg=cfg,
+        islands=islands,
+        rating=rating,
+        top_cells=top_cells,
+    )
+    output.write_text(report)
     if run_store and store:
-        (run_store.run_dir / "best.txt").write_text(result.best_elite.text)
-    logging.info("DONE – best saved to %s (score %.3f)", output, result.best_score)
+        (run_store.run_dir / "best_by_cell.md").write_text(report)
+    logging.info(
+        "DONE – report saved to %s (best score %.3f)", output, result.best_score
+    )
 
 
 @app.command()
@@ -379,7 +392,15 @@ def run(
         None, "-c", "--config", help="Path to a TOML or JSON config file."
     ),
     output: Path = typer.Option(
-        Path("best.txt"), "-o", "--output", help="Path to save the best final result."
+        Path("best_by_cell.md"),
+        "-o",
+        "--output",
+        help="Path to save the final Markdown report (ranked best-per-cell).",
+    ),
+    top_cells: int = typer.Option(
+        20,
+        "--top-cells",
+        help="How many best-per-cell champions to include in the report (0 = all).",
     ),
     iterations: Optional[int] = typer.Option(
         None, "-i", "--iterations", help="Override iterations from config."
@@ -425,6 +446,7 @@ def run(
         seed_parts=seed,
         config=config,
         output=output,
+        top_cells=top_cells,
         iterations=iterations,
         goal=goal,
         metric=metric,
