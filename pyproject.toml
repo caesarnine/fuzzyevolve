@@ -1,18 +1,20 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "fuzzyevolve"
 version = "0.1.0"
-description = "AlphaEvolve with fuzzy evaluation. Evolve anything not just code." # Updated description
+description = "AlphaEvolve with fuzzy evaluation. Evolve anything, not just code."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 authors = [
-  { name="Your Name / Team", email="your@email.com" }, # Please update
+  { name="caesarnine" },
 ]
+keywords = ["llm", "evolution", "map-elites", "trueskill", "textual"]
 classifiers = [
+    "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -22,6 +24,7 @@ classifiers = [
     "Topic :: Software Development",
     "Topic :: Utilities",
     "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
 ]
 dependencies = [
     "google-genai>=0.3.0",
@@ -41,8 +44,9 @@ fuzzyevolve = "fuzzyevolve.cli:app"
 
 # Optional project URLs
 [project.urls]
-"Homepage" = "https://github.com/caesarnine/fuzzyevolve"
-"Bug Tracker" = "https://github.com/caesarnine/fuzzyevolve/issues"
+Homepage = "https://github.com/caesarnine/fuzzyevolve"
+Repository = "https://github.com/caesarnine/fuzzyevolve"
+Issues = "https://github.com/caesarnine/fuzzyevolve/issues"
 
 # Optional dependencies (formerly dependency-groups)
 [project.optional-dependencies]
@@ -103,6 +107,5 @@ skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["fuzzyevolve*"]
+[tool.hatch.build.targets.wheel]
+packages = ["fuzzyevolve"]
