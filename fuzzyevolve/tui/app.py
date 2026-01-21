@@ -211,14 +211,13 @@ class FuzzyEvolveTUI(App[None]):
             self.push_screen(RunViewer(run_dir=self.run_dir, attach=self.attach))
             return
 
-        async def _pick_and_open():
-            summary = await self.push_screen_wait(RunPicker(data_dir=self.data_dir))
+        def _open_selected(summary: RunSummary | None) -> None:
             if summary is None:
                 self.exit()
                 return
             self.push_screen(RunViewer(run_dir=summary.run_dir, attach=self.attach))
 
-        self.call_later(_pick_and_open)
+        self.push_screen(RunPicker(data_dir=self.data_dir), _open_selected)
 
 
 def run_tui(*, data_dir: Path, run_dir: Path | None, attach: bool) -> None:
