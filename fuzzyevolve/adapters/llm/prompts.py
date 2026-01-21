@@ -131,7 +131,9 @@ def build_rewrite_prompt(
         metrics_list_str=metrics_list_str,
         metric_section=metric_section,
         focus=(focus.strip() if focus else "(none)"),
-        summary=(critique.summary.strip() if critique and critique.summary else "(none)"),
+        summary=(
+            critique.summary.strip() if critique and critique.summary else "(none)"
+        ),
         preserve=_format_lines(critique.preserve if critique else ()),
         issues=_format_lines(critique.issues if critique else ()),
         constraints=_format_lines(critique.constraints if critique else ()),
@@ -228,4 +230,3 @@ def _format_metric_definitions(
     if not lines:
         return ""
     return "Metric definitions:\n" + "\n".join(lines) + "\n"
-

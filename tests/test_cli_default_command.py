@@ -70,4 +70,3 @@ def test_tui_subcommand_not_rewritten(monkeypatch):
     assert result.exit_code == 0
     assert called.run is False
     assert called.tui is True
-

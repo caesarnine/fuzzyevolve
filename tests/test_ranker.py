@@ -5,6 +5,7 @@ from __future__ import annotations
 import random
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 import trueskill as ts
 
@@ -16,7 +17,7 @@ from fuzzyevolve.core.models import Elite
 def make_elite(text: str, metric: str) -> Elite:
     return Elite(
         text=text,
-        descriptor={"len": len(text)},
+        embedding=np.array([1.0], dtype=float),
         ratings={metric: ts.Rating()},
         age=0,
     )

@@ -128,7 +128,11 @@ class LLMRewriteOperator:
                         prompt=prompt,
                         output=None,
                         error="operator_call_failed",
-                        extra={"operator": self.name, "role": self.role, "focus": focus},
+                        extra={
+                            "operator": self.name,
+                            "role": self.role,
+                            "focus": focus,
+                        },
                     )
                 except Exception:
                     log_llm.exception("Failed to record operator call.")

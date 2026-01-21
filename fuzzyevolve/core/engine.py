@@ -6,17 +6,20 @@ from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Protocol
 
+import numpy as np
+
 from fuzzyevolve.config import Config
 from fuzzyevolve.core.anchors import AnchorManager, AnchorPolicy
-from fuzzyevolve.core.archive import MapElitesArchive
-from fuzzyevolve.core.battle import Battle, build_battle
+from fuzzyevolve.core.battle import build_battle
 from fuzzyevolve.core.critique import Critique
 from fuzzyevolve.core.models import Anchor, Elite, EvolutionResult, IterationSnapshot
 from fuzzyevolve.core.models import MutationCandidate
+from fuzzyevolve.core.pool import CrowdedPool
 from fuzzyevolve.core.ports import Critic, Mutator, Ranker
 from fuzzyevolve.core.ratings import RatingSystem
 
 log_evo = logging.getLogger("evolution")
+
 
 class Recorder(Protocol):
     def set_iteration(self, iteration: int) -> None: ...
@@ -28,14 +31,14 @@ class Recorder(Protocol):
     ) -> None: ...
 
     def record_stats(
-        self, *, iteration: int, best_score: float, empty_cells: int
+        self, *, iteration: int, best_score: float, pool_size: int
     ) -> None: ...
 
     def save_checkpoint(
         self,
         *,
         iteration: int,
-        islands: Sequence[MapElitesArchive],
+        pool: CrowdedPool,
         anchor_manager: AnchorManager | None,
         keep: bool,
     ) -> None: ...
@@ -46,10 +49,10 @@ class EvolutionEngine:
         self,
         *,
         cfg: Config,
-        islands: Sequence[MapElitesArchive],
-        describe: Callable[[str], dict],
+        pool: CrowdedPool,
+        embed: Callable[[str], np.ndarray],
         rating: RatingSystem,
-        selector: Callable[[MapElitesArchive], Elite],
+        selector: Callable[[CrowdedPool], Elite],
         critic: Critic | None,
         mutator: Mutator,
         ranker: Ranker,
@@ -58,10 +61,8 @@ class EvolutionEngine:
         store: Recorder | None = None,
     ) -> None:
         self.cfg = cfg
-        self.islands = list(islands)
-        if not self.islands:
-            raise ValueError("At least one island archive is required.")
-        self.describe = describe
+        self.pool = pool
+        self.embed = embed
         self.rating = rating
         self.selector = selector
         self.critic = critic
@@ -88,7 +89,9 @@ class EvolutionEngine:
     ) -> EvolutionResult:
         if start_iteration < 0:
             raise ValueError("start_iteration must be >= 0.")
-        return self._run_loop(start_iteration=start_iteration, on_iteration=on_iteration)
+        return self._run_loop(
+            start_iteration=start_iteration, on_iteration=on_iteration
+        )
 
     def _run_loop(
         self,
@@ -115,7 +118,7 @@ class EvolutionEngine:
                 snapshot = IterationSnapshot(
                     iteration=iteration + 1,
                     best_score=self.rating.score(best.ratings),
-                    empty_cells=self.islands[0].empty_cells,
+                    pool_size=len(self.pool),
                     best_elite=best,
                 )
                 if on_iteration:
@@ -131,7 +134,7 @@ class EvolutionEngine:
                         self.store.record_stats(
                             iteration=snapshot.iteration,
                             best_score=snapshot.best_score,
-                            empty_cells=snapshot.empty_cells,
+                            pool_size=snapshot.pool_size,
                         )
                         checkpoint_interval = getattr(
                             self.cfg.run, "checkpoint_interval", 1
@@ -141,7 +144,7 @@ class EvolutionEngine:
                         )
                         self.store.save_checkpoint(
                             iteration=snapshot.iteration,
-                            islands=self.islands,
+                            pool=self.pool,
                             anchor_manager=self.anchors,
                             keep=keep,
                         )
@@ -150,6 +153,7 @@ class EvolutionEngine:
                             {
                                 "best_text_id": self.store.put_text(best.text),
                                 "best_score": snapshot.best_score,
+                                "pool_size": snapshot.pool_size,
                             },
                             iteration=snapshot.iteration,
                         )
@@ -166,25 +170,19 @@ class EvolutionEngine:
         )
 
     def best_elite(self) -> Elite:
-        all_elites = [
-            elite for archive in self.islands for elite in archive.iter_elites()
-        ]
-        if not all_elites:
-            raise ValueError("No elites available.")
-        return max(all_elites, key=lambda e: self.rating.score(e.ratings))
+        return self.pool.best
 
     def _seed(self, seed_text: str) -> None:
         seed = Elite(
             text=seed_text,
-            descriptor=self.describe(seed_text),
+            embedding=self.embed(seed_text),
             ratings=self.rating.new_ratings(),
             age=0,
         )
-        for archive in self.islands:
-            archive.add(seed.clone())
+        self.pool.add(seed)
 
         if self.anchors:
-            self.anchors.seed(seed_text, descriptor_fn=self.describe)
+            self.anchors.seed(seed_text)
 
     def step(
         self,
@@ -192,17 +190,16 @@ class EvolutionEngine:
         *,
         mutation_executor: ThreadPoolExecutor | None = None,
     ) -> None:
-        island_idx = self.rng.randrange(len(self.islands))
-        archive = self.islands[island_idx]
-        parent = self.selector(archive)
+        parent = self.selector(self.pool)
         self.rating.ensure_ratings(parent)
+
         if self.store:
             try:
                 self.store.record_event(
                     "step_start",
                     {
-                        "island": island_idx,
                         "parent_text_id": self.store.put_text(parent.text),
+                        "pool_size": len(self.pool),
                     },
                     iteration=iteration + 1,
                 )
@@ -229,14 +226,13 @@ class EvolutionEngine:
                     log_evo.exception("Failed to record critique.")
 
         candidates = self._propose_children(
-            archive,
             parent,
             critique=critique,
             mutation_executor=mutation_executor,
         )
         if not candidates:
-            self._maintenance(iteration)
             return
+
         if self.store:
             try:
                 self.store.record_event(
@@ -258,13 +254,10 @@ class EvolutionEngine:
 
         children = self._make_children(parent, candidates, age=iteration)
         if not children:
-            self._maintenance(iteration)
             return
 
         anchors = self._maybe_pick_anchors([parent, *children])
-        opponent = self._maybe_pick_opponent(
-            archive, parent, [parent, *children, *anchors]
-        )
+        opponent = self._maybe_pick_opponent(parent, [parent, *children, *anchors])
 
         battle = build_battle(
             parent=parent,
@@ -273,8 +266,8 @@ class EvolutionEngine:
             opponent=opponent,
         )
         if battle.size < 2:
-            self._maintenance(iteration)
             return
+
         if self.store:
             try:
                 child_set = {id(child) for child in battle.judged_children}
@@ -318,6 +311,7 @@ class EvolutionEngine:
             raise RuntimeError(
                 f"Ranker returned no ranking at iteration {iteration + 1}."
             )
+
         if self.store:
             try:
                 self.store.record_event(
@@ -333,27 +327,12 @@ class EvolutionEngine:
             ranking,
             frozen_indices=set(battle.frozen_indices),
         )
-        for elite in battle.resort_elites:
-            archive.resort(elite)
 
-        for child in battle.judged_children:
-            if self._passes_new_cell_gate(archive, parent, child):
-                archive.add(child)
-                if self.store:
-                    try:
-                        self.store.record_event(
-                            "archive_add",
-                            {"text_id": self.store.put_text(child.text)},
-                            iteration=iteration + 1,
-                        )
-                    except Exception:
-                        log_evo.exception("Failed to record archive_add.")
-
-        self._maintenance(iteration)
+        # Absorb children into the fixed-size pool (crowding handles removal).
+        self.pool.add_many(battle.judged_children)
 
     def _propose_children(
         self,
-        archive: MapElitesArchive,
         parent: Elite,
         *,
         critique: Critique | None,
@@ -376,7 +355,7 @@ class EvolutionEngine:
             text = cand.text
             if text in seen:
                 continue
-            if archive.contains_text(text):
+            if self.pool.contains_text(text):
                 continue
             seen.add(text)
             unique.append(cand)
@@ -394,7 +373,7 @@ class EvolutionEngine:
             text = cand.text
             child = Elite(
                 text=text,
-                descriptor=self.describe(text),
+                embedding=self.embed(text),
                 ratings=self.rating.init_child_ratings(
                     parent, uncertainty_scale=cand.uncertainty_scale
                 ),
@@ -410,10 +389,7 @@ class EvolutionEngine:
         return self.anchors.maybe_sample(exclude_texts=exclude)
 
     def _maybe_pick_opponent(
-        self,
-        archive: MapElitesArchive,
-        parent: Elite,
-        group: Sequence[Elite | Anchor],
+        self, parent: Elite, group: Sequence[Elite | Anchor]
     ) -> Elite | None:
         opponent_cfg = self.cfg.judging.opponent
         if opponent_cfg.kind == "none":
@@ -423,126 +399,18 @@ class EvolutionEngine:
 
         exclude_texts = {e.text for e in group}
 
-        if opponent_cfg.kind == "cell_champion":
-            parent_key = archive.space.cell_key(parent.descriptor)
-            bucket = next(
-                (bucket for key, bucket in archive.iter_cells() if key == parent_key),
-                None,
-            )
-            if not bucket:
-                return None
-            for elite in bucket:
-                if elite.text not in exclude_texts:
-                    return elite
-            return None
-
-        if opponent_cfg.kind == "global_best":
+        if opponent_cfg.kind == "random":
             candidates = [
-                e for e in archive.iter_elites() if e.text not in exclude_texts
+                e for e in self.pool.iter_elites() if e.text not in exclude_texts
             ]
             if not candidates:
                 return None
-            return max(candidates, key=lambda e: self.rating.score(e.ratings))
+            return candidates[self.rng.randrange(len(candidates))]
 
-        if opponent_cfg.kind == "topk_other_cell_champion":
-            top_k = int(opponent_cfg.top_k)
-            parent_key = archive.space.cell_key(parent.descriptor)
-
-            champions: list[tuple[float, Elite]] = []
-            for cell_key, bucket in archive.iter_cells():
-                if not bucket or cell_key == parent_key:
-                    continue
-                best: Elite | None = None
-                best_score: float | None = None
-                for elite in bucket:
-                    if elite.text in exclude_texts:
-                        continue
-                    score = self.rating.score(elite.ratings)
-                    if best is None or best_score is None or score > best_score:
-                        best = elite
-                        best_score = score
-                if best is not None and best_score is not None:
-                    champions.append((best_score, best))
-
-            if not champions:
-                return None
-
-            champions.sort(key=lambda item: item[0], reverse=True)
-            pool = champions if top_k <= 0 else champions[: min(top_k, len(champions))]
-            return pool[self.rng.randrange(len(pool))][1]
+        if opponent_cfg.kind == "farthest_from_parent":
+            return self.pool.farthest_from(parent, exclude_texts=exclude_texts)
 
         raise ValueError(f"Unknown opponent kind '{opponent_cfg.kind}'.")
-
-    def _passes_new_cell_gate(
-        self, archive: MapElitesArchive, parent: Elite, child: Elite
-    ) -> bool:
-        gate = self.cfg.new_cell_gate
-        if gate.kind == "none":
-            return True
-        if not archive.is_new_cell(child.descriptor):
-            return True
-        if gate.kind == "parent_lcb":
-            return (
-                self.rating.score(child.ratings)
-                >= self.rating.score(parent.ratings) + gate.delta
-            )
-        raise ValueError(f"Unknown new cell gate kind '{gate.kind}'.")
-
-    def _maintenance(self, iteration: int) -> None:
-        mig = self.cfg.maintenance.migration
-        if mig.interval > 0 and (iteration + 1) % mig.interval == 0:
-            self._migrate(mig.size)
-
-        spar = self.cfg.maintenance.sparring
-        if spar.interval > 0 and (iteration + 1) % spar.interval == 0:
-            self._spar()
-
-    def _migrate(self, size: int) -> None:
-        if len(self.islands) <= 1 or size <= 0:
-            return
-        for idx, src in enumerate(self.islands):
-            migrants = src.sample_elites(size)
-            dst = self.islands[(idx + 1) % len(self.islands)]
-            for elite in migrants:
-                dst.add(elite.clone())
-
-    def _spar(self) -> None:
-        pool: list[Elite] = []
-        elite_to_island: dict[int, MapElitesArchive] = {}
-        for archive in self.islands:
-            for elite in archive.sample_one_per_cell():
-                pool.append(elite)
-                elite_to_island[id(elite)] = archive
-
-        if len(pool) <= 1:
-            return
-
-        anchors = self._maybe_pick_anchors(pool)
-        battle = Battle(
-            participants=tuple([*pool, *anchors]),
-            judged_children=tuple(),
-            resort_elites=tuple(pool),
-            frozen_indices=frozenset(
-                idx
-                for idx, player in enumerate([*pool, *anchors])
-                if isinstance(player, Anchor)
-            ),
-        )
-        ranking = self.ranker.rank(
-            metrics=self.cfg.metrics.names,
-            battle=battle,
-            metric_descriptions=self.cfg.metrics.descriptions,
-        )
-
-        self.rating.apply_ranking(
-            battle.participants,
-            ranking,
-            frozen_indices=set(battle.frozen_indices),
-        )
-        for elite in pool:
-            origin = elite_to_island.get(id(elite))
-            if origin:
-                origin.resort(elite)
 
 
 def build_anchor_manager(

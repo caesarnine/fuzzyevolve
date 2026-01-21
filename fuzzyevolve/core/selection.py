@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import math
 import random
 
 import trueskill as ts
 
-from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.models import Elite
+from fuzzyevolve.core.pool import CrowdedPool
 
 
 def optimistic_score(ratings: dict[str, ts.Rating], beta: float) -> float:
@@ -14,40 +13,46 @@ def optimistic_score(ratings: dict[str, ts.Rating], beta: float) -> float:
         return 0.0
     total = 0.0
     for rating in ratings.values():
-        total += rating.mu + beta * rating.sigma
+        total += float(rating.mu) + float(beta) * float(rating.sigma)
     return total / len(ratings)
 
 
-class ParentSelector:
+class MixedParentSelector:
+    """Mixture selector: uniform sampling + optimistic tournament."""
+
     def __init__(
         self,
-        mode: str,
-        beta: float,
-        temp: float,
+        *,
+        uniform_probability: float,
+        tournament_size: int,
+        optimistic_beta: float,
         rng: random.Random | None = None,
     ) -> None:
-        self.mode = mode
-        self.beta = beta
-        self.temp = temp
+        if not (0.0 <= float(uniform_probability) <= 1.0):
+            raise ValueError("uniform_probability must be between 0 and 1.")
+        if tournament_size <= 0:
+            raise ValueError("tournament_size must be a positive integer.")
+        if optimistic_beta < 0:
+            raise ValueError("optimistic_beta must be >= 0.")
+        self.uniform_probability = float(uniform_probability)
+        self.tournament_size = int(tournament_size)
+        self.optimistic_beta = float(optimistic_beta)
         self.rng = rng or random.Random()
 
-    def select_parent(self, archive: MapElitesArchive) -> Elite:
-        if self.mode == "uniform_cell":
-            return archive.random_elite()
-        if self.mode != "optimistic_cell_softmax":
-            raise ValueError(f"Unknown selection mode '{self.mode}'.")
+    def select_parent(self, pool: CrowdedPool) -> Elite:
+        if len(pool) <= 0:
+            raise ValueError("Cannot select parent from an empty pool.")
+        if len(pool) == 1:
+            return pool.random_elite()
 
-        cells = [(key, bucket) for key, bucket in archive.iter_cells() if bucket]
-        if not cells:
-            raise ValueError("Cannot select parent from empty archive.")
+        if self.rng.random() < self.uniform_probability:
+            return pool.random_elite()
 
-        cell_scores = [
-            max(optimistic_score(elite.ratings, self.beta) for elite in bucket)
-            for _, bucket in cells
-        ]
-        max_score = max(cell_scores)
-        scaled = [(score - max_score) / self.temp for score in cell_scores]
-        weights = [math.exp(value) for value in scaled]
-        selected_index = self.rng.choices(range(len(cells)), weights=weights)[0]
-        _, bucket = cells[selected_index]
-        return max(bucket, key=lambda elite: optimistic_score(elite.ratings, self.beta))
+        contenders = pool.sample(self.tournament_size)
+        if not contenders:
+            return pool.random_elite()
+
+        return max(
+            contenders,
+            key=lambda elite: optimistic_score(elite.ratings, self.optimistic_beta),
+        )

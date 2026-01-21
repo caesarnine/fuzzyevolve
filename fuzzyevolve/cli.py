@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Optional
 
 import typer
-from typer.core import TyperGroup
 from rich.progress import (
     BarColumn,
     Progress,
@@ -24,6 +23,7 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from typer.core import TyperGroup
 
 from pydantic_ai.settings import ModelSettings
 
@@ -32,13 +32,16 @@ from fuzzyevolve.adapters.llm.operators import LLMRewriteOperator
 from fuzzyevolve.adapters.llm.ranker import LLMRanker
 from fuzzyevolve.config import load_config
 from fuzzyevolve.console.logging import setup_logging
-from fuzzyevolve.core.archive import MapElitesArchive
-from fuzzyevolve.core.descriptor_system import build_descriptor_system
+from fuzzyevolve.core.embeddings import (
+    HashEmbeddingProvider,
+    SentenceTransformerProvider,
+)
 from fuzzyevolve.core.engine import EvolutionEngine, build_anchor_manager
 from fuzzyevolve.core.mutation import OperatorMutator, OperatorSpec
+from fuzzyevolve.core.pool import CrowdedPool
 from fuzzyevolve.core.ratings import RatingSystem
-from fuzzyevolve.core.selection import ParentSelector
-from fuzzyevolve.reporting import render_best_by_cell_markdown
+from fuzzyevolve.core.selection import MixedParentSelector
+from fuzzyevolve.reporting import render_top_by_fitness_markdown
 from fuzzyevolve.run_store import RunStore
 
 _HELP_FLAG = {"-h", "--help"}
@@ -112,7 +115,7 @@ def _execute_run(
     seed_parts: list[str] | None,
     config: Path | None,
     output: Path,
-    top_cells: int,
+    top: int,
     iterations: int | None,
     goal: str | None,
     metric: list[str] | None,
@@ -122,8 +125,8 @@ def _execute_run(
     resume: Path | None,
     store: bool,
 ) -> None:
-    if top_cells < 0:
-        raise typer.BadParameter("--top-cells must be >= 0 (use 0 for no limit).")
+    if top < 0:
+        raise typer.BadParameter("--top must be >= 0 (use 0 for no limit).")
 
     setup_logging(level=_parse_log_level(log_level), quiet=quiet, log_file=log_file)
 
@@ -165,9 +168,16 @@ def _execute_run(
     rng_selection = random.Random(master_rng.randrange(2**32))
     rng_ranker = random.Random(master_rng.randrange(2**32))
     rng_mutation = random.Random(master_rng.randrange(2**32))
+    rng_pool = random.Random(master_rng.randrange(2**32))
     rng_anchors = random.Random(master_rng.randrange(2**32))
 
-    describe, space = build_descriptor_system(cfg)
+    if cfg.embeddings.model and cfg.embeddings.model != "hash":
+        provider = SentenceTransformerProvider(cfg.embeddings.model)
+    else:
+        provider = HashEmbeddingProvider()
+
+    def embed(text: str):
+        return provider.embed(text)
 
     rating = RatingSystem(
         cfg.metrics.names,
@@ -193,55 +203,30 @@ def _execute_run(
         recorder = run_store
         logging.info("Recording run to %s", run_store.run_dir)
 
-    islands: list[MapElitesArchive]
+    pool = CrowdedPool(
+        max_size=cfg.population.size, rng=rng_pool, score_fn=rating.score
+    )
+
     anchor_manager = None
     start_iteration = 0
     if resume is not None:
-
-        def _space_factory(_cfg):
-            return space
-
-        def _archive_factory(space_obj):
-            return MapElitesArchive(
-                space_obj,
-                elites_per_cell=cfg.population.elites_per_cell,
-                rng=random.Random(master_rng.randrange(2**32)),
-                score_fn=rating.score,
-            )
-
-        def _anchor_factory(_cfg):
-            return build_anchor_manager(cfg=cfg, rng=rng_anchors)
-
         loaded = run_store.load_checkpoint(
             cfg=cfg,
             checkpoint_path=checkpoint_path,
-            space_factory=_space_factory,
-            archive_factory=_archive_factory,
-            anchor_factory=_anchor_factory,
+            embed=embed,
+            pool_factory=lambda: pool,
+            anchor_factory=lambda _cfg: build_anchor_manager(cfg=cfg, rng=rng_anchors),
         )
-        islands = loaded.islands
+        pool = loaded.pool
         anchor_manager = loaded.anchors
         start_iteration = loaded.next_iteration
     else:
-        archive_rngs = [
-            random.Random(master_rng.randrange(2**32))
-            for _ in range(cfg.population.islands)
-        ]
-        islands = [
-            MapElitesArchive(
-                space,
-                elites_per_cell=cfg.population.elites_per_cell,
-                rng=archive_rngs[idx],
-                score_fn=rating.score,
-            )
-            for idx in range(cfg.population.islands)
-        ]
         anchor_manager = build_anchor_manager(cfg=cfg, rng=rng_anchors)
 
-    selector = ParentSelector(
-        mode=cfg.selection.kind,
-        beta=cfg.selection.ucb_beta,
-        temp=cfg.selection.temperature,
+    selector = MixedParentSelector(
+        uniform_probability=cfg.selection.uniform_probability,
+        tournament_size=cfg.selection.tournament_size,
+        optimistic_beta=cfg.selection.optimistic_beta,
         rng=rng_selection,
     )
 
@@ -307,8 +292,8 @@ def _execute_run(
 
     engine = EvolutionEngine(
         cfg=cfg,
-        islands=islands,
-        describe=describe,
+        pool=pool,
+        embed=embed,
         rating=rating,
         selector=selector.select_parent,
         critic=critic,
@@ -324,7 +309,7 @@ def _execute_run(
         BarColumn(),
         TaskProgressColumn(),
         TextColumn("• best {task.fields[best]:.3f}"),
-        TextColumn("• empty {task.fields[empty]}"),
+        TextColumn("• pool {task.fields[pool]}"),
         TimeElapsedColumn(),
         transient=quiet,
     )
@@ -334,7 +319,7 @@ def _execute_run(
             "evolving",
             total=cfg.run.iterations,
             best=0.0,
-            empty=islands[0].empty_cells,
+            pool=len(pool),
         )
 
         def on_iteration(snapshot):
@@ -353,7 +338,7 @@ def _execute_run(
                 task,
                 advance=1,
                 best=snapshot.best_score,
-                empty=snapshot.empty_cells,
+                pool=snapshot.pool_size,
             )
 
         if resume is not None:
@@ -364,15 +349,15 @@ def _execute_run(
         else:
             result = engine.run(seed_text or "", on_iteration=on_iteration)
 
-    report = render_best_by_cell_markdown(
+    report = render_top_by_fitness_markdown(
         cfg=cfg,
-        islands=islands,
+        pool=pool,
         rating=rating,
-        top_cells=top_cells,
+        top=top,
     )
     output.write_text(report)
     if run_store and store:
-        (run_store.run_dir / "best_by_cell.md").write_text(report)
+        (run_store.run_dir / "best.md").write_text(report)
     logging.info(
         "DONE – report saved to %s (best score %.3f)", output, result.best_score
     )
@@ -392,15 +377,15 @@ def run(
         None, "-c", "--config", help="Path to a TOML or JSON config file."
     ),
     output: Path = typer.Option(
-        Path("best_by_cell.md"),
+        Path("best.md"),
         "-o",
         "--output",
-        help="Path to save the final Markdown report (ranked best-per-cell).",
+        help="Path to save the final Markdown report (top by fitness).",
     ),
-    top_cells: int = typer.Option(
+    top: int = typer.Option(
         20,
-        "--top-cells",
-        help="How many best-per-cell champions to include in the report (0 = all).",
+        "--top",
+        help="How many top individuals to include in the report (0 = all).",
     ),
     iterations: Optional[int] = typer.Option(
         None, "-i", "--iterations", help="Override iterations from config."
@@ -446,7 +431,7 @@ def run(
         seed_parts=seed,
         config=config,
         output=output,
-        top_cells=top_cells,
+        top=top,
         iterations=iterations,
         goal=goal,
         metric=metric,

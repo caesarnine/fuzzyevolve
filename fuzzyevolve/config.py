@@ -11,8 +11,6 @@ except ImportError:  # pragma: no cover - fallback for <3.11
 
 from pydantic import BaseModel, Field, model_validator
 
-DEFAULT_EMBEDDING_BINS = [-2.0, -1.0, 0.0, 1.0, 2.0]
-
 
 class RunConfig(BaseModel):
     iterations: int = Field(10, ge=1)
@@ -20,28 +18,16 @@ class RunConfig(BaseModel):
     checkpoint_interval: int = Field(
         1,
         ge=0,
-        description="Save a checkpoint every N iterations (0 disables periodic checkpoints; latest is still written).",
+        description=(
+            "Save a checkpoint every N iterations (0 disables periodic checkpoints; "
+            "latest is still written)."
+        ),
     )
     random_seed: int | None = None
 
 
 class PopulationConfig(BaseModel):
-    islands: int = Field(1, ge=1)
-    elites_per_cell: int = Field(4, ge=1)
-
-
-class MigrationConfig(BaseModel):
-    interval: int = Field(0, ge=0)
-    size: int = Field(4, ge=1)
-
-
-class SparringConfig(BaseModel):
-    interval: int = Field(0, ge=0)
-
-
-class MaintenanceConfig(BaseModel):
-    migration: MigrationConfig = Field(default_factory=MigrationConfig)
-    sparring: SparringConfig = Field(default_factory=SparringConfig)
+    size: int = Field(256, ge=1, description="Fixed population size.")
 
 
 class MetricsConfig(BaseModel):
@@ -68,35 +54,31 @@ class RatingConfig(BaseModel):
     child_prior_tau: float = Field(4.0, ge=0.0)
 
 
-class Embedding2DConfig(BaseModel):
-    embedding_model: str | None = "hash"
-    projection_seed: int = 123
-    bins_x: list[float] = Field(default_factory=lambda: list(DEFAULT_EMBEDDING_BINS))
-    bins_y: list[float] = Field(default_factory=lambda: list(DEFAULT_EMBEDDING_BINS))
-
-    @model_validator(mode="after")
-    def _validate_bins(self) -> "Embedding2DConfig":
-        if len(self.bins_x) < 2 or len(self.bins_y) < 2:
-            raise ValueError("embedding_2d bins must each have at least two values.")
-        return self
-
-
-class DescriptorConfig(BaseModel):
-    kind: Literal["embedding_2d", "length"] = "embedding_2d"
-    embedding_2d: Embedding2DConfig = Field(default_factory=Embedding2DConfig)
-    length_bins: list[float] = Field(default_factory=lambda: [0, 50, 200, 1000, 10_000])
-
-    @model_validator(mode="after")
-    def _validate_descriptor(self) -> "DescriptorConfig":
-        if self.kind == "length" and len(self.length_bins) < 2:
-            raise ValueError("descriptor.length_bins must have at least two values.")
-        return self
+class EmbeddingsConfig(BaseModel):
+    model: str = Field(
+        "hash",
+        description=(
+            "Embedding model name. Use 'hash' for a fast, dependency-free embedding, "
+            "or a sentence-transformers model name for semantic embeddings."
+        ),
+    )
 
 
 class SelectionConfig(BaseModel):
-    kind: Literal["uniform_cell", "optimistic_cell_softmax"] = "uniform_cell"
-    ucb_beta: float = Field(1.0, ge=0.0)
-    temperature: float = Field(1.0, gt=0.0)
+    uniform_probability: float = Field(
+        0.5,
+        ge=0.0,
+        le=1.0,
+        description="Probability of uniform parent selection from the pool.",
+    )
+    tournament_size: int = Field(
+        8, ge=1, description="Tournament size for optimistic parent selection."
+    )
+    optimistic_beta: float = Field(
+        0.7,
+        ge=0.0,
+        description="Optimism coefficient for selection: mu + beta*sigma.",
+    )
 
 
 class TaskConfig(BaseModel):
@@ -122,6 +104,12 @@ class CriticConfig(BaseModel):
     )
 
 
+class ModelSpec(BaseModel):
+    model: str
+    weight: float = Field(..., gt=0.0)
+    temperature: float = 0.7
+
+
 class MutationOperatorConfig(BaseModel):
     name: str
     role: Literal["exploit", "explore"] = "exploit"
@@ -135,7 +123,10 @@ class MutationOperatorConfig(BaseModel):
     )
     temperature: float | None = Field(
         None,
-        description="Optional temperature override for this operator (otherwise uses model spec temperature).",
+        description=(
+            "Optional temperature override for this operator (otherwise uses model "
+            "spec temperature)."
+        ),
     )
     instructions: str = ""
     ensemble: list[ModelSpec] | None = None
@@ -193,7 +184,9 @@ class MutationConfig(BaseModel):
 
         enabled = [op for op in self.operators if op.enabled]
         if not enabled:
-            raise ValueError("mutation.operators must contain at least one enabled operator.")
+            raise ValueError(
+                "mutation.operators must contain at least one enabled operator."
+            )
 
         names = [op.name for op in enabled]
         if len(set(names)) != len(names):
@@ -208,21 +201,8 @@ class MutationConfig(BaseModel):
 
 
 class OpponentConfig(BaseModel):
-    kind: Literal[
-        "none",
-        "cell_champion",
-        "global_best",
-        "topk_other_cell_champion",
-    ] = "none"
+    kind: Literal["none", "random", "farthest_from_parent"] = "farthest_from_parent"
     probability: float = Field(1.0, ge=0.0, le=1.0)
-    top_k: int = Field(
-        10,
-        ge=0,
-        description=(
-            "When kind is 'topk_other_cell_champion', sample uniformly from the top-K "
-            "other-cell champions by score (0 = all)."
-        ),
-    )
 
 
 class JudgingConfig(BaseModel):
@@ -237,17 +217,6 @@ class AnchorsConfig(BaseModel):
     seed_mu: float = 25.0
     seed_sigma: float = Field(2.0, gt=0.0)
     ghost_interval: int = Field(10, ge=0)
-
-
-class NewCellGateConfig(BaseModel):
-    kind: Literal["none", "parent_lcb"] = "none"
-    delta: float = -0.5
-
-
-class ModelSpec(BaseModel):
-    model: str
-    weight: float = Field(..., gt=0.0)
-    temperature: float = 0.7
 
 
 class LLMConfig(BaseModel):
@@ -279,18 +248,16 @@ class LLMConfig(BaseModel):
 class Config(BaseModel):
     run: RunConfig = Field(default_factory=RunConfig)
     population: PopulationConfig = Field(default_factory=PopulationConfig)
-    maintenance: MaintenanceConfig = Field(default_factory=MaintenanceConfig)
     task: TaskConfig = Field(default_factory=TaskConfig)
     metrics: MetricsConfig = Field(default_factory=MetricsConfig)
     prompts: PromptConfig = Field(default_factory=PromptConfig)
     critic: CriticConfig = Field(default_factory=CriticConfig)
     rating: RatingConfig = Field(default_factory=RatingConfig)
-    descriptor: DescriptorConfig = Field(default_factory=DescriptorConfig)
+    embeddings: EmbeddingsConfig = Field(default_factory=EmbeddingsConfig)
     selection: SelectionConfig = Field(default_factory=SelectionConfig)
     mutation: MutationConfig = Field(default_factory=MutationConfig)
     judging: JudgingConfig = Field(default_factory=JudgingConfig)
     anchors: AnchorsConfig = Field(default_factory=AnchorsConfig)
-    new_cell_gate: NewCellGateConfig = Field(default_factory=NewCellGateConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
 
 

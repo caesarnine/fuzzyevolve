@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import numpy as np
+
 from fuzzyevolve.adapters.llm.prompts import (
     build_critique_prompt,
     build_rank_prompt,
@@ -20,7 +22,7 @@ class DummyRating:
 def make_elite(text: str) -> Elite:
     return Elite(
         text=text,
-        descriptor={"len": len(text)},
+        embedding=np.array([1.0], dtype=float),
         ratings={
             "clarity": DummyRating(),
             "creativity": DummyRating(),
@@ -50,7 +52,7 @@ class TestCritiquePrompt:
     def test_score_uses_metric_c(self):
         parent = Elite(
             text="Hello.",
-            descriptor={"len": 6},
+            embedding=np.array([1.0], dtype=float),
             ratings={"clarity": DummyRating(mu=10.0, sigma=1.0)},
             age=0,
         )
@@ -162,4 +164,3 @@ class TestRankPrompt:
         assert "Metric definitions:" in prompt
         assert "- clarity: Easy to follow and unambiguous." in prompt
         assert "- creativity: Fresh and surprising ideas." in prompt
-

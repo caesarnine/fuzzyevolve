@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import random
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any
 
 import trueskill as ts
 
@@ -40,7 +39,6 @@ class AnchorPool:
     def add_seed(
         self,
         text: str,
-        descriptor_fn: Callable[[str], dict[str, Any]],
         *,
         mu: float,
         sigma: float,
@@ -49,7 +47,6 @@ class AnchorPool:
             return self.seed_anchor
         anchor = Anchor(
             text=text,
-            descriptor=descriptor_fn(text),
             ratings=self._make_ratings(mu, sigma),
             age=0,
             label="SEED",
@@ -59,7 +56,6 @@ class AnchorPool:
     def add_ghost(self, elite: Elite, *, age: int | None = None) -> Anchor:
         anchor = Anchor(
             text=elite.text,
-            descriptor=dict(elite.descriptor),
             ratings={
                 name: ts.Rating(rating.mu, rating.sigma)
                 for name, rating in elite.ratings.items()
@@ -141,11 +137,11 @@ class AnchorManager:
         self.rng = rng
 
     def seed(
-        self, text: str, *, descriptor_fn: Callable[[str], dict[str, Any]]
+        self,
+        text: str,
     ) -> Anchor:
         return self.pool.add_seed(
             text,
-            descriptor_fn=descriptor_fn,
             mu=self.policy.seed_mu,
             sigma=self.policy.seed_sigma,
         )

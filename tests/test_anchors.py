@@ -1,19 +1,16 @@
 """Tests for anchor pool behavior."""
 
+import numpy as np
 import trueskill as ts
 
 from fuzzyevolve.core.anchors import AnchorPool
 from fuzzyevolve.core.models import Elite
 
 
-def _describe(text: str) -> dict[str, object]:
-    return {"len": len(text)}
-
-
 def _make_elite(text: str) -> Elite:
     return Elite(
         text=text,
-        descriptor=_describe(text),
+        embedding=np.array([1.0], dtype=float),
         ratings={"m1": ts.Rating()},
         age=0,
     )
@@ -22,8 +19,8 @@ def _make_elite(text: str) -> Elite:
 def test_anchor_pool_dedupes_by_text():
     pool = AnchorPool(metrics=["m1"])
 
-    seed1 = pool.add_seed("seed", descriptor_fn=_describe, mu=25.0, sigma=0.001)
-    seed2 = pool.add_seed("seed", descriptor_fn=_describe, mu=30.0, sigma=0.002)
+    seed1 = pool.add_seed("seed", mu=25.0, sigma=0.001)
+    seed2 = pool.add_seed("seed", mu=30.0, sigma=0.002)
 
     assert seed1 is seed2
     assert len(pool._anchors) == 1

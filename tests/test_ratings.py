@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 import trueskill as ts
 
@@ -11,8 +12,13 @@ from fuzzyevolve.core.ratings import BattleRanking, RatingSystem
 
 def test_apply_ranking_skips_frozen_indices():
     rating = RatingSystem(["m1"], score_lcb_c=2.0)
-    a = Elite(text="a", descriptor={"len": 1}, ratings=rating.new_ratings(), age=0)
-    b = Anchor(text="b", descriptor={"len": 1}, ratings=rating.new_ratings(), age=0)
+    a = Elite(
+        text="a",
+        embedding=np.array([1.0], dtype=float),
+        ratings=rating.new_ratings(),
+        age=0,
+    )
+    b = Anchor(text="b", ratings=rating.new_ratings(), age=0)
     before = b.ratings["m1"].mu
 
     ranking = BattleRanking(tiers_by_metric={"m1": [[0], [1]]})

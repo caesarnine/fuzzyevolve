@@ -31,42 +31,22 @@ def _read_jsonl(path: Path, *, max_lines: int | None = None) -> list[dict[str, A
     return out
 
 
-def _bin_index(value: float, bins: list[float]) -> int:
-    if len(bins) < 2:
-        return 0
-    if value >= bins[-1]:
-        return len(bins) - 2
-    for idx in range(len(bins) - 1):
-        if bins[idx] <= value < bins[idx + 1]:
-            return idx
-    return 0
-
-
 @dataclass(frozen=True, slots=True)
 class MetricRating:
     mu: float
     sigma: float
 
-    @property
-    def lcb(self) -> float:
-        # c is applied elsewhere; this is raw mu/sigma.
-        return self.mu - self.sigma
-
 
 @dataclass(frozen=True, slots=True)
 class EliteRecord:
     text_id: str
-    descriptor: dict[str, Any]
     ratings: dict[str, MetricRating]
     age: int
-    island: int
-    cell_key: tuple[int, ...]
     score: float
 
     @property
     def preview(self) -> str:
-        text = self.text_id
-        return text[:8]
+        return self.text_id[:8]
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,14 +65,8 @@ class RunState:
     cfg: Config
     store: RunStore
     iteration: int
-    islands: list[list[EliteRecord]]
+    members: list[EliteRecord]
     best: EliteRecord | None
-
-    descriptor_kind: str
-    bins_x: list[float] | None = None
-    bins_y: list[float] | None = None
-    length_bins: list[float] | None = None
-
     checkpoint_mtime: float = 0.0
 
     def score_from_ratings(self, ratings: Mapping[str, MetricRating]) -> float:
@@ -110,22 +84,6 @@ class RunState:
 
     def get_text(self, text_id: str) -> str:
         return self.store.get_text(text_id)
-
-    def cell_counts(self) -> dict[tuple[int, ...], int]:
-        counts: dict[tuple[int, ...], int] = {}
-        for island in self.islands:
-            for elite in island:
-                counts[elite.cell_key] = counts.get(elite.cell_key, 0) + 1
-        return counts
-
-    def cell_best_scores(self) -> dict[tuple[int, ...], float]:
-        best: dict[tuple[int, ...], float] = {}
-        for island in self.islands:
-            for elite in island:
-                prev = best.get(elite.cell_key)
-                if prev is None or elite.score > prev:
-                    best[elite.cell_key] = elite.score
-        return best
 
 
 def list_runs(data_dir: Path) -> list[RunSummary]:
@@ -182,83 +140,42 @@ def load_run_state(run_dir: Path) -> RunState:
     checkpoint = _read_json(cp_path) if cp_path.exists() else {}
     iteration = int(checkpoint.get("next_iteration", 0))
 
-    kind = cfg.descriptor.kind
-    bins_x = None
-    bins_y = None
-    length_bins = None
-    if kind == "embedding_2d":
-        bins_x = list(cfg.descriptor.embedding_2d.bins_x)
-        bins_y = list(cfg.descriptor.embedding_2d.bins_y)
-    elif kind == "length":
-        length_bins = list(cfg.descriptor.length_bins)
-
-    islands_out: list[list[EliteRecord]] = []
-    for island_idx, island in enumerate(checkpoint.get("islands", [])):
-        elites_out: list[EliteRecord] = []
-        for elite in island.get("elites", []):
-            text_id = str(elite["text_id"])
-            desc = dict(elite.get("descriptor") or {})
-            ratings_raw = elite.get("ratings") or {}
-            ratings = {
-                metric: MetricRating(
-                    mu=float(rdict.get("mu", 0.0)),
-                    sigma=float(rdict.get("sigma", 0.0)),
-                )
-                for metric, rdict in ratings_raw.items()
-            }
-
-            if kind == "embedding_2d" and bins_x and bins_y:
-                cx = _bin_index(float(desc.get("embed_x", 0.0)), bins_x)
-                cy = _bin_index(float(desc.get("embed_y", 0.0)), bins_y)
-                cell_key = (cx, cy)
-            elif kind == "length" and length_bins:
-                cell_key = (_bin_index(float(desc.get("len", 0.0)), length_bins),)
-            else:
-                cell_key = tuple()
-
-            age = int(elite.get("age", 0))
-            # conservative score used throughout the project
-            c = float(cfg.rating.score_lcb_c)
-            metrics = cfg.metrics.names
-            score = (
-                sum(
-                    (ratings[m].mu - c * ratings[m].sigma)
-                    for m in metrics
-                    if m in ratings
-                )
-                / len(metrics)
-                if metrics
-                else 0.0
+    members_out: list[EliteRecord] = []
+    for elite in checkpoint.get("population", {}).get("members", []):
+        text_id = str(elite["text_id"])
+        ratings_raw = elite.get("ratings") or {}
+        ratings = {
+            metric: MetricRating(
+                mu=float(rdict.get("mu", 0.0)),
+                sigma=float(rdict.get("sigma", 0.0)),
             )
+            for metric, rdict in ratings_raw.items()
+        }
+        age = int(elite.get("age", 0))
 
-            elites_out.append(
-                EliteRecord(
-                    text_id=text_id,
-                    descriptor=desc,
-                    ratings=ratings,
-                    age=age,
-                    island=island_idx,
-                    cell_key=cell_key,
-                    score=score,
-                )
-            )
-        elites_out.sort(key=lambda e: e.score, reverse=True)
-        islands_out.append(elites_out)
+        c = float(cfg.rating.score_lcb_c)
+        metrics = cfg.metrics.names
+        score = (
+            sum((ratings[m].mu - c * ratings[m].sigma) for m in metrics if m in ratings)
+            / len(metrics)
+            if metrics
+            else 0.0
+        )
 
-    all_elites: list[EliteRecord] = [e for island in islands_out for e in island]
-    best = max(all_elites, key=lambda e: e.score) if all_elites else None
+        members_out.append(
+            EliteRecord(text_id=text_id, ratings=ratings, age=age, score=score)
+        )
+
+    members_out.sort(key=lambda e: e.score, reverse=True)
+    best = members_out[0] if members_out else None
 
     return RunState(
         run_dir=store.run_dir,
         cfg=cfg,
         store=store,
         iteration=iteration,
-        islands=islands_out,
+        members=members_out,
         best=best,
-        descriptor_kind=kind,
-        bins_x=bins_x,
-        bins_y=bins_y,
-        length_bins=length_bins,
         checkpoint_mtime=checkpoint_mtime,
     )
 
@@ -282,4 +199,3 @@ def find_last_by_type(
         if ev.get("type") == event_type:
             return ev
     return None
-

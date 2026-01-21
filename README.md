@@ -1,6 +1,6 @@
 # fuzzyevolve
 
-Evolve text with LLM mutation + LLM judging, using TrueSkill for noisy multi-metric feedback and MAP-Elites for diversity.
+Evolve text with LLM mutation + LLM judging, using TrueSkill for noisy multi-metric feedback and a fixed-size, crowding-based population for diversity.
 
 Inspired by AlphaEvolve, but designed for “fuzzy” criteria like *prose*, *coherence*, *originality*, *funny*, *interesting*, etc.
 
@@ -21,7 +21,7 @@ uv run fuzzyevolve seed.txt
 cat seed.txt | uv run fuzzyevolve
 ```
 
-Output goes to `best_by_cell.md` by default (override with `--output`). By default it includes the top 20 best-per-cell champions (override with `--top-cells`).
+Output goes to `best.md` by default (override with `--output`). By default it includes the top 20 individuals by fitness (override with `--top`).
 
 By default, each run is recorded under `.fuzzyevolve/runs/<run_id>/` (checkpoints, events, and raw LLM prompts/outputs). Resume with:
 
@@ -39,7 +39,7 @@ uv run fuzzyevolve tui --run .fuzzyevolve/runs/<run_id>
 
 Disable recording with `--no-store`.
 
-Note: the repo’s `config.toml` uses semantic embeddings via `sentence-transformers`. Either install the extra or switch to hash/length descriptors:
+Note: semantic embeddings require `sentence-transformers`. Install the extra or use the built-in hash embedding:
 
 ```bash
 uv sync --extra semantic
@@ -51,25 +51,25 @@ uv sync --extra semantic
 - Generates children via a set of LLM-backed mutation operators (e.g. “exploit” vs “explore” full rewrites).
 - Judges parent/children by ranking them per metric (tiered rankings, ties allowed).
 - Updates per-metric TrueSkill ratings (μ/σ) from those rankings (with uncertainty-aware scoring).
-- Keeps diversity with a MAP‑Elites archive (top‑k per descriptor cell), optionally with multiple islands + migration.
+- Keeps diversity with a fixed-size pool + crowding: repeatedly remove the weaker of the closest pair in embedding space.
 
 ## Mental model
 
 - A text is a “player” with a TrueSkill rating per metric (e.g. one rating for `prose`, one for `coherence`).
 - The judge doesn’t assign absolute scores; it *ranks* candidates relative to each other for each metric.
-- The archive is a grid of “niches” (cells) defined by a descriptor (length or a 2D embedding projection).
-- Each iteration is: pick a parent → critique → propose children → rank a battle → update ratings → insert children into niches.
+- The population is a fixed-size “portfolio” of texts in embedding space.
+- Each iteration is: pick a parent → critique → propose children → rank a battle → update ratings → insert children → apply crowding elimination.
 
 ## How it works (core loop)
 
-1. **Descriptor**: compute `descriptor = describe(text)` to place texts into MAP‑Elites cells (`length` or `embedding_2d`).
-2. **Select parent**: choose an elite from a random island archive (`uniform_cell` or an optimistic UCB-ish policy).
+1. **Embed**: compute `embedding = embed(text)` for parent/children (hash or semantic).
+2. **Select parent**: mixture policy: uniform sampling, or an optimistic tournament (`μ + β·σ`).
 3. **Critique** (optional): ask an LLM for actionable guidance (issues + distinct rewrite routes).
 4. **Mutate**: allocate a per-iteration job budget across operators; each job proposes one rewritten child.
-5. **Assemble battle**: parent + children (+ optional frozen anchors/opponent), sized by `mutation.max_children` and anchor/opponent settings.
+5. **Assemble battle**: parent + children + frozen anchors + an opponent (defaults to farthest-from-parent in the pool).
 6. **Judge**: ask an LLM to return tiered rankings for each metric (with validation + optional repair retries).
 7. **Update ratings**: apply per-metric TrueSkill updates; score uses a conservative LCB (`mu - c*sigma`) averaged across metrics.
-8. **Archive**: add children into MAP‑Elites (top‑k per cell), optionally gating “new cell” inserts.
+8. **Crowding**: add children to the pool; while size > N, remove the weaker of the closest pair in embedding space.
 
 ## Configuration
 
@@ -81,9 +81,10 @@ See `config.toml` for a complete example. The structure is intentionally nested:
 - `[mutation]` defines the operator set, job budget, and per-operator uncertainty.
 - `[judging]` controls judge retries + optional opponents.
 - `[rating]` controls TrueSkill parameters and the score’s LCB constant.
-- `[descriptor]` defines the MAP‑Elites “diversity axis” (length bins or 2D embedding bins).
+- `[embeddings]` defines the embedding model (`hash` or a sentence-transformers model name).
+- `[population]` defines the fixed pool size.
+- `[selection]` configures the parent-selection mixture policy.
 - `[anchors]` optionally injects frozen reference anchors (seed + periodic “ghosts”) into battles.
-- `[population]` / `[maintenance]` enable multiple islands, migration, and global sparring.
 
 ## CLI
 
@@ -103,8 +104,8 @@ uv run fuzzyevolve tui
 ### `run` options
 
 - `--config` / `-c`: Path to TOML/JSON config
-- `--output` / `-o`: Output path (default `best_by_cell.md`)
-- `--top-cells`: How many best-per-cell champions to include (default 20; `0` = all)
+- `--output` / `-o`: Output path (default `best.md`)
+- `--top`: How many top individuals to include (default 20; `0` = all)
 - `--iterations` / `-i`: Override `run.iterations`
 - `--goal` / `-g`: Override `task.goal`
 - `--metric` / `-m`: Override `metrics.names` (repeatable)

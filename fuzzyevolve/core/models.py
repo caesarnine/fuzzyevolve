@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Protocol
 
+import numpy as np
 import trueskill as ts
 
-Descriptor = dict[str, Any]
 Ratings = dict[str, ts.Rating]
 
 
 class RatedText(Protocol):
     text: str
-    descriptor: Descriptor
     ratings: Ratings
     age: int
 
@@ -19,7 +18,7 @@ class RatedText(Protocol):
 @dataclass(slots=True)
 class Elite:
     text: str
-    descriptor: Descriptor
+    embedding: np.ndarray
     ratings: Ratings
     age: int
 
@@ -30,7 +29,7 @@ class Elite:
         }
         return Elite(
             text=self.text,
-            descriptor=dict(self.descriptor),
+            embedding=self.embedding.copy(),
             ratings=ratings,
             age=self.age,
         )
@@ -39,7 +38,6 @@ class Elite:
 @dataclass(slots=True)
 class Anchor:
     text: str
-    descriptor: Descriptor
     ratings: Ratings
     age: int
     label: str = ""
@@ -56,7 +54,7 @@ class MutationCandidate:
 class IterationSnapshot:
     iteration: int
     best_score: float
-    empty_cells: int
+    pool_size: int
     best_elite: Elite
 
 

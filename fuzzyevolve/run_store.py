@@ -7,16 +7,17 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping
 
+import numpy as np
 import trueskill as ts
 
 from fuzzyevolve.config import Config
 from fuzzyevolve.core.anchors import AnchorManager, AnchorPool
-from fuzzyevolve.core.archive import MapElitesArchive
 from fuzzyevolve.core.models import Anchor, Elite
+from fuzzyevolve.core.pool import CrowdedPool
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _utc_now_iso() -> str:
@@ -50,13 +51,15 @@ def _to_jsonable(obj: Any) -> Any:
         return {str(k): _to_jsonable(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [_to_jsonable(v) for v in obj]
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
     return str(obj)
 
 
 @dataclass(frozen=True, slots=True)
 class LoadedState:
     next_iteration: int
-    islands: list[MapElitesArchive]
+    pool: CrowdedPool
     anchors: AnchorManager | None
 
 
@@ -104,10 +107,14 @@ class RunStore:
         run_dir.mkdir(parents=True, exist_ok=False)
 
         store = cls(run_dir)
-        store._write_text(run_dir / "meta.json", _json_dump(store._build_meta(cfg, config_path)))
+        store._write_text(
+            run_dir / "meta.json", _json_dump(store._build_meta(cfg, config_path))
+        )
         store._write_text(
             run_dir / "config.json",
-            _json_dump({"schema": SCHEMA_VERSION, "config": cfg.model_dump(mode="json")}),
+            _json_dump(
+                {"schema": SCHEMA_VERSION, "config": cfg.model_dump(mode="json")}
+            ),
         )
         if seed_text is not None:
             store._write_text(run_dir / "seed.txt", seed_text)
@@ -165,21 +172,27 @@ class RunStore:
         path = self.texts_dir / f"{text_id}.txt"
         return path.read_text(encoding="utf-8")
 
-    def record_event(self, kind: str, data: Mapping[str, Any], *, iteration: int | None = None) -> None:
+    def record_event(
+        self, kind: str, data: Mapping[str, Any], *, iteration: int | None = None
+    ) -> None:
         payload = {
             "ts": _utc_now_iso(),
-            "iteration": int(iteration if iteration is not None else self._current_iteration),
+            "iteration": int(
+                iteration if iteration is not None else self._current_iteration
+            ),
             "type": kind,
             "data": _to_jsonable(dict(data)),
         }
         self._append_jsonl(self.events_path, payload)
 
-    def record_stats(self, *, iteration: int, best_score: float, empty_cells: int) -> None:
+    def record_stats(
+        self, *, iteration: int, best_score: float, pool_size: int
+    ) -> None:
         payload = {
             "ts": _utc_now_iso(),
             "iteration": int(iteration),
             "best_score": float(best_score),
-            "empty_cells": int(empty_cells),
+            "pool_size": int(pool_size),
         }
         self._append_jsonl(self.stats_path, payload)
 
@@ -217,7 +230,9 @@ class RunStore:
             "model": model,
             "model_settings": _to_jsonable(dict(model_settings or {})),
             "prompt_file": str(prompt_path.relative_to(self.run_dir)),
-            "output_file": str(output_path.relative_to(self.run_dir)) if output_path else None,
+            "output_file": str(output_path.relative_to(self.run_dir))
+            if output_path
+            else None,
             "error": error,
             "extra": _to_jsonable(dict(extra or {})),
         }
@@ -227,13 +242,13 @@ class RunStore:
         self,
         *,
         iteration: int,
-        islands: Sequence[MapElitesArchive],
+        pool: CrowdedPool,
         anchor_manager: AnchorManager | None,
         keep: bool,
     ) -> None:
         data = self._serialize_checkpoint(
             iteration=iteration,
-            islands=islands,
+            pool=pool,
             anchor_manager=anchor_manager,
         )
         latest = self.checkpoints_dir / "latest.json"
@@ -247,15 +262,10 @@ class RunStore:
         *,
         cfg: Config,
         checkpoint_path: Path | None = None,
-        space_factory: Callable[[Config], Any],
-        archive_factory: Callable[[Any], MapElitesArchive],
+        embed: Callable[[str], np.ndarray],
+        pool_factory: Callable[[], CrowdedPool],
         anchor_factory: Callable[[Config], AnchorManager | None],
     ) -> LoadedState:
-        """
-        Reconstruct state for resuming.
-
-        Callers provide factories so this module doesn't own descriptor/rating policy choices.
-        """
         checkpoint_path = checkpoint_path or (self.checkpoints_dir / "latest.json")
         raw = json.loads(checkpoint_path.read_text(encoding="utf-8"))
 
@@ -264,38 +274,35 @@ class RunStore:
 
         next_iteration = int(raw.get("next_iteration", 0))
 
-        space = space_factory(cfg)
-        islands_raw = raw.get("islands", [])
-        islands: list[MapElitesArchive] = []
-        for island_data in islands_raw:
-            archive: MapElitesArchive = archive_factory(space)
-            for elite_data in island_data.get("elites", []):
-                text = self.get_text(elite_data["text_id"])
-                elite = Elite(
-                    text=text,
-                    descriptor=dict(elite_data["descriptor"]),
-                    ratings={
-                        metric: _rating_from_dict(rdict)
-                        for metric, rdict in elite_data["ratings"].items()
-                    },
-                    age=int(elite_data["age"]),
-                )
-                archive.add(elite)
-            islands.append(archive)
+        pool = pool_factory()
+        members = raw.get("population", {}).get("members", [])
+        elites: list[Elite] = []
+        for elite_data in members:
+            text = self.get_text(str(elite_data["text_id"]))
+            elite = Elite(
+                text=text,
+                embedding=embed(text),
+                ratings={
+                    metric: _rating_from_dict(rdict)
+                    for metric, rdict in elite_data["ratings"].items()
+                },
+                age=int(elite_data["age"]),
+            )
+            elites.append(elite)
+        pool.add_many(elites)
 
         anchors = None
         anchors_data = raw.get("anchors")
         if anchors_data and anchors_data.get("items"):
             anchors = anchor_factory(cfg)
             if anchors is not None:
-                pool: AnchorPool = anchors.pool
+                pool_obj: AnchorPool = anchors.pool
                 items = []
                 for a in anchors_data.get("items", []):
-                    text = self.get_text(a["text_id"])
+                    text = self.get_text(str(a["text_id"]))
                     items.append(
                         Anchor(
                             text=text,
-                            descriptor=dict(a["descriptor"]),
                             ratings={
                                 metric: _rating_from_dict(rdict)
                                 for metric, rdict in a["ratings"].items()
@@ -304,9 +311,9 @@ class RunStore:
                             label=str(a.get("label", "")),
                         )
                     )
-                pool.load(items)
+                pool_obj.load(items)
 
-        return LoadedState(next_iteration=next_iteration, islands=islands, anchors=anchors)
+        return LoadedState(next_iteration=next_iteration, pool=pool, anchors=anchors)
 
     def _build_meta(self, cfg: Config, config_path: Path | None) -> dict[str, Any]:
         return {
@@ -316,43 +323,40 @@ class RunStore:
             "python": f"{os.sys.version_info.major}.{os.sys.version_info.minor}.{os.sys.version_info.micro}",
             "config_path": str(config_path) if config_path else None,
             "metrics": list(cfg.metrics.names),
+            "population_size": int(cfg.population.size),
+            "embeddings_model": cfg.embeddings.model,
         }
 
     def _serialize_checkpoint(
         self,
         *,
         iteration: int,
-        islands: Sequence[MapElitesArchive],
+        pool: CrowdedPool,
         anchor_manager: AnchorManager | None,
     ) -> dict[str, Any]:
-        islands_out: list[dict[str, Any]] = []
-        for archive in islands:
-            elites_out: list[dict[str, Any]] = []
-            for elite in archive.iter_elites():
-                text_id = self.put_text(elite.text)
-                elites_out.append(
-                    {
-                        "text_id": text_id,
-                        "descriptor": dict(elite.descriptor),
-                        "ratings": {
-                            metric: _rating_to_dict(rating)
-                            for metric, rating in elite.ratings.items()
-                        },
-                        "age": int(elite.age),
-                    }
-                )
-            islands_out.append({"elites": elites_out})
+        members_out: list[dict[str, Any]] = []
+        for elite in pool.iter_elites():
+            text_id = self.put_text(elite.text)
+            members_out.append(
+                {
+                    "text_id": text_id,
+                    "ratings": {
+                        metric: _rating_to_dict(rating)
+                        for metric, rating in elite.ratings.items()
+                    },
+                    "age": int(elite.age),
+                }
+            )
 
         anchors_out: dict[str, Any] | None = None
         if anchor_manager is not None:
-            pool = anchor_manager.pool
+            anchor_pool = anchor_manager.pool
             items_out: list[dict[str, Any]] = []
-            for anchor in pool.iter_anchors():
+            for anchor in anchor_pool.iter_anchors():
                 text_id = self.put_text(anchor.text)
                 items_out.append(
                     {
                         "text_id": text_id,
-                        "descriptor": dict(anchor.descriptor),
                         "ratings": {
                             metric: _rating_to_dict(rating)
                             for metric, rating in anchor.ratings.items()
@@ -363,7 +367,9 @@ class RunStore:
                 )
             anchors_out = {
                 "seed_text_id": (
-                    self.put_text(pool.seed_anchor.text) if pool.seed_anchor else None
+                    self.put_text(anchor_pool.seed_anchor.text)
+                    if anchor_pool.seed_anchor
+                    else None
                 ),
                 "items": items_out,
             }
@@ -372,7 +378,10 @@ class RunStore:
             "schema": SCHEMA_VERSION,
             "saved_at": _utc_now_iso(),
             "next_iteration": int(iteration),
-            "islands": islands_out,
+            "population": {
+                "max_size": int(pool.max_size),
+                "members": members_out,
+            },
             "anchors": anchors_out,
         }
 

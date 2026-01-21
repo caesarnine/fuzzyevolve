@@ -1,43 +1,36 @@
-"""Tests for parent selection policies."""
+"""Tests for parent selection policies (mixture + optimistic tournament)."""
 
 import random
 
+import numpy as np
 import trueskill as ts
 
-from fuzzyevolve.core.archive import MapElitesArchive
-from fuzzyevolve.core.descriptors import build_descriptor_space
 from fuzzyevolve.core.models import Elite
-from fuzzyevolve.core.selection import ParentSelector
+from fuzzyevolve.core.pool import CrowdedPool
+from fuzzyevolve.core.selection import MixedParentSelector
 
 
-def test_optimistic_selector_prefers_high_score_cell():
-    space = build_descriptor_space({"lang": ["txt"], "len": {"bins": [0, 10, 100]}})
-    archive = MapElitesArchive(
-        space,
-        elites_per_cell=1,
-        rng=random.Random(0),
-        score_fn=lambda ratings: ratings["m"].mu,
-    )
-    low = Elite(
-        text="low",
-        descriptor={"lang": "txt", "len": 5},
-        ratings={"m": ts.Rating(mu=10.0, sigma=1.0)},
+def _elite(text: str, mu: float) -> Elite:
+    return Elite(
+        text=text,
+        embedding=np.array([1.0], dtype=float),
+        ratings={"m": ts.Rating(mu=mu, sigma=1.0)},
         age=0,
     )
-    high = Elite(
-        text="high",
-        descriptor={"lang": "txt", "len": 50},
-        ratings={"m": ts.Rating(mu=50.0, sigma=1.0)},
-        age=0,
-    )
-    archive.add(low)
-    archive.add(high)
 
-    selector = ParentSelector(
-        mode="optimistic_cell_softmax",
-        beta=0.0,
-        temp=0.05,
+
+def test_optimistic_tournament_prefers_high_score():
+    pool = CrowdedPool(
+        max_size=10, rng=random.Random(0), score_fn=lambda r: float(r["m"].mu)
+    )
+    pool.add(_elite("low", 10.0))
+    pool.add(_elite("high", 50.0))
+
+    selector = MixedParentSelector(
+        uniform_probability=0.0,
+        tournament_size=2,
+        optimistic_beta=0.0,
         rng=random.Random(0),
     )
-    parent = selector.select_parent(archive)
+    parent = selector.select_parent(pool)
     assert parent.text == "high"

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 
+import numpy as np
 import pytest
 import trueskill as ts
 
@@ -18,7 +19,9 @@ class DummyOperator:
         self.name = name
         self.calls: list[str | None] = []
 
-    def propose(self, *, parent: Elite, critique: Critique | None, focus: str | None = None):
+    def propose(
+        self, *, parent: Elite, critique: Critique | None, focus: str | None = None
+    ):
         self.calls.append(focus)
         suffix = focus or "none"
         return [f"{self.name}:{len(self.calls)}:{suffix}"]
@@ -27,7 +30,7 @@ class DummyOperator:
 def _make_parent() -> Elite:
     return Elite(
         text="parent",
-        descriptor={"len": 6},
+        embedding=np.array([1.0], dtype=float),
         ratings={"m1": ts.Rating(mu=25.0, sigma=1.0)},
         age=0,
     )
@@ -85,10 +88,11 @@ def test_init_child_ratings_scales_uncertainty():
     rating = RatingSystem(["m1"], child_prior_tau=2.0)
     parent = Elite(
         text="p",
-        descriptor={"len": 1},
+        embedding=np.array([1.0], dtype=float),
         ratings={"m1": ts.Rating(mu=25.0, sigma=1.0)},
         age=0,
     )
     child_ratings = rating.init_child_ratings(parent, uncertainty_scale=3.0)
-    assert child_ratings["m1"].sigma == pytest.approx((1.0**2 + (2.0 * 3.0) ** 2) ** 0.5)
-
+    assert child_ratings["m1"].sigma == pytest.approx(
+        (1.0**2 + (2.0 * 3.0) ** 2) ** 0.5
+    )

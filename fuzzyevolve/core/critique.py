@@ -12,4 +12,3 @@ class Critique:
     issues: tuple[str, ...] = ()
     routes: tuple[str, ...] = ()
     constraints: tuple[str, ...] = ()
-

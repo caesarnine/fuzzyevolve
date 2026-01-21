@@ -9,8 +9,13 @@ log_interval = 1
 # random_seed = 0
 
 [population]
-islands = 1
-elites_per_cell = 4
+size = 256
+
+[embeddings]
+# Use "hash" for a fast, dependency-free embedding.
+# For semantic embeddings, install `fuzzyevolve[semantic]` and set e.g.:
+# model = "sentence-transformers/all-MiniLM-L6-v2"
+model = "hash"
 
 [metrics]
 names = ["prose", "coherence", "evocativeness", "originality"]
@@ -20,18 +25,6 @@ prose = "Sentence-level craft: natural voice, varied syntax, clean rhythm, stron
 coherence = "Consistent POV/tense, clear continuity, no contradictions. Every detail should feel intentional."
 evocativeness = "Specific sensory detail, emotional charge, and subtext. Prefer concrete images over abstraction; show-don't-tell."
 originality = "Fresh imagery and choices; avoids clichés, boilerplate morals, and familiar tropes unless subverted."
-
-[descriptor]
-kind = "embedding_2d"
-
-[descriptor.embedding_2d]
-projection_seed = 123
-bins_x = [-2.0, -1.0, 0.0, 1.0, 2.0]
-bins_y = [-2.0, -1.0, 0.0, 1.0, 2.0]
-# Use "hash" for a fast, dependency-free embedding.
-# For real semantic embeddings, install `fuzzyevolve[semantic]` and set e.g.:
-# embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
 
 [rating]
 mu = 25.0
@@ -43,9 +36,11 @@ score_lcb_c = 1.5
 child_prior_tau = 2.0
 
 [selection]
-kind = "uniform_cell"
-ucb_beta = 0.7
-temperature = 0.9
+# Mixture policy: with probability uniform_probability, pick a random parent.
+# Otherwise, sample tournament_size candidates and pick the most optimistic.
+uniform_probability = 0.5
+tournament_size = 8
+optimistic_beta = 0.7
 
 [task]
 goal = "A literary-quality short story (~500 words) with a distinct human voice."
@@ -111,9 +106,9 @@ max_attempts = 3
 repair_enabled = true
 
 [judging.opponent]
-kind = "topk_other_cell_champion"
+# Always include an opponent for cross-pool calibration.
+kind = "farthest_from_parent"
 probability = 1.0
-top_k = 10
 
 [anchors]
 injection_probability = 0.25
@@ -121,17 +116,6 @@ max_per_battle = 1
 seed_mu = 25.0
 seed_sigma = 2.0
 ghost_interval = 10
-
-[new_cell_gate]
-kind = "none"
-delta = -0.5
-
-[maintenance.migration]
-interval = 0
-size = 4
-
-[maintenance.sparring]
-interval = 0
 
 [llm]
 judge_model = "google-gla:gemini-3-pro-preview"
@@ -145,3 +129,4 @@ temperature = 1.0
 model = "google-gla:gemini-3-pro-preview"
 weight = 0.15
 temperature = 1.0
+
