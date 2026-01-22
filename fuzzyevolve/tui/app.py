@@ -92,9 +92,7 @@ class RunPicker(Screen[RunSummary | None]):
             lv.append(ListItem(Label(label)))
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
-        idx = event.list_view.index
-        if idx is None:
-            return
+        idx = int(event.index)
         if idx >= len(self.runs):
             self.dismiss(None)
             return
@@ -108,13 +106,16 @@ class RunViewer(Screen[None]):
         self.attach = attach
         self.state: RunState | None = None
         self._last_checkpoint_mtime = 0.0
+        self._selected_text_id: str | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with Horizontal():
             with Vertical(id="left"):
                 yield Label("", id="run_header")
-                yield DataTable(id="elite_table")
+                yield DataTable(
+                    id="elite_table", cursor_type="row", show_row_labels=False
+                )
             yield Inspector(id="inspector")
         yield Footer()
 
@@ -122,6 +123,7 @@ class RunViewer(Screen[None]):
         self._load()
         if self.attach:
             self.set_interval(1.0, self._maybe_refresh)
+        self.query_one("#elite_table", DataTable).focus()
 
     def _maybe_refresh(self) -> None:
         if self.state is None:
@@ -153,15 +155,28 @@ class RunViewer(Screen[None]):
                 f"{elite.score:.3f}",
                 str(elite.age),
                 elite.preview,
-                key=str(idx),
+                key=elite.text_id,
             )
 
-        if self.state.members:
-            self._show_elite(self.state.members[0])
+        if not self.state.members:
+            return
+
+        target = (
+            self._selected_text_id
+            if self._selected_text_id
+            and any(e.text_id == self._selected_text_id for e in self.state.members)
+            else self.state.members[0].text_id
+        )
+        self._show_selected_row(target, force=True)
+        try:
+            table.move_cursor(row=table.get_row_index(target), column=0, scroll=False)
+        except Exception:
+            pass
 
     def _show_elite(self, elite: EliteRecord) -> None:
         if self.state is None:
             return
+        self._selected_text_id = elite.text_id
         inspector = self.query_one(Inspector)
         inspector.show_elite(
             elite,
@@ -170,17 +185,26 @@ class RunViewer(Screen[None]):
         )
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        self._show_selected_row(str(event.row_key.value))
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        self._show_selected_row(str(event.row_key.value))
+
+    def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
+        self._show_selected_row(str(event.cell_key.row_key.value))
+
+    def on_data_table_cell_highlighted(self, event: DataTable.CellHighlighted) -> None:
+        self._show_selected_row(str(event.cell_key.row_key.value))
+
+    def _show_selected_row(self, text_id: str, *, force: bool = False) -> None:
         if self.state is None:
             return
-        row_key = event.row_key.value if event.row_key else None
-        if not row_key:
+        if not force and text_id == self._selected_text_id:
             return
-        try:
-            idx = int(row_key) - 1
-        except ValueError:
-            return
-        if 0 <= idx < len(self.state.members):
-            self._show_elite(self.state.members[idx])
+        for elite in self.state.members:
+            if elite.text_id == text_id:
+                self._show_elite(elite)
+                break
 
     def on_key(self, event: events.Key) -> None:
         if event.key == "escape":
