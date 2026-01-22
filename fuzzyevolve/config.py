@@ -28,6 +28,19 @@ class RunConfig(BaseModel):
 
 class PopulationConfig(BaseModel):
     size: int = Field(256, ge=1, description="Fixed population size.")
+    pruning: Literal["closest_pair", "knn_local_competition"] = Field(
+        "knn_local_competition",
+        description=(
+            "Population pruning strategy. 'closest_pair' repeatedly removes the weaker "
+            "of the closest pair in embedding space. 'knn_local_competition' uses kNN "
+            "local competition on insertion (default)."
+        ),
+    )
+    knn_k: int = Field(
+        8,
+        ge=1,
+        description="k for 'knn_local_competition' pruning (number of nearest neighbors).",
+    )
 
 
 class MetricsConfig(BaseModel):
@@ -56,10 +69,10 @@ class RatingConfig(BaseModel):
 
 class EmbeddingsConfig(BaseModel):
     model: str = Field(
-        "hash",
+        "sentence-transformers/all-MiniLM-L6-v2",
         description=(
-            "Embedding model name. Use 'hash' for a fast, dependency-free embedding, "
-            "or a sentence-transformers model name for semantic embeddings."
+            "Embedding model name. Use a sentence-transformers model name for semantic "
+            "embeddings (default), or set 'hash' for a fast, dependency-free embedding."
         ),
     )
 
@@ -201,8 +214,18 @@ class MutationConfig(BaseModel):
 
 
 class OpponentConfig(BaseModel):
-    kind: Literal["none", "random", "farthest_from_parent"] = "farthest_from_parent"
+    kind: Literal["none", "random", "farthest_from_parent", "far_but_close"] = (
+        "far_but_close"
+    )
     probability: float = Field(1.0, ge=0.0, le=1.0)
+    farthest_k: int = Field(
+        32,
+        ge=1,
+        description=(
+            "For 'far_but_close': consider the top-k farthest candidates in embedding "
+            "space, then pick the one closest in TrueSkill (highest match quality)."
+        ),
+    )
 
 
 class JudgingConfig(BaseModel):

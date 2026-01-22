@@ -154,3 +154,15 @@ class RatingSystem:
                 if idx in frozen_indices:
                     continue
                 player.ratings[metric] = new_rating[0]
+
+    def match_quality(self, a: RatedText, b: RatedText) -> float:
+        """Average per-metric TrueSkill match quality for a 1v1 comparison."""
+        self.ensure_ratings(a)
+        self.ensure_ratings(b)
+        if not self.metrics:
+            return 0.0
+        total = 0.0
+        for metric in self.metrics:
+            env = self.envs[metric]
+            total += float(env.quality([[a.ratings[metric]], [b.ratings[metric]]]))
+        return total / len(self.metrics)

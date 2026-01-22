@@ -29,6 +29,8 @@ class CrowdedPool:
         max_size: int,
         rng: random.Random | None = None,
         score_fn: Callable[[dict[str, ts.Rating]], float] | None = None,
+        pruning_strategy: str = "closest_pair",
+        knn_k: int = 8,
     ) -> None:
         if max_size <= 0:
             raise ValueError("max_size must be a positive integer.")
@@ -37,6 +39,15 @@ class CrowdedPool:
         self.max_size = int(max_size)
         self.rng = rng or random.Random()
         self._score = score_fn
+        self.pruning_strategy = str(pruning_strategy)
+        self.knn_k = int(knn_k)
+
+        if self.pruning_strategy not in {"closest_pair", "knn_local_competition"}:
+            raise ValueError(
+                "pruning_strategy must be 'closest_pair' or 'knn_local_competition'."
+            )
+        if self.knn_k <= 0:
+            raise ValueError("knn_k must be a positive integer.")
 
         self._members: list[Elite] = []
         self._text_index: dict[str, Elite] = {}
@@ -82,13 +93,26 @@ class CrowdedPool:
         return best
 
     def add_many(self, elites: Sequence[Elite]) -> None:
-        """Add a batch, then eliminate until within max_size (order-independent)."""
-        for elite in elites:
-            if elite.text in self._text_index:
-                continue
-            self._members.append(elite)
-            self._text_index[elite.text] = elite
-        self._eliminate_until_limit()
+        """Add a batch, pruning until within max_size."""
+        if self.pruning_strategy == "closest_pair":
+            # Order-independent: insert everything, then prune globally.
+            for elite in elites:
+                if elite.text in self._text_index:
+                    continue
+                self._members.append(elite)
+                self._text_index[elite.text] = elite
+            self._eliminate_until_limit()
+            return
+
+        if self.pruning_strategy == "knn_local_competition":
+            # Order-dependent by nature; shuffle to reduce systematic bias.
+            incoming = list(elites)
+            self.rng.shuffle(incoming)
+            for elite in incoming:
+                self._add_knn_local_competition(elite)
+            return
+
+        raise ValueError(f"Unknown pruning_strategy '{self.pruning_strategy}'.")
 
     def add(self, elite: Elite) -> None:
         self.add_many([elite])
@@ -140,6 +164,47 @@ class CrowdedPool:
             return a if a_sigma > b_sigma else b
 
         return a if a.text > b.text else b
+
+    def _add_knn_local_competition(self, elite: Elite) -> None:
+        if elite.text in self._text_index:
+            return
+        if len(self._members) < self.max_size:
+            self._members.append(elite)
+            self._text_index[elite.text] = elite
+            return
+        if not self._members:
+            self._members.append(elite)
+            self._text_index[elite.text] = elite
+            return
+
+        k = min(self.knn_k, len(self._members))
+        neighbor_indices = self._knn_indices(elite.embedding, k=k)
+        neighborhood = [self._members[idx] for idx in neighbor_indices]
+
+        loser = self._worst_of([elite, *neighborhood])
+        if loser is elite:
+            return
+
+        self._remove_by_text(loser.text)
+        self._members.append(elite)
+        self._text_index[elite.text] = elite
+
+    def _knn_indices(self, embedding: np.ndarray, *, k: int) -> list[int]:
+        if k <= 0 or not self._members:
+            return []
+        scored: list[tuple[float, int]] = []
+        for idx, member in enumerate(self._members):
+            scored.append((cosine_distance(embedding, member.embedding), idx))
+        scored.sort(key=lambda x: (x[0], x[1]))
+        return [idx for _dist, idx in scored[:k]]
+
+    def _worst_of(self, elites: Sequence[Elite]) -> Elite:
+        if not elites:
+            raise ValueError("Need at least one elite to pick a worst.")
+        worst = elites[0]
+        for other in elites[1:]:
+            worst = self._pick_loser(worst, other)
+        return worst
 
 
 def _avg_mu(ratings: dict[str, ts.Rating]) -> float:

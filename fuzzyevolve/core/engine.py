@@ -15,6 +15,7 @@ from fuzzyevolve.core.critique import Critique
 from fuzzyevolve.core.models import Anchor, Elite, EvolutionResult, IterationSnapshot
 from fuzzyevolve.core.models import MutationCandidate
 from fuzzyevolve.core.pool import CrowdedPool
+from fuzzyevolve.core.pool import cosine_distance
 from fuzzyevolve.core.ports import Critic, Mutator, Ranker
 from fuzzyevolve.core.ratings import RatingSystem
 
@@ -409,6 +410,22 @@ class EvolutionEngine:
 
         if opponent_cfg.kind == "farthest_from_parent":
             return self.pool.farthest_from(parent, exclude_texts=exclude_texts)
+
+        if opponent_cfg.kind == "far_but_close":
+            candidates = [
+                e for e in self.pool.iter_elites() if e.text not in exclude_texts
+            ]
+            if not candidates:
+                return None
+
+            scored = [
+                (cosine_distance(parent.embedding, e.embedding), e) for e in candidates
+            ]
+            scored.sort(key=lambda x: x[0], reverse=True)
+
+            k = min(int(getattr(opponent_cfg, "farthest_k", 32)), len(scored))
+            far = [e for _dist, e in scored[:k]]
+            return max(far, key=lambda e: self.rating.match_quality(parent, e))
 
         raise ValueError(f"Unknown opponent kind '{opponent_cfg.kind}'.")
 

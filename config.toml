@@ -9,13 +9,17 @@ log_interval = 1
 # random_seed = 0
 
 [population]
-size = 256
+size = 24
+pruning = "knn_local_competition" # or "closest_pair"
+knn_k = 8                         # kNN size for local competition
 
 [embeddings]
-# Use "hash" for a fast, dependency-free embedding.
-# For semantic embeddings, install `fuzzyevolve[semantic]` and set e.g.:
-# model = "sentence-transformers/all-MiniLM-L6-v2"
-model = "hash"
+# Default: semantic embeddings for meaningful diversity / crowding.
+# Requires `sentence-transformers` (install `fuzzyevolve[semantic]`).
+model = "sentence-transformers/all-MiniLM-L6-v2"
+#
+# For a fast, dependency-free embedding, set:
+# model = "hash"
 
 [metrics]
 names = ["prose", "coherence", "evocativeness", "originality"]
@@ -107,8 +111,9 @@ repair_enabled = true
 
 [judging.opponent]
 # Always include an opponent for cross-pool calibration.
-kind = "farthest_from_parent"
+kind = "far_but_close"
 probability = 1.0
+farthest_k = 32 # For "far_but_close": consider top-k farthest, then pick closest in TrueSkill.
 
 [anchors]
 injection_probability = 0.25
@@ -129,4 +134,3 @@ temperature = 1.0
 model = "google-gla:gemini-3-pro-preview"
 weight = 0.15
 temperature = 1.0
-

@@ -204,7 +204,11 @@ def _execute_run(
         logging.info("Recording run to %s", run_store.run_dir)
 
     pool = CrowdedPool(
-        max_size=cfg.population.size, rng=rng_pool, score_fn=rating.score
+        max_size=cfg.population.size,
+        rng=rng_pool,
+        score_fn=rating.score,
+        pruning_strategy=cfg.population.pruning,
+        knn_k=cfg.population.knn_k,
     )
 
     anchor_manager = None

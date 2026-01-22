@@ -8,7 +8,7 @@ Inspired by AlphaEvolve, but designed for “fuzzy” criteria like *prose*, *co
 
 ```bash
 export GOOGLE_API_KEY=... # default config uses google-gla:* models
-uv sync
+uv sync --extra semantic
 
 # Uses ./config.toml if present (or defaults)
 uv run fuzzyevolve "This is my starting prompt."
@@ -39,7 +39,7 @@ uv run fuzzyevolve tui --run .fuzzyevolve/runs/<run_id>
 
 Disable recording with `--no-store`.
 
-Note: semantic embeddings require `sentence-transformers`. Install the extra or use the built-in hash embedding:
+Semantic embeddings require `sentence-transformers` and are the default. Install the extra, or set `[embeddings].model = "hash"` for the built-in hash embedding:
 
 ```bash
 uv sync --extra semantic
@@ -51,7 +51,7 @@ uv sync --extra semantic
 - Generates children via a set of LLM-backed mutation operators (e.g. “exploit” vs “explore” full rewrites).
 - Judges parent/children by ranking them per metric (tiered rankings, ties allowed).
 - Updates per-metric TrueSkill ratings (μ/σ) from those rankings (with uncertainty-aware scoring).
-- Keeps diversity with a fixed-size pool + crowding: repeatedly remove the weaker of the closest pair in embedding space.
+- Keeps diversity with a fixed-size pool + crowding in embedding space (default uses kNN local competition; closest-pair elimination is configurable).
 
 ## Mental model
 
@@ -62,14 +62,14 @@ uv sync --extra semantic
 
 ## How it works (core loop)
 
-1. **Embed**: compute `embedding = embed(text)` for parent/children (hash or semantic).
+1. **Embed**: compute `embedding = embed(text)` for parent/children (semantic by default; hash is optional).
 2. **Select parent**: mixture policy: uniform sampling, or an optimistic tournament (`μ + β·σ`).
 3. **Critique** (optional): ask an LLM for actionable guidance (issues + distinct rewrite routes).
 4. **Mutate**: allocate a per-iteration job budget across operators; each job proposes one rewritten child.
-5. **Assemble battle**: parent + children + frozen anchors + an opponent (defaults to farthest-from-parent in the pool).
+5. **Assemble battle**: parent + children + frozen anchors + an opponent (default: far-but-close from the pool).
 6. **Judge**: ask an LLM to return tiered rankings for each metric (with validation + optional repair retries).
 7. **Update ratings**: apply per-metric TrueSkill updates; score uses a conservative LCB (`mu - c*sigma`) averaged across metrics.
-8. **Crowding**: add children to the pool; while size > N, remove the weaker of the closest pair in embedding space.
+8. **Crowding**: add children to the pool; enforce a fixed-size pool with embedding-space crowding (default: kNN local competition).
 
 ## Configuration
 
@@ -81,7 +81,7 @@ See `config.toml` for a complete example. The structure is intentionally nested:
 - `[mutation]` defines the operator set, job budget, and per-operator uncertainty.
 - `[judging]` controls judge retries + optional opponents.
 - `[rating]` controls TrueSkill parameters and the score’s LCB constant.
-- `[embeddings]` defines the embedding model (`hash` or a sentence-transformers model name).
+- `[embeddings]` defines the embedding model (sentence-transformers by default; use `hash` for a fast fallback).
 - `[population]` defines the fixed pool size.
 - `[selection]` configures the parent-selection mixture policy.
 - `[anchors]` optionally injects frozen reference anchors (seed + periodic “ghosts”) into battles.
@@ -137,7 +137,7 @@ uv sync --extra semantic
 ## Development
 
 ```bash
-uv sync --extra dev
+uv sync --extra dev --extra semantic
 uv run ruff format .
 uv run ruff check .
 uv run pytest -q
