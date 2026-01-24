@@ -29,6 +29,11 @@ uv run fuzzyevolve "This is my starting prompt."
 
 fuzzyevolve uses [`pydantic-ai`](https://ai.pydantic.dev/) for LLM calls, so it should work with **Google**, **OpenAI**, or **Anthropic** models (and anything else pydantic-ai supports). Configure models via `[llm].judge_model` and `[[llm.ensemble]].model` in `config.toml`, and set the corresponding API key env var.
 
+### Included examples
+
+- `config.toml` is a working example config you can start from (and `fuzzyevolve` will auto-detect it if it’s in your CWD).
+- `best.md` is a real output report from a run (top individuals by fitness + per-metric μ/σ).
+
 Example `config.toml` switch:
 
 ```toml
