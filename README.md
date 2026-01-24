@@ -1,6 +1,6 @@
 # fuzzyevolve
 
-Inspired by AlphaEvolve, but designed for “fuzzy” criteria like *prose*, *coherence*, *originality*, *funny*, *interesting*, etc.
+Inspired by AlphaEvolve, but designed for “fuzzy” tasks like "write a evocative sci-fi short story". 
 
 What you get in practice:
 - A repeatable loop that steadily improves a draft when “good” is subjective.
