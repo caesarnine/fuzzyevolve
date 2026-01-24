@@ -27,6 +27,20 @@ uv sync --extra semantic
 uv run fuzzyevolve "This is my starting prompt."
 ```
 
+fuzzyevolve uses [`pydantic-ai`](https://ai.pydantic.dev/) for LLM calls, so it should work with **Google**, **OpenAI**, or **Anthropic** models (and anything else pydantic-ai supports). Configure models via `[llm].judge_model` and `[[llm.ensemble]].model` in `config.toml`, and set the corresponding API key env var.
+
+Example `config.toml` switch:
+
+```toml
+[llm]
+judge_model = "openai:gpt-4o-mini"
+
+[[llm.ensemble]]
+model = "openai:gpt-4o-mini"
+weight = 1.0
+temperature = 1.0
+```
+
 Input can be a string, a file path, or stdin:
 
 ```bash
@@ -168,7 +182,7 @@ uv run fuzzyevolve tui
 
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) (recommended)
-- Any model supported by [`pydantic-ai`](https://ai.pydantic.dev/) (configure via `[llm].judge_model` and `[[llm.ensemble]].model`)
+- Any model supported by [`pydantic-ai`](https://ai.pydantic.dev/) (Google/OpenAI/Anthropic all work; configure via `[llm].judge_model` and `[[llm.ensemble]].model`)
 - An API key for the provider you choose
 
 ```bash
