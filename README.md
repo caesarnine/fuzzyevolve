@@ -21,7 +21,7 @@ This is all an experiment - but here are some things I've played with/plan on pl
 
 ```bash
 export GOOGLE_API_KEY=... # default config uses google-gla:* models
-uv sync --extra semantic
+uv sync
 
 # Uses ./config.toml if present (or defaults)
 uv run fuzzyevolve "This is my starting prompt."
@@ -80,11 +80,7 @@ uv run fuzzyevolve tui --run .fuzzyevolve/runs/<run_id>
 
 Disable recording with `--no-store`.
 
-Semantic embeddings require `sentence-transformers` and are the default. Install the extra, or set `[embeddings].model = "hash"` for the built-in hash embedding:
-
-```bash
-uv sync --extra semantic
-```
+Embeddings use `sentence-transformers` (installed by default). Configure the model via `[embeddings].model` in `config.toml`.
 
 ## What it does (high level)
 
@@ -124,7 +120,7 @@ See `config.toml` for a complete example. The structure is intentionally nested:
 - `[mutation]` defines the operator set, job budget, and per-operator uncertainty.
 - `[judging]` controls judge retries + optional opponents.
 - `[rating]` controls TrueSkill parameters and the score’s LCB constant.
-- `[embeddings]` defines the embedding model (sentence-transformers by default; use `hash` for a fast fallback).
+- `[embeddings]` defines the sentence-transformers model to use for diversity.
 - `[population]` defines the fixed pool size.
 - `[selection]` configures the parent-selection mixture policy.
 - `[anchors]` optionally injects frozen reference anchors (seed + periodic “ghosts”) into battles.
@@ -137,7 +133,7 @@ See `config.toml` for a complete example. The structure is intentionally nested:
   - Use cheaper models in `[[llm.ensemble]]` and/or for `[llm].judge_model`.
   - Disable `[critic].enabled` if you want “mutate + judge” only.
 - **Diversity**
-  - Use semantic embeddings when possible; set `[embeddings].model = "hash"` for a fast fallback.
+  - Tune `[embeddings].model` if you want a different embedding model.
   - Increase population size, or use `population.pruning = "knn_local_competition"` to preserve niches.
 - **Stability**
   - Increase `[judging].max_attempts` if the judge sometimes returns invalid structure.
@@ -196,16 +192,10 @@ export OPENAI_API_KEY=...     # e.g. openai:*
 export ANTHROPIC_API_KEY=...  # e.g. anthropic:*
 ```
 
-Semantic embeddings require:
-
-```bash
-uv sync --extra semantic
-```
-
 ## Troubleshooting
 
 - **`ImportError: sentence-transformers is required`**
-  - Run `uv sync --extra semantic`, or set `[embeddings].model = "hash"`.
+  - Run `uv sync` (or `pip install sentence-transformers`).
 - **Judge returns invalid rankings / retries fail**
   - Increase `[judging].max_attempts`, or switch to a more reliable judge model.
 - **Runs are expensive**
@@ -216,7 +206,7 @@ uv sync --extra semantic
 ## Development
 
 ```bash
-uv sync --extra dev --extra semantic
+uv sync --extra dev
 uv run ruff format .
 uv run ruff check .
 uv run pytest -q

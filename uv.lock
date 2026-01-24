@@ -760,6 +760,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-ai" },
     { name = "rich" },
+    { name = "sentence-transformers" },
     { name = "textual" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "trueskill" },
@@ -775,9 +776,6 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
     { name = "twine" },
-]
-semantic = [
-    { name = "sentence-transformers" },
 ]
 vertex = [
     { name = "google-cloud-aiplatform" },
@@ -797,14 +795,14 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "rich", specifier = ">=13.9.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
-    { name = "sentence-transformers", marker = "extra == 'semantic'", specifier = ">=2.6.1" },
+    { name = "sentence-transformers", specifier = ">=2.6.1" },
     { name = "textual", specifier = ">=0.60.0" },
     { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.0.1" },
     { name = "trueskill", specifier = ">=0.4.5" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=5.0.0" },
     { name = "typer", specifier = ">=0.12.3" },
 ]
-provides-extras = ["dev", "vertex", "semantic"]
+provides-extras = ["dev", "vertex"]
 
 [[package]]
 name = "google-api-core"

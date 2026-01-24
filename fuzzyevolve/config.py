@@ -71,10 +71,21 @@ class EmbeddingsConfig(BaseModel):
     model: str = Field(
         "sentence-transformers/all-MiniLM-L6-v2",
         description=(
-            "Embedding model name. Use a sentence-transformers model name for semantic "
-            "embeddings (default), or set 'hash' for a fast, dependency-free embedding."
+            "Embedding model name (a sentence-transformers model name)."
         ),
     )
+
+    @model_validator(mode="after")
+    def _validate_model(self) -> "EmbeddingsConfig":
+        model = (self.model or "").strip()
+        if not model:
+            raise ValueError("embeddings.model must be a non-empty model name.")
+        if model.lower() == "hash":
+            raise ValueError(
+                "embeddings.model='hash' is no longer supported; use a sentence-transformers model name."
+            )
+        self.model = model
+        return self
 
 
 class SelectionConfig(BaseModel):

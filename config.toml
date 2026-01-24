@@ -14,12 +14,9 @@ pruning = "closest_pair" # or "closest_pair"
 knn_k = 4                          # kNN size for local competition (smaller = more niche preservation)
 
 [embeddings]
-# Default: semantic embeddings for meaningful diversity / crowding.
-# Requires `sentence-transformers` (install `fuzzyevolve[semantic]`).
+# Uses sentence-transformers embeddings for meaningful diversity / crowding.
+# Configure with any sentence-transformers model name.
 model = "sentence-transformers/all-MiniLM-L6-v2"
-#
-# For a fast, dependency-free embedding, set:
-# model = "hash"
 
 [metrics]
 names = ["prose", "coherence", "evocativeness", "originality"]

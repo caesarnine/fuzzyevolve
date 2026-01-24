@@ -33,7 +33,6 @@ from fuzzyevolve.adapters.llm.ranker import LLMRanker
 from fuzzyevolve.config import load_config
 from fuzzyevolve.console.logging import setup_logging
 from fuzzyevolve.core.embeddings import (
-    HashEmbeddingProvider,
     SentenceTransformerProvider,
 )
 from fuzzyevolve.core.engine import EvolutionEngine, build_anchor_manager
@@ -171,10 +170,7 @@ def _execute_run(
     rng_pool = random.Random(master_rng.randrange(2**32))
     rng_anchors = random.Random(master_rng.randrange(2**32))
 
-    if cfg.embeddings.model and cfg.embeddings.model != "hash":
-        provider = SentenceTransformerProvider(cfg.embeddings.model)
-    else:
-        provider = HashEmbeddingProvider()
+    provider = SentenceTransformerProvider(cfg.embeddings.model)
 
     def embed(text: str):
         return provider.embed(text)

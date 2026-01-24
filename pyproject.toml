@@ -32,6 +32,7 @@ dependencies = [
     "pydantic-ai>=0.0.49",
     "numpy>=2.2.6",
     "rich>=13.9.4",
+    "sentence-transformers>=2.6.1",
     "textual>=0.60.0",
     "trueskill>=0.4.5",
     "typer>=0.12.3",
@@ -61,7 +62,6 @@ dev = [
 ]
 # Optional: Extra for Vertex AI support
 vertex = ["google-cloud-aiplatform>=1.48.0"]
-semantic = ["sentence-transformers>=2.6.1"]
 
 
 [tool.ruff]
