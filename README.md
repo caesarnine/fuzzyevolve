@@ -1,8 +1,21 @@
 # fuzzyevolve
 
-Evolve text with LLM mutation + LLM judging, using TrueSkill for noisy multi-metric feedback and a fixed-size, crowding-based population for diversity.
-
 Inspired by AlphaEvolve, but designed for “fuzzy” criteria like *prose*, *coherence*, *originality*, *funny*, *interesting*, etc.
+
+What you get in practice:
+- A repeatable loop that steadily improves a draft when “good” is subjective.
+- A population of diverse candidates (not 50 near-identical paraphrases).
+- A full run record you can resume, audit, and browse in a TUI.
+
+At the end you get a diverse, high quality set of outputs for your goal. Especially fun to see what "lineages" survive and which ones get pruned.
+
+## Potential applications
+
+This is all an experiment - but here are some things I've played with/plan on playing with:
+- Creative writing/short stories
+- Prompts for use in downstream tasks/agents
+- Prompts for image/video models where the judge actually generates -> evaluates the actual output
+- Safety/jailbreaking tests, can you find a niche/diverse set of inputs that jailbreak LLMs
 
 ## Quick start
 
@@ -22,6 +35,15 @@ cat seed.txt | uv run fuzzyevolve
 ```
 
 Output goes to `best.md` by default (override with `--output`). By default it includes the top 20 individuals by fitness (override with `--top`).
+
+Override the goal/metrics quickly from the CLI:
+
+```bash
+uv run fuzzyevolve \
+  --goal "Write a punchy, helpful README section about caching." \
+  --metric clarity --metric usefulness --metric concision \
+  "Draft text goes here..."
+```
 
 By default, each run is recorded under `.fuzzyevolve/runs/<run_id>/` (checkpoints, events, and raw LLM prompts/outputs). Resume with:
 
@@ -45,31 +67,33 @@ Semantic embeddings require `sentence-transformers` and are the default. Install
 uv sync --extra semantic
 ```
 
-## What it does
+## What it does (high level)
 
-- Critiques the selected parent once per iteration (structured: preserve / issues / rewrite routes).
-- Generates children via a set of LLM-backed mutation operators (e.g. “exploit” vs “explore” full rewrites).
-- Judges parent/children by ranking them per metric (tiered rankings, ties allowed).
-- Updates per-metric TrueSkill ratings (μ/σ) from those rankings (with uncertainty-aware scoring).
-- Keeps diversity with a fixed-size pool + crowding in embedding space (default uses kNN local competition; closest-pair elimination is configurable).
+- **Critique**: a structured critique of the current parent (preserve / issues / rewrite routes).
+- **Mutate:** multiple LLM “operators” propose children (e.g. conservative improvement vs high-variance exploration).
+- **Judge:** an LLM ranks parent/children (and optional anchors/opponent) per metric using tiered rankings (ties allowed).
+- **Learn:** per-metric TrueSkill updates convert rankings into ratings (μ/σ), then a conservative score selects “best so far”.
+- **Stay diverse:** a fixed-size population is maintained using embedding-space crowding/pruning.
 
-## Mental model
+## Mental model (the important bits)
 
-- A text is a “player” with a TrueSkill rating per metric (e.g. one rating for `prose`, one for `coherence`).
-- The judge doesn’t assign absolute scores; it *ranks* candidates relative to each other for each metric.
-- The population is a fixed-size “portfolio” of texts in embedding space.
-- Each iteration is: pick a parent → critique → propose children → rank a battle → update ratings → insert children → apply crowding elimination.
+- An “individual” is a text plus:
+  - an embedding (for diversity), and
+  - a **TrueSkill rating per metric** (for quality).
+- The judge doesn’t assign absolute scores; it **ranks** candidates relative to each other per metric.
+- The population is a fixed-size “portfolio” spread out in embedding space.
+- Exploration is encouraged via an optimistic parent selector (`μ + β·σ`), while reporting uses a conservative score (`μ - c·σ`).
 
-## How it works (core loop)
+## How it works (one iteration, step by step)
 
-1. **Embed**: compute `embedding = embed(text)` for parent/children (semantic by default; hash is optional).
-2. **Select parent**: mixture policy: uniform sampling, or an optimistic tournament (`μ + β·σ`).
-3. **Critique** (optional): ask an LLM for actionable guidance (issues + distinct rewrite routes).
-4. **Mutate**: allocate a per-iteration job budget across operators; each job proposes one rewritten child.
-5. **Assemble battle**: parent + children + frozen anchors + an opponent (default: far-but-close from the pool).
-6. **Judge**: ask an LLM to return tiered rankings for each metric (with validation + optional repair retries).
-7. **Update ratings**: apply per-metric TrueSkill updates; score uses a conservative LCB (`mu - c*sigma`) averaged across metrics.
-8. **Crowding**: add children to the pool; enforce a fixed-size pool with embedding-space crowding (default: kNN local competition).
+1. **Select parent** from the population (mixture policy: uniform sampling or optimistic tournament).
+2. **Critique parent** into reusable guidance: what to preserve, what to fix, distinct rewrite routes.
+3. **Plan mutation jobs** across operators (minimums + weighted sampling).
+4. **Generate children** (LLM rewrites). Exploration operators can intentionally omit the parent text to avoid “paraphrase gravity”.
+5. **Assemble a battle**: parent + children (+ optional frozen anchors) (+ optional opponent from the pool).
+6. **Judge by ranking**: the LLM returns tiered rankings for each metric (ties allowed; outputs are validated and optionally repaired).
+7. **Update ratings** with per-metric TrueSkill, freezing anchors.
+8. **Insert children** into the fixed-size pool; enforce diversity with embedding-space crowding/pruning.
 
 ## Configuration
 
@@ -85,6 +109,31 @@ See `config.toml` for a complete example. The structure is intentionally nested:
 - `[population]` defines the fixed pool size.
 - `[selection]` configures the parent-selection mixture policy.
 - `[anchors]` optionally injects frozen reference anchors (seed + periodic “ghosts”) into battles.
+- `[llm]` chooses the judge model and the mutation ensemble.
+
+### Config Tips
+
+- **Cost/latency**
+  - Reduce `[mutation].jobs_per_iteration` and/or `[mutation].max_children`.
+  - Use cheaper models in `[[llm.ensemble]]` and/or for `[llm].judge_model`.
+  - Disable `[critic].enabled` if you want “mutate + judge” only.
+- **Diversity**
+  - Use semantic embeddings when possible; set `[embeddings].model = "hash"` for a fast fallback.
+  - Increase population size, or use `population.pruning = "knn_local_competition"` to preserve niches.
+- **Stability**
+  - Increase `[judging].max_attempts` if the judge sometimes returns invalid structure.
+  - Use anchors and/or opponents for better cross-population calibration.
+
+## Run data
+
+When `--store` is enabled (default), each run is recorded under `.fuzzyevolve/runs/<run_id>/`:
+- `checkpoints/latest.json` and `checkpoints/it000123.json` (periodic checkpoints)
+- `texts/<sha256>.txt` (deduped text blobs)
+- `events.jsonl` (structured iteration events)
+- `stats.jsonl` (best score + pool size over time)
+- `llm/` + `llm.jsonl` (raw prompts/outputs, indexed)
+
+This is great for debugging and iteration, but it also means **your prompts and model outputs are stored locally**. Avoid evolving sensitive content if you don’t want it written to disk.
 
 ## CLI
 
@@ -133,6 +182,17 @@ Semantic embeddings require:
 ```bash
 uv sync --extra semantic
 ```
+
+## Troubleshooting
+
+- **`ImportError: sentence-transformers is required`**
+  - Run `uv sync --extra semantic`, or set `[embeddings].model = "hash"`.
+- **Judge returns invalid rankings / retries fail**
+  - Increase `[judging].max_attempts`, or switch to a more reliable judge model.
+- **Runs are expensive**
+  - Start with fewer metrics, fewer mutation jobs, and a smaller population. Then scale up.
+- **Resume isn’t picking up where you expect**
+  - Point `--resume` at a run directory (or a checkpoint file). The latest checkpoint is `checkpoints/latest.json`.
 
 ## Development
 

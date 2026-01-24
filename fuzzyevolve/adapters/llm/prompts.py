@@ -59,6 +59,27 @@ Constraints:
 {parent_section}
 """
 
+_REWRITE_TEMPLATE_EXPLORE = """You are generating ONE child text for an evolutionary rewriting system.
+
+Overall goal: {goal}
+Operator: {operator_name} ({role})
+Operator instructions: {operator_instructions}
+Metrics: {metrics_list_str}
+{metric_section}
+
+Use the provided focus as the primary creative constraint when present.
+Stay faithful to the overall goal/premise, but otherwise explore widely (voice, structure, POV, genre, format).
+
+Do NOT reuse specific names, phrases, or concrete props from the parent unless they are required by the overall goal/premise.
+Do not mention evaluation metrics, ratings, or judging.
+Return structured output only.
+
+Focus (optional):
+{focus}
+
+(Parent text intentionally omitted for exploration.)
+"""
+
 
 _PARENT_SECTION = """──────────────── PARENT ────────────────
 Score (LCB avg): {p_score:.3f}
@@ -115,7 +136,15 @@ def build_rewrite_prompt(
     )
 
     if role == "explore":
-        parent_section = "(Parent text intentionally omitted for exploration.)"
+        return _REWRITE_TEMPLATE_EXPLORE.format(
+            goal=goal,
+            operator_name=operator_name,
+            role=role,
+            operator_instructions=operator_instructions,
+            metrics_list_str=metrics_list_str,
+            metric_section=metric_section,
+            focus=(focus.strip() if focus else "(none)"),
+        )
     else:
         parent_section = _PARENT_SECTION.format(
             p_score=_score_lcb(parent, metrics, score_lcb_c),
@@ -143,12 +172,18 @@ def build_rewrite_prompt(
 
 _RANK_TEMPLATE = """You are judging {n} candidate texts.
 
+Overall goal: {goal}
+
 Metrics: {metrics_list_str}
 {metric_section}
 
 For each metric, group ALL candidates into tiers from best to worst.
 If candidates are effectively indistinguishable for a metric, you may tie them by placing them in the same tier.
 Use the metric names exactly as provided above.
+
+Primary requirement:
+- Candidates should adhere to the overall goal/premise.
+- If a candidate clearly violates the goal/premise, place it in the worst tier for EVERY metric, regardless of writing quality.
 
 Candidates:
 {candidates_str}
@@ -157,6 +192,7 @@ Candidates:
 
 def build_rank_prompt(
     *,
+    goal: str | None = None,
     metrics: Sequence[str],
     items: Sequence[tuple[int, str]],
     metric_descriptions: Mapping[str, str] | None,
@@ -169,6 +205,7 @@ def build_rank_prompt(
     metric_section = _format_metric_definitions(metrics, metric_descriptions)
     return _RANK_TEMPLATE.format(
         n=len(items),
+        goal=(goal.strip() if goal else "(none provided)"),
         metrics_list_str=metrics_list_str,
         metric_section=metric_section,
         candidates_str=candidates_str,

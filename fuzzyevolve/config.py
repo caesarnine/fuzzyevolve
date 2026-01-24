@@ -29,7 +29,7 @@ class RunConfig(BaseModel):
 class PopulationConfig(BaseModel):
     size: int = Field(256, ge=1, description="Fixed population size.")
     pruning: Literal["closest_pair", "knn_local_competition"] = Field(
-        "knn_local_competition",
+        "closest_pair",
         description=(
             "Population pruning strategy. 'closest_pair' repeatedly removes the weaker "
             "of the closest pair in embedding space. 'knn_local_competition' uses kNN "
@@ -37,7 +37,7 @@ class PopulationConfig(BaseModel):
         ),
     )
     knn_k: int = Field(
-        8,
+        4,
         ge=1,
         description="k for 'knn_local_competition' pruning (number of nearest neighbors).",
     )
@@ -79,13 +79,13 @@ class EmbeddingsConfig(BaseModel):
 
 class SelectionConfig(BaseModel):
     uniform_probability: float = Field(
-        0.5,
+        0.65,
         ge=0.0,
         le=1.0,
         description="Probability of uniform parent selection from the pool.",
     )
     tournament_size: int = Field(
-        8, ge=1, description="Tournament size for optimistic parent selection."
+        6, ge=1, description="Tournament size for optimistic parent selection."
     )
     optimistic_beta: float = Field(
         0.7,
@@ -113,7 +113,10 @@ class CriticConfig(BaseModel):
         "You are a critique agent helping an evolutionary text system.\n"
         "Analyze the PARENT text and propose actionable guidance.\n"
         "Prefer concrete, specific feedback over generic advice.\n"
-        "Do not quote large spans of the parent text.\n"
+        "Do not quote any exact phrases from the parent text.\n"
+        "Avoid using specific character names, proper nouns, or unique props from the parent.\n"
+        "Write routes as abstract, reusable directives (voice/structure/genre constraints) that still make sense\n"
+        "even if the parent text is not shown.\n"
     )
 
 
@@ -217,7 +220,7 @@ class OpponentConfig(BaseModel):
     kind: Literal["none", "random", "farthest_from_parent", "far_but_close"] = (
         "far_but_close"
     )
-    probability: float = Field(1.0, ge=0.0, le=1.0)
+    probability: float = Field(0.5, ge=0.0, le=1.0)
     farthest_k: int = Field(
         32,
         ge=1,
@@ -235,7 +238,7 @@ class JudgingConfig(BaseModel):
 
 
 class AnchorsConfig(BaseModel):
-    injection_probability: float = Field(0.2, ge=0.0, le=1.0)
+    injection_probability: float = Field(0.15, ge=0.0, le=1.0)
     max_per_battle: int = Field(2, ge=0)
     seed_mu: float = 25.0
     seed_sigma: float = Field(2.0, gt=0.0)

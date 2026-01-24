@@ -9,9 +9,9 @@ log_interval = 1
 # random_seed = 0
 
 [population]
-size = 24
-pruning = "knn_local_competition" # or "closest_pair"
-knn_k = 8                         # kNN size for local competition
+size = 64
+pruning = "closest_pair" # or "closest_pair"
+knn_k = 4                          # kNN size for local competition (smaller = more niche preservation)
 
 [embeddings]
 # Default: semantic embeddings for meaningful diversity / crowding.
@@ -42,12 +42,12 @@ child_prior_tau = 2.0
 [selection]
 # Mixture policy: with probability uniform_probability, pick a random parent.
 # Otherwise, sample tournament_size candidates and pick the most optimistic.
-uniform_probability = 0.5
-tournament_size = 8
+uniform_probability = 0.65
+tournament_size = 6
 optimistic_beta = 0.7
 
 [task]
-goal = "A literary-quality short story (~500 words) with a distinct human voice."
+goal = "A literary-quality short story (~500 words) with a distinct human voice. The core premise should be about two autonomous fleets continuing a forever war in a ravaged galaxy."
 
 [prompts]
 show_metric_stats = true
@@ -60,20 +60,22 @@ You are a critique agent helping an evolutionary text system.
 
 Requirements:
 - Be concrete and actionable (avoid generic advice).
-- Avoid quoting large spans of the parent text.
+- Do not quote any exact phrases from the parent text.
+- Avoid using specific character names, proper nouns, or unique props from the parent.
+- Write routes as abstract, reusable directives (voice/structure/genre constraints) that still make sense even if the parent text is not shown.
 - Provide multiple distinct rewrite routes that meaningfully differ in voice/structure/genre.
 """
 
 [mutation]
-jobs_per_iteration = 6
-max_workers = 6
+jobs_per_iteration = 4
+max_workers = 4
 max_children = 4
 
 [[mutation.operators]]
 name = "exploit"
 role = "exploit"
 enabled = true
-min_jobs = 3
+min_jobs = 2
 weight = 1.0
 uncertainty_scale = 0.7
 temperature = 0.7
@@ -91,7 +93,7 @@ Guidance:
 name = "explore"
 role = "explore"
 enabled = true
-min_jobs = 3
+min_jobs = 2
 weight = 1.0
 uncertainty_scale = 2.5
 temperature = 1.2
@@ -112,11 +114,11 @@ repair_enabled = true
 [judging.opponent]
 # Always include an opponent for cross-pool calibration.
 kind = "far_but_close"
-probability = 1.0
+probability = 0.5
 farthest_k = 32 # For "far_but_close": consider top-k farthest, then pick closest in TrueSkill.
 
 [anchors]
-injection_probability = 0.25
+injection_probability = 0.15
 max_per_battle = 1
 seed_mu = 25.0
 seed_sigma = 2.0

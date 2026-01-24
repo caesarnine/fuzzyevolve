@@ -52,6 +52,7 @@ class LLMRanker:
         self,
         *,
         model: str,
+        goal: str | None = None,
         rng: random.Random | None = None,
         model_settings: ModelSettings | None = None,
         max_attempts: int = 2,
@@ -59,6 +60,7 @@ class LLMRanker:
         store: Recorder | None = None,
     ) -> None:
         self.model = model
+        self.goal = goal or ""
         self.rng = rng or random.Random()
         self.model_settings = model_settings or {"temperature": 0.0}
         self.max_attempts = max(1, max_attempts)
@@ -96,6 +98,7 @@ class LLMRanker:
             prompt_id_to_original[prompt_id] = original_index
 
         prompt = build_rank_prompt(
+            goal=self.goal,
             metrics=metrics,
             items=prompt_items,
             metric_descriptions=metric_descriptions,

@@ -288,6 +288,7 @@ def _execute_run(
     )
     ranker = LLMRanker(
         model=cfg.llm.judge_model,
+        goal=cfg.task.goal,
         rng=rng_ranker,
         max_attempts=cfg.judging.max_attempts,
         repair_enabled=cfg.judging.repair_enabled,

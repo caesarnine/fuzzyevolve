@@ -109,6 +109,35 @@ class TestRewritePrompt:
         assert "Parent text intentionally omitted for exploration." in prompt
         assert parent.text not in prompt
 
+    def test_explore_prompt_omits_parent_specific_critique_fields(self):
+        parent = make_elite("Hello world.")
+        critique = Critique(
+            summary="This summary might mention parent specifics.",
+            preserve=("A signature phrase from the parent.",),
+            issues=("Fix the middle section repetition.",),
+            constraints=("Keep the persimmon imagery central.",),
+            routes=("Try second person present tense.",),
+        )
+        prompt = build_rewrite_prompt(
+            parent=parent,
+            goal="Write a story.",
+            operator_name="explore",
+            role="explore",
+            operator_instructions="Rewrite freely.",
+            critique=critique,
+            focus="Try second person present tense.",
+            metrics=["clarity", "creativity"],
+            metric_descriptions=None,
+            show_metric_stats=False,
+            score_lcb_c=1.0,
+        )
+
+        lowered = prompt.lower()
+        assert "preserve:" not in lowered
+        assert "issues:" not in lowered
+        assert "constraints:" not in lowered
+        assert "critique summary:" not in lowered
+
     def test_exploit_prompt_includes_parent_text(self):
         parent = make_elite("Hello world.")
         critique = Critique(issues=("Tighten pacing.",))
@@ -148,6 +177,19 @@ class TestRankPrompt:
         assert "metrics:" in lowered
         assert "[0]" in prompt
         assert "[1]" in prompt
+
+    def test_goal_included_when_provided(self):
+        e0 = make_elite("Text A.")
+        prompt = build_rank_prompt(
+            goal="Stay on-premise: two autonomous fleets fight forever.",
+            metrics=["clarity"],
+            items=[(0, e0.text)],
+            metric_descriptions=None,
+        )
+
+        assert "Overall goal:" in prompt
+        assert "two autonomous fleets fight forever" in prompt
+        assert "Primary requirement:" in prompt
 
     def test_metric_definitions_included_when_provided(self):
         e0 = make_elite("Text A.")
