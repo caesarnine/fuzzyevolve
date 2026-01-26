@@ -43,6 +43,15 @@ uniform_probability = 0.65
 tournament_size = 6
 optimistic_beta = 0.7
 
+[multiobjective]
+# Multi-metric selection/pruning without a fixed tradeoff:
+# - Sample random metric weights (Dirichlet) each iteration.
+# - Use Pareto filtering in UCB/LCB space, then scalarize with the sampled weights.
+enabled = true
+dirichlet_alpha = 1.0
+balanced_probability = 0.2
+pareto = true
+
 [task]
 goal = "A literary-quality short story (~500 words) with a distinct human voice. The core premise should be about two autonomous fleets continuing a forever war in a ravaged galaxy."
 

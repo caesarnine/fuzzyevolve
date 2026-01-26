@@ -7,6 +7,7 @@ from typing import Callable
 import numpy as np
 import trueskill as ts
 
+from fuzzyevolve.core.multiobjective import Scalarizer, dominates
 from fuzzyevolve.core.models import Elite
 
 
@@ -31,6 +32,10 @@ class CrowdedPool:
         score_fn: Callable[[dict[str, ts.Rating]], float] | None = None,
         pruning_strategy: str = "closest_pair",
         knn_k: int = 8,
+        metrics: Sequence[str] | None = None,
+        score_lcb_c: float = 2.0,
+        scalarizer: Scalarizer | None = None,
+        pareto: bool = False,
     ) -> None:
         if max_size <= 0:
             raise ValueError("max_size must be a positive integer.")
@@ -41,6 +46,12 @@ class CrowdedPool:
         self._score = score_fn
         self.pruning_strategy = str(pruning_strategy)
         self.knn_k = int(knn_k)
+        self.scalarizer = scalarizer
+        if metrics is None and scalarizer is not None:
+            metrics = list(scalarizer.metrics)
+        self.metrics = [m.strip() for m in (metrics or []) if m.strip()]
+        self.score_lcb_c = float(score_lcb_c)
+        self.pareto = bool(pareto)
 
         if self.pruning_strategy not in {"closest_pair", "knn_local_competition"}:
             raise ValueError(
@@ -48,6 +59,8 @@ class CrowdedPool:
             )
         if self.knn_k <= 0:
             raise ValueError("knn_k must be a positive integer.")
+        if self.pareto and not self.metrics:
+            raise ValueError("pareto=True requires a non-empty metrics list.")
 
         self._members: list[Elite] = []
         self._text_index: dict[str, Elite] = {}
@@ -148,8 +161,25 @@ class CrowdedPool:
 
     def _pick_loser(self, a: Elite, b: Elite) -> Elite:
         """Return the elite to remove (lower is worse)."""
-        a_score = float(self._score(a.ratings))
-        b_score = float(self._score(b.ratings))
+        use_multiobjective = bool(self.metrics) and (
+            self.pareto or self.scalarizer is not None
+        )
+        if use_multiobjective:
+            a_lcb = self._lcb_vector(a)
+            b_lcb = self._lcb_vector(b)
+
+            if self.pareto:
+                if dominates(a_lcb, b_lcb):
+                    return b
+                if dominates(b_lcb, a_lcb):
+                    return a
+
+            a_score = self._scalarized_lcb(a_lcb)
+            b_score = self._scalarized_lcb(b_lcb)
+        else:
+            a_score = float(self._score(a.ratings))
+            b_score = float(self._score(b.ratings))
+
         if a_score != b_score:
             return a if a_score < b_score else b
 
@@ -164,6 +194,26 @@ class CrowdedPool:
             return a if a_sigma > b_sigma else b
 
         return a if a.text > b.text else b
+
+    def _lcb_vector(self, elite: Elite) -> list[float]:
+        c = float(self.score_lcb_c)
+        out: list[float] = []
+        for metric in self.metrics:
+            r = elite.ratings.get(metric)
+            if r is None:
+                out.append(float("-inf"))
+            else:
+                out.append(float(r.mu) - c * float(r.sigma))
+        return out
+
+    def _scalarized_lcb(self, values: Sequence[float]) -> float:
+        if not values:
+            return float("-inf")
+        if self.scalarizer is None:
+            weight = 1.0 / len(values)
+            return sum(weight * float(v) for v in values)
+        weights = self.scalarizer.weights_for(self.metrics)
+        return sum(w * float(v) for w, v in zip(weights, values))
 
     def _add_knn_local_competition(self, elite: Elite) -> None:
         if elite.text in self._text_index:

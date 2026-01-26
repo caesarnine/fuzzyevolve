@@ -87,7 +87,7 @@ Embeddings use `sentence-transformers` (installed by default). Configure the mod
 - **Critique**: a structured critique of the current parent (preserve / issues / rewrite routes).
 - **Mutate:** multiple LLM “operators” propose children (e.g. conservative improvement vs high-variance exploration).
 - **Judge:** an LLM ranks parent/children (and optional anchors/opponent) per metric using tiered rankings (ties allowed).
-- **Learn:** per-metric TrueSkill updates convert rankings into ratings (μ/σ), then a conservative score selects “best so far”.
+- **Learn:** per-metric TrueSkill updates convert rankings into ratings (μ/σ) that drive Pareto-aware selection/pruning (UCB/LCB + random scalarization).
 - **Stay diverse:** a fixed-size population is maintained using embedding-space crowding/pruning.
 
 ## Mental model (the important bits)
@@ -97,11 +97,11 @@ Embeddings use `sentence-transformers` (installed by default). Configure the mod
   - a **TrueSkill rating per metric** (for quality).
 - The judge doesn’t assign absolute scores; it **ranks** candidates relative to each other per metric.
 - The population is a fixed-size “portfolio” spread out in embedding space.
-- Exploration is encouraged via an optimistic parent selector (`μ + β·σ`), while reporting uses a conservative score (`μ - c·σ`).
+- Exploration is encouraged via Pareto-filtered optimistic selection (`μ + β·σ`) with randomly sampled metric weights; reporting uses a conservative score (`μ - c·σ`).
 
 ## How it works (one iteration, step by step)
 
-1. **Select parent** from the population (mixture policy: uniform sampling or optimistic tournament).
+1. **Select parent** from the population (mixture policy: uniform sampling or Pareto-filtered optimistic tournament with random metric weights).
 2. **Critique parent** into reusable guidance: what to preserve, what to fix, distinct rewrite routes.
 3. **Plan mutation jobs** across operators (minimums + weighted sampling).
 4. **Generate children** (LLM rewrites). Exploration operators can intentionally omit the parent text to avoid “paraphrase gravity”.
@@ -123,6 +123,7 @@ See `config.toml` for a complete example. The structure is intentionally nested:
 - `[embeddings]` defines the sentence-transformers model to use for diversity.
 - `[population]` defines the fixed pool size.
 - `[selection]` configures the parent-selection mixture policy.
+- `[multiobjective]` controls random scalarization + Pareto selection/pruning.
 - `[anchors]` optionally injects frozen reference anchors (seed + periodic “ghosts”) into battles.
 - `[llm]` chooses the judge model and the mutation ensemble.
 

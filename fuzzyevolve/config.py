@@ -105,6 +105,27 @@ class SelectionConfig(BaseModel):
     )
 
 
+class MultiObjectiveConfig(BaseModel):
+    enabled: bool = True
+    dirichlet_alpha: float = Field(
+        1.0,
+        gt=0.0,
+        description="Dirichlet α for random metric scalarization (α=1 is uniform).",
+    )
+    balanced_probability: float = Field(
+        0.2,
+        ge=0.0,
+        le=1.0,
+        description="Probability of using equal weights instead of random scalarization.",
+    )
+    pareto: bool = Field(
+        True,
+        description=(
+            "Enable Pareto-aware selection/pruning using per-metric LCB/UCB vectors."
+        ),
+    )
+
+
 class TaskConfig(BaseModel):
     goal: str = "Write me a riveting short story."
 
@@ -292,6 +313,7 @@ class Config(BaseModel):
     rating: RatingConfig = Field(default_factory=RatingConfig)
     embeddings: EmbeddingsConfig = Field(default_factory=EmbeddingsConfig)
     selection: SelectionConfig = Field(default_factory=SelectionConfig)
+    multiobjective: MultiObjectiveConfig = Field(default_factory=MultiObjectiveConfig)
     mutation: MutationConfig = Field(default_factory=MutationConfig)
     judging: JudgingConfig = Field(default_factory=JudgingConfig)
     anchors: AnchorsConfig = Field(default_factory=AnchorsConfig)

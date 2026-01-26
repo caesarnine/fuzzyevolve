@@ -14,6 +14,7 @@ from fuzzyevolve.core.battle import build_battle
 from fuzzyevolve.core.critique import Critique
 from fuzzyevolve.core.models import Anchor, Elite, EvolutionResult, IterationSnapshot
 from fuzzyevolve.core.models import MutationCandidate
+from fuzzyevolve.core.multiobjective import Scalarizer
 from fuzzyevolve.core.pool import CrowdedPool
 from fuzzyevolve.core.pool import cosine_distance
 from fuzzyevolve.core.ports import Critic, Mutator, Ranker
@@ -60,6 +61,7 @@ class EvolutionEngine:
         anchor_manager: AnchorManager | None,
         rng: random.Random,
         store: Recorder | None = None,
+        scalarizer: Scalarizer | None = None,
     ) -> None:
         self.cfg = cfg
         self.pool = pool
@@ -72,6 +74,7 @@ class EvolutionEngine:
         self.anchors = anchor_manager
         self.rng = rng
         self.store = store
+        self.scalarizer = scalarizer
 
     def run(
         self,
@@ -191,6 +194,12 @@ class EvolutionEngine:
         *,
         mutation_executor: ThreadPoolExecutor | None = None,
     ) -> None:
+        scalarization: dict[str, float] | None = None
+        scalarization_source: str | None = None
+        if self.scalarizer is not None:
+            scalarization = self.scalarizer.sample()
+            scalarization_source = self.scalarizer.last_source
+
         parent = self.selector(self.pool)
         self.rating.ensure_ratings(parent)
 
@@ -201,6 +210,8 @@ class EvolutionEngine:
                     {
                         "parent_text_id": self.store.put_text(parent.text),
                         "pool_size": len(self.pool),
+                        "scalarization": scalarization,
+                        "scalarization_source": scalarization_source,
                     },
                     iteration=iteration + 1,
                 )

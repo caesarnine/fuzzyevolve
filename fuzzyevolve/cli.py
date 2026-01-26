@@ -36,6 +36,7 @@ from fuzzyevolve.core.embeddings import (
     SentenceTransformerProvider,
 )
 from fuzzyevolve.core.engine import EvolutionEngine, build_anchor_manager
+from fuzzyevolve.core.multiobjective import Scalarizer
 from fuzzyevolve.core.mutation import OperatorMutator, OperatorSpec
 from fuzzyevolve.core.pool import CrowdedPool
 from fuzzyevolve.core.ratings import RatingSystem
@@ -169,6 +170,7 @@ def _execute_run(
     rng_mutation = random.Random(master_rng.randrange(2**32))
     rng_pool = random.Random(master_rng.randrange(2**32))
     rng_anchors = random.Random(master_rng.randrange(2**32))
+    rng_scalarizer = random.Random(master_rng.randrange(2**32))
 
     provider = SentenceTransformerProvider(cfg.embeddings.model)
 
@@ -188,6 +190,17 @@ def _execute_run(
 
     recorder = run_store if (store and run_store is not None) else None
 
+    scalarizer: Scalarizer | None = None
+    pareto_enabled = bool(cfg.multiobjective.enabled and cfg.multiobjective.pareto)
+    if cfg.multiobjective.enabled:
+        scalarizer = Scalarizer(
+            cfg.metrics.names,
+            rng=rng_scalarizer,
+            dirichlet_alpha=cfg.multiobjective.dirichlet_alpha,
+            balanced_probability=cfg.multiobjective.balanced_probability,
+            enabled=True,
+        )
+
     if run_store is None and store:
         data_dir = RunStore.default_data_dir(cwd=Path.cwd())
         run_store = RunStore.create(
@@ -205,6 +218,10 @@ def _execute_run(
         score_fn=rating.score,
         pruning_strategy=cfg.population.pruning,
         knn_k=cfg.population.knn_k,
+        metrics=cfg.metrics.names,
+        score_lcb_c=cfg.rating.score_lcb_c,
+        scalarizer=scalarizer,
+        pareto=pareto_enabled,
     )
 
     anchor_manager = None
@@ -228,6 +245,9 @@ def _execute_run(
         tournament_size=cfg.selection.tournament_size,
         optimistic_beta=cfg.selection.optimistic_beta,
         rng=rng_selection,
+        metrics=cfg.metrics.names,
+        scalarizer=scalarizer,
+        pareto=pareto_enabled,
     )
 
     critic = None
@@ -303,6 +323,7 @@ def _execute_run(
         anchor_manager=anchor_manager,
         rng=rng_engine,
         store=recorder,
+        scalarizer=scalarizer,
     )
 
     progress = Progress(
