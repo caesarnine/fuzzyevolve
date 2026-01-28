@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from fuzzyevolve.core.critique import Critique
 from fuzzyevolve.core.models import Elite, MutationCandidate
 from fuzzyevolve.core.ports import MutationOperator
+from fuzzyevolve.core.pool import CrowdedPool, cosine_distance
 
 log_mutation = logging.getLogger("mutation")
 
@@ -22,12 +23,16 @@ class OperatorSpec:
     min_jobs: int
     weight: float
     uncertainty_scale: float
+    committee_size: int = 1
+    partner_selection: str = "far_random"
+    partner_farthest_k: int = 32
 
 
 @dataclass(frozen=True, slots=True)
 class MutationJob:
     operator: str
     focus: str | None = None
+    partners: tuple[Elite, ...] = ()
 
 
 class MutationPlanner:
@@ -122,11 +127,13 @@ class OperatorMutator:
     def __init__(
         self,
         *,
+        pool: CrowdedPool,
         operators: dict[str, MutationOperator],
         specs: Iterable[OperatorSpec],
         jobs_per_iteration: int,
         rng: random.Random,
     ) -> None:
+        self.pool = pool
         self.operators = dict(operators)
         self.specs = {spec.name: spec for spec in specs}
         self.planner = MutationPlanner(
@@ -155,30 +162,22 @@ class OperatorMutator:
         if not jobs:
             return []
 
-        def run_job(job: MutationJob) -> tuple[str, Sequence[str]]:
+        jobs = self._attach_partners(jobs, parent)
+
+        def run_job(job: MutationJob) -> list[MutationCandidate]:
+            spec = self.specs.get(job.operator)
+            job_critique = None if (spec and spec.role == "crossover") else critique
+            job_focus = None if (spec and spec.role == "crossover") else job.focus
             operator = self.operators[job.operator]
-            return job.operator, operator.propose(
-                parent=parent, critique=critique, focus=job.focus
+            partner_texts = tuple(p.text for p in job.partners)
+            texts = operator.propose(
+                parent=parent,
+                partners=(job.partners or None),
+                critique=job_critique,
+                focus=job_focus,
             )
-
-        results: list[tuple[str, Sequence[str]]] = []
-        if mutation_executor is None or len(jobs) <= 1:
-            for job in jobs:
-                try:
-                    results.append(run_job(job))
-                except Exception:
-                    log_mutation.exception("Operator '%s' failed.", job.operator)
-        else:
-            futures = [mutation_executor.submit(run_job, job) for job in jobs]
-            for fut in as_completed(futures):
-                try:
-                    results.append(fut.result())
-                except Exception:
-                    log_mutation.exception("Mutation job failed; skipping.")
-
-        candidates: list[MutationCandidate] = []
-        for operator_name, texts in results:
-            spec = self.specs[operator_name]
+            candidates: list[MutationCandidate] = []
+            spec = self.specs[job.operator]
             for text in texts:
                 cleaned = text.strip()
                 if not cleaned or cleaned == parent.text:
@@ -188,13 +187,31 @@ class OperatorMutator:
                         text=cleaned,
                         operator=spec.name,
                         uncertainty_scale=spec.uncertainty_scale,
+                        focus=job_focus,
+                        partner_texts=partner_texts,
                     )
                 )
+            return candidates
+
+        results: list[MutationCandidate] = []
+        if mutation_executor is None or len(jobs) <= 1:
+            for job in jobs:
+                try:
+                    results.extend(run_job(job))
+                except Exception:
+                    log_mutation.exception("Operator '%s' failed.", job.operator)
+        else:
+            futures = [mutation_executor.submit(run_job, job) for job in jobs]
+            for fut in as_completed(futures):
+                try:
+                    results.extend(fut.result())
+                except Exception:
+                    log_mutation.exception("Mutation job failed; skipping.")
 
         # Dedupe preserving order.
         seen: set[str] = set()
         unique: list[MutationCandidate] = []
-        for cand in candidates:
+        for cand in results:
             if cand.text in seen:
                 continue
             seen.add(cand.text)
@@ -203,3 +220,63 @@ class OperatorMutator:
         if len(unique) > max_candidates:
             unique = self.rng.sample(unique, k=max_candidates)
         return unique
+
+    def _attach_partners(
+        self,
+        jobs: Sequence[MutationJob],
+        parent: Elite,
+    ) -> list[MutationJob]:
+        out: list[MutationJob] = []
+        for job in jobs:
+            spec = self.specs.get(job.operator)
+            if spec is None or spec.role != "crossover":
+                out.append(job)
+                continue
+
+            count = max(0, int(spec.committee_size) - 1)
+            partners = self._sample_partners(
+                parent,
+                count=count,
+                selection=str(spec.partner_selection),
+                farthest_k=int(spec.partner_farthest_k),
+            )
+            out.append(
+                MutationJob(operator=job.operator, focus=job.focus, partners=partners)
+            )
+        return out
+
+    def _sample_partners(
+        self,
+        parent: Elite,
+        *,
+        count: int,
+        selection: str,
+        farthest_k: int,
+    ) -> tuple[Elite, ...]:
+        if count <= 0:
+            return ()
+
+        candidates = [
+            elite for elite in self.pool.iter_elites() if elite.text != parent.text
+        ]
+        if not candidates:
+            return ()
+
+        k = min(count, len(candidates))
+        if selection == "random":
+            return tuple(self.rng.sample(candidates, k=k))
+
+        scored = [
+            (cosine_distance(parent.embedding, e.embedding), e) for e in candidates
+        ]
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        if selection == "farthest":
+            return tuple(e for _dist, e in scored[:k])
+
+        if selection == "far_random":
+            top = min(int(farthest_k), len(scored))
+            subset = [e for _dist, e in scored[:top]]
+            return tuple(self.rng.sample(subset, k=min(k, len(subset))))
+
+        raise ValueError(f"Unknown partner selection '{selection}'.")

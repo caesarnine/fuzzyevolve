@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable, Mapping, Sequence
 
 from fuzzyevolve.core.critique import Critique
@@ -80,11 +81,36 @@ Focus (optional):
 (Parent text intentionally omitted for exploration.)
 """
 
+_REWRITE_TEMPLATE_CROSSOVER = """You are generating ONE child text for an evolutionary rewriting system.
+
+Overall goal: {goal}
+Operator: {operator_name} ({role})
+Operator instructions: {operator_instructions}
+Metrics: {metrics_list_str}
+{metric_section}
+
+Synthesize the candidate texts into ONE improved child.
+- Keep it coherent (single voice, consistent structure, consistent facts/assumptions).
+- Resolve contradictions; when candidates disagree, choose the best path.
+- Prefer strong parts from any candidate over averaging.
+
+Do not mention evaluation metrics, ratings, or judging.
+Return structured output only.
+
+Candidates to aggregate:
+{candidates_section}
+"""
+
 
 _PARENT_SECTION = """──────────────── PARENT ────────────────
 Score (LCB avg): {p_score:.3f}
 {p_stats}
 {p_text}
+────────────────────────────────────────
+"""
+
+_CANDIDATE_SECTION = """──────────────── CANDIDATE {idx} ────────────────
+{text}
 ────────────────────────────────────────
 """
 
@@ -118,6 +144,7 @@ def build_critique_prompt(
 def build_rewrite_prompt(
     *,
     parent: Elite,
+    partners: Sequence[Elite] | None = None,
     goal: str,
     operator_name: str,
     role: str,
@@ -144,6 +171,20 @@ def build_rewrite_prompt(
             metrics_list_str=metrics_list_str,
             metric_section=metric_section,
             focus=(focus.strip() if focus else "(none)"),
+        )
+    elif role == "crossover":
+        candidates = [parent, *(list(partners or []))]
+        candidates_section = _format_candidates_section(
+            candidates,
+        )
+        return _REWRITE_TEMPLATE_CROSSOVER.format(
+            goal=goal,
+            operator_name=operator_name,
+            role=role,
+            operator_instructions=operator_instructions,
+            metrics_list_str=metrics_list_str,
+            metric_section=metric_section,
+            candidates_section=candidates_section,
         )
     else:
         parent_section = _PARENT_SECTION.format(
@@ -244,6 +285,19 @@ def _format_metric_stats(elite: Elite, metrics: Sequence[str], c: float) -> str:
     if not lines:
         return ""
     return "Per-metric stats:\n" + "\n".join(lines)
+
+
+def _format_candidates_section(
+    candidates: Sequence[Elite],
+) -> str:
+    ordered = sorted(
+        candidates,
+        key=lambda elite: hashlib.sha256(elite.text.encode("utf-8")).hexdigest(),
+    )
+    blocks: list[str] = []
+    for idx, elite in enumerate(ordered, start=1):
+        blocks.append(_CANDIDATE_SECTION.format(idx=idx, text=elite.text))
+    return "\n\n".join(blocks).rstrip()
 
 
 def _format_metric_definitions(

@@ -48,6 +48,8 @@ class MutationCandidate:
     text: str
     operator: str = ""
     uncertainty_scale: float = 1.0
+    focus: str | None = None
+    partner_texts: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

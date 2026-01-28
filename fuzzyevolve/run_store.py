@@ -186,7 +186,12 @@ class RunStore:
         self._append_jsonl(self.events_path, payload)
 
     def record_stats(
-        self, *, iteration: int, best_score: float, pool_size: int
+        self,
+        *,
+        iteration: int,
+        best_score: float,
+        pool_size: int,
+        extra: Mapping[str, Any] | None = None,
     ) -> None:
         payload = {
             "ts": _utc_now_iso(),
@@ -194,6 +199,8 @@ class RunStore:
             "best_score": float(best_score),
             "pool_size": int(pool_size),
         }
+        if extra:
+            payload.update(_to_jsonable(dict(extra)))
         self._append_jsonl(self.stats_path, payload)
 
     def record_llm_call(

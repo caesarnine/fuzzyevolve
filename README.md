@@ -85,7 +85,7 @@ Embeddings use `sentence-transformers` (installed by default). Configure the mod
 ## What it does (high level)
 
 - **Critique**: a structured critique of the current parent (preserve / issues / rewrite routes).
-- **Mutate:** multiple LLM “operators” propose children (e.g. conservative improvement vs high-variance exploration).
+- **Mutate:** multiple LLM “operators” propose children (e.g. conservative improvement, high-variance exploration, or crossover-style synthesis of multiple candidates).
 - **Judge:** an LLM ranks parent/children (and optional anchors/opponent) per metric using tiered rankings (ties allowed).
 - **Learn:** per-metric TrueSkill updates convert rankings into ratings (μ/σ) that drive Pareto-aware selection/pruning (UCB/LCB + random scalarization).
 - **Stay diverse:** a fixed-size population is maintained using embedding-space crowding/pruning.
@@ -105,6 +105,7 @@ Embeddings use `sentence-transformers` (installed by default). Configure the mod
 2. **Critique parent** into reusable guidance: what to preserve, what to fix, distinct rewrite routes.
 3. **Plan mutation jobs** across operators (minimums + weighted sampling).
 4. **Generate children** (LLM rewrites). Exploration operators can intentionally omit the parent text to avoid “paraphrase gravity”.
+   Crossover operators can synthesize the parent with one or more additional pool members.
 5. **Assemble a battle**: parent + children (+ optional frozen anchors) (+ optional opponent from the pool).
 6. **Judge by ranking**: the LLM returns tiered rankings for each metric (ties allowed; outputs are validated and optionally repaired).
 7. **Update ratings** with per-metric TrueSkill, freezing anchors.

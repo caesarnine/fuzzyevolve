@@ -73,9 +73,9 @@ Requirements:
 """
 
 [mutation]
-jobs_per_iteration = 4
-max_workers = 4
-max_children = 4
+jobs_per_iteration = 5
+max_workers = 5
+max_children = 5
 
 [[mutation.operators]]
 name = "exploit"
@@ -110,6 +110,26 @@ Guidance:
 - You may change everything: plot, voice, POV, style, genre, structure.
 - Use a provided rewrite route as the main creative constraint.
 - Do not copy phrases from the parent.
+- Do not mention evaluation metrics.
+"""
+
+[[mutation.operators]]
+name = "crossover"
+role = "crossover"
+enabled = true
+min_jobs = 1
+weight = 1.0
+uncertainty_scale = 1.2
+committee_size = 4
+partner_selection = "far_random"
+partner_farthest_k = 32
+instructions = """
+Synthesize multiple candidate texts into ONE improved child.
+
+Guidance:
+- Keep it coherent: unified voice, structure, and assumptions.
+- Resolve contradictions; when candidates disagree, choose the best path.
+- Prefer strong parts from any candidate over averaging.
 - Do not mention evaluation metrics.
 """
 

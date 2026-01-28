@@ -89,11 +89,13 @@ class LLMRewriteOperator:
         self,
         *,
         parent: Elite,
+        partners: Sequence[Elite] | None = None,
         critique: Critique | None,
         focus: str | None = None,
     ) -> Sequence[str]:
         prompt = build_rewrite_prompt(
             parent=parent,
+            partners=partners,
             goal=self.goal,
             operator_name=self.name,
             role=self.role,
@@ -139,6 +141,21 @@ class LLMRewriteOperator:
             return []
 
         out = rsp.output
+        text = out.text.strip()
+        output_text_id: str | None = None
+        parent_text_id: str | None = None
+        partner_text_ids: list[str] = []
+        if self.store:
+            try:
+                parent_text_id = self.store.put_text(parent.text)
+                if text:
+                    output_text_id = self.store.put_text(text)
+                partner_text_ids = [
+                    self.store.put_text(p.text) for p in (partners or [])
+                ]
+            except Exception:
+                log_llm.exception("Failed to store operator output text.")
+
         if self.store:
             try:
                 self.store.record_llm_call(
@@ -147,17 +164,18 @@ class LLMRewriteOperator:
                     model_settings=model_settings,
                     prompt=prompt,
                     output=out,
-                    extra={"operator": self.name, "role": self.role, "focus": focus},
+                    extra={
+                        "operator": self.name,
+                        "role": self.role,
+                        "focus": focus,
+                        "parent_text_id": parent_text_id,
+                        "partner_text_ids": partner_text_ids,
+                        "output_text_id": output_text_id,
+                    },
                 )
             except Exception:
                 log_llm.exception("Failed to record operator call.")
 
-        text = out.text.strip()
         if not text or text == parent.text:
             return []
-        if self.store:
-            try:
-                self.store.put_text(text)
-            except Exception:
-                log_llm.exception("Failed to store operator output text.")
         return [text]

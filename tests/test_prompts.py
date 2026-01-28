@@ -160,6 +160,41 @@ class TestRewritePrompt:
         assert "Tighten pacing." in prompt
         assert parent.text in prompt
 
+    def test_crossover_prompt_includes_multiple_candidates(self):
+        parent = make_elite("Primary text.")
+        partner = make_elite("Partner text.")
+        critique = Critique(issues=("Fix contradictions.",))
+        prompt = build_rewrite_prompt(
+            parent=parent,
+            partners=[partner],
+            goal="Write a story.",
+            operator_name="crossover",
+            role="crossover",
+            operator_instructions="Synthesize the best parts.",
+            critique=critique,
+            focus="Fix contradictions.",
+            metrics=["clarity", "creativity"],
+            metric_descriptions=None,
+            show_metric_stats=False,
+            score_lcb_c=1.0,
+        )
+
+        assert "Candidates to aggregate:" in prompt
+        assert "CANDIDATE 1" in prompt
+        assert "CANDIDATE 2" in prompt
+        assert parent.text in prompt
+        assert partner.text in prompt
+        assert "Fix contradictions." not in prompt
+        assert "Focus (optional):" not in prompt
+        assert "PRIMARY PARENT" not in prompt
+        assert "PARTNER" not in prompt
+        assert "Score (LCB avg)" not in prompt
+        lowered = prompt.lower()
+        assert "critique summary" not in lowered
+        assert "preserve:" not in lowered
+        assert "issues:" not in lowered
+        assert "constraints:" not in lowered
+
 
 class TestRankPrompt:
     def test_no_thinking_tags(self):

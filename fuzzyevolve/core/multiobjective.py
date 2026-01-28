@@ -129,4 +129,3 @@ class Scalarizer:
         if total <= 0.0:
             return [1.0 / len(requested)] * len(requested)
         return [w / total for w in aligned]
-

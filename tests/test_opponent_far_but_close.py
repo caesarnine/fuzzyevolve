@@ -110,4 +110,3 @@ def test_far_but_close_opponent_prefers_skill_close_among_far():
 
     battle = ranker.rank.call_args.kwargs["battle"]
     assert {p.text for p in battle.participants} == {"seed", "child", "close_far"}
-

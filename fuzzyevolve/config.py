@@ -70,9 +70,7 @@ class RatingConfig(BaseModel):
 class EmbeddingsConfig(BaseModel):
     model: str = Field(
         "sentence-transformers/all-MiniLM-L6-v2",
-        description=(
-            "Embedding model name (a sentence-transformers model name)."
-        ),
+        description=("Embedding model name (a sentence-transformers model name)."),
     )
 
     @model_validator(mode="after")
@@ -160,7 +158,7 @@ class ModelSpec(BaseModel):
 
 class MutationOperatorConfig(BaseModel):
     name: str
-    role: Literal["exploit", "explore"] = "exploit"
+    role: Literal["exploit", "explore", "crossover"] = "exploit"
     enabled: bool = True
     min_jobs: int = Field(0, ge=0)
     weight: float = Field(1.0, gt=0.0)
@@ -168,6 +166,29 @@ class MutationOperatorConfig(BaseModel):
         1.0,
         ge=0.0,
         description="Multiplier on rating.child_prior_tau for children from this operator.",
+    )
+    committee_size: int | None = Field(
+        None,
+        ge=2,
+        description=(
+            "For role='crossover', how many parent texts to aggregate (including the "
+            "primary parent)."
+        ),
+    )
+    partner_selection: Literal["random", "farthest", "far_random"] = Field(
+        "far_random",
+        description=(
+            "For role='crossover', how to sample additional parents from the pool. "
+            "'far_random' samples uniformly from the top-k farthest by embedding distance."
+        ),
+    )
+    partner_farthest_k: int = Field(
+        32,
+        ge=1,
+        description=(
+            "For role='crossover' with partner_selection='far_random', consider the "
+            "top-k farthest candidates by embedding distance."
+        ),
     )
     temperature: float | None = Field(
         None,
@@ -186,6 +207,18 @@ class MutationOperatorConfig(BaseModel):
             raise ValueError("mutation.operators.name must be non-empty.")
         if self.temperature is not None and self.temperature < 0:
             raise ValueError("mutation.operators.temperature must be >= 0.")
+        if self.role == "crossover":
+            if self.committee_size is None:
+                self.committee_size = 3
+            if self.committee_size < 2:
+                raise ValueError("mutation.operators.committee_size must be >= 2.")
+            if self.partner_selection in {"farthest", "far_random"}:
+                min_k = self.committee_size - 1
+                if self.partner_farthest_k < min_k:
+                    raise ValueError(
+                        "mutation.operators.partner_farthest_k must be >= committee_size - 1 "
+                        f"(got {self.partner_farthest_k} < {min_k})."
+                    )
         return self
 
 

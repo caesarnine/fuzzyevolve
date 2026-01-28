@@ -23,6 +23,7 @@ class MutationOperator(Protocol):
         self,
         *,
         parent: Elite,
+        partners: Sequence[Elite] | None = None,
         critique: Critique | None,
         focus: str | None = None,
     ) -> Sequence[str]: ...

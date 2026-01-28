@@ -293,10 +293,14 @@ def _execute_run(
                 min_jobs=op_cfg.min_jobs,
                 weight=op_cfg.weight,
                 uncertainty_scale=op_cfg.uncertainty_scale,
+                committee_size=int(op_cfg.committee_size or 1),
+                partner_selection=str(op_cfg.partner_selection),
+                partner_farthest_k=int(op_cfg.partner_farthest_k),
             )
         )
 
     mutator = OperatorMutator(
+        pool=pool,
         operators=operators,
         specs=specs,
         jobs_per_iteration=cfg.mutation.jobs_per_iteration,

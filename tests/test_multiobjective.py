@@ -91,4 +91,3 @@ def test_pareto_weighted_selection_sweeps_tradeoffs():
 
     scalarizer.set_weights({"m1": 0.5, "m2": 0.5})
     assert selector.select_parent(pool).text == "c"
-

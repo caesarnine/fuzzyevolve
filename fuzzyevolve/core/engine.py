@@ -33,7 +33,12 @@ class Recorder(Protocol):
     ) -> None: ...
 
     def record_stats(
-        self, *, iteration: int, best_score: float, pool_size: int
+        self,
+        *,
+        iteration: int,
+        best_score: float,
+        pool_size: int,
+        extra: Mapping[str, Any] | None = None,
     ) -> None: ...
 
     def save_checkpoint(
@@ -135,10 +140,59 @@ class EvolutionEngine:
 
                 if self.store:
                     try:
+                        pool_elites = list(self.pool.iter_elites())
+                        scores = np.array(
+                            [self.rating.score(e.ratings) for e in pool_elites],
+                            dtype=float,
+                        )
+                        extra: dict[str, Any] = {
+                            "best_text_id": self.store.put_text(best.text),
+                        }
+                        if scores.size:
+                            extra.update(
+                                {
+                                    "mean_score": float(scores.mean()),
+                                    "p50_score": float(np.percentile(scores, 50)),
+                                    "p90_score": float(np.percentile(scores, 90)),
+                                    "min_score": float(scores.min()),
+                                    "max_score": float(scores.max()),
+                                    "std_score": float(scores.std()),
+                                }
+                            )
+
+                        if len(pool_elites) >= 2:
+                            embeddings = np.stack([e.embedding for e in pool_elites])
+                            sims = embeddings @ embeddings.T
+                            np.fill_diagonal(sims, -np.inf)
+                            nn_sim = sims.max(axis=1)
+                            nn_dist = 1.0 - nn_sim
+                            extra.update(
+                                {
+                                    "diversity_nn_mean": float(nn_dist.mean()),
+                                    "diversity_nn_p10": float(
+                                        np.percentile(nn_dist, 10)
+                                    ),
+                                    "diversity_nn_p50": float(
+                                        np.percentile(nn_dist, 50)
+                                    ),
+                                }
+                            )
+
+                        sigmas: list[float] = []
+                        for elite in pool_elites:
+                            for metric in self.cfg.metrics.names:
+                                r = elite.ratings.get(metric)
+                                if r is None:
+                                    continue
+                                sigmas.append(float(r.sigma))
+                        if sigmas:
+                            extra["mean_sigma"] = float(np.mean(sigmas))
+
                         self.store.record_stats(
                             iteration=snapshot.iteration,
                             best_score=snapshot.best_score,
                             pool_size=snapshot.pool_size,
+                            extra=extra,
                         )
                         checkpoint_interval = getattr(
                             self.cfg.run, "checkpoint_interval", 1
@@ -205,6 +259,14 @@ class EvolutionEngine:
 
         if self.store:
             try:
+                parent_metrics = {
+                    metric: {
+                        "mu": float(parent.ratings[metric].mu),
+                        "sigma": float(parent.ratings[metric].sigma),
+                    }
+                    for metric in self.cfg.metrics.names
+                    if metric in parent.ratings
+                }
                 self.store.record_event(
                     "step_start",
                     {
@@ -212,6 +274,9 @@ class EvolutionEngine:
                         "pool_size": len(self.pool),
                         "scalarization": scalarization,
                         "scalarization_source": scalarization_source,
+                        "parent_age": int(parent.age),
+                        "parent_score": float(self.rating.score(parent.ratings)),
+                        "parent_ratings": parent_metrics,
                     },
                     iteration=iteration + 1,
                 )
@@ -255,6 +320,10 @@ class EvolutionEngine:
                                 "text_id": self.store.put_text(c.text),
                                 "operator": c.operator,
                                 "uncertainty_scale": c.uncertainty_scale,
+                                "focus": c.focus,
+                                "partner_text_ids": [
+                                    self.store.put_text(t) for t in c.partner_texts
+                                ],
                             }
                             for c in candidates
                         ]
@@ -267,6 +336,46 @@ class EvolutionEngine:
         children = self._make_children(parent, candidates, age=iteration)
         if not children:
             return
+
+        if self.store:
+            try:
+                parent_text_id = self.store.put_text(parent.text)
+                operator_roles = {
+                    op.name: op.role
+                    for op in getattr(self.cfg.mutation, "operators", [])
+                    if getattr(op, "enabled", True)
+                }
+                edges = []
+                for cand, child in zip(candidates, children):
+                    child_text_id = self.store.put_text(child.text)
+                    partner_text_ids = [
+                        self.store.put_text(t) for t in cand.partner_texts
+                    ]
+                    edges.append(
+                        {
+                            "parent_text_id": parent_text_id,
+                            "child_text_id": child_text_id,
+                            "operator": cand.operator,
+                            "role": operator_roles.get(cand.operator, ""),
+                            "uncertainty_scale": float(cand.uncertainty_scale),
+                            "focus": cand.focus,
+                            "partner_text_ids": partner_text_ids,
+                            "parent_score": float(self.rating.score(parent.ratings)),
+                            "child_score_prior": float(
+                                self.rating.score(child.ratings)
+                            ),
+                            "embedding_distance": float(
+                                cosine_distance(parent.embedding, child.embedding)
+                            ),
+                        }
+                    )
+                self.store.record_event(
+                    "lineage",
+                    {"edges": edges},
+                    iteration=iteration + 1,
+                )
+            except Exception:
+                log_evo.exception("Failed to record lineage.")
 
         anchors = self._maybe_pick_anchors([parent, *children])
         opponent = self._maybe_pick_opponent(parent, [parent, *children, *anchors])
@@ -334,14 +443,90 @@ class EvolutionEngine:
             except Exception:
                 log_evo.exception("Failed to record ranking.")
 
+        ratings_before: list[dict[str, dict[str, float]]] | None = None
+        if self.store:
+            try:
+                for player in battle.participants:
+                    self.rating.ensure_ratings(player)
+                ratings_before = [
+                    {
+                        metric: {
+                            "mu": float(player.ratings[metric].mu),
+                            "sigma": float(player.ratings[metric].sigma),
+                        }
+                        for metric in self.cfg.metrics.names
+                        if metric in player.ratings
+                    }
+                    for player in battle.participants
+                ]
+            except Exception:
+                log_evo.exception("Failed to snapshot ratings (before).")
+                ratings_before = None
+
         self.rating.apply_ranking(
             battle.participants,
             ranking,
             frozen_indices=set(battle.frozen_indices),
         )
 
+        if self.store and ratings_before is not None:
+            try:
+                participants = []
+                for idx, player in enumerate(battle.participants):
+                    after = {
+                        metric: {
+                            "mu": float(player.ratings[metric].mu),
+                            "sigma": float(player.ratings[metric].sigma),
+                        }
+                        for metric in self.cfg.metrics.names
+                        if metric in player.ratings
+                    }
+                    participants.append(
+                        {
+                            "idx": idx,
+                            "text_id": self.store.put_text(player.text),
+                            "frozen": idx in battle.frozen_indices,
+                            "before": ratings_before[idx],
+                            "after": after,
+                        }
+                    )
+                self.store.record_event(
+                    "ratings_update",
+                    {"participants": participants},
+                    iteration=iteration + 1,
+                )
+            except Exception:
+                log_evo.exception("Failed to record ratings_update.")
+
         # Absorb children into the fixed-size pool (crowding handles removal).
+        pool_before: set[str] | None = None
+        if self.store:
+            try:
+                pool_before = {e.text for e in self.pool.iter_elites()}
+            except Exception:
+                pool_before = None
         self.pool.add_many(battle.judged_children)
+
+        if self.store and pool_before is not None:
+            try:
+                pool_after = {e.text for e in self.pool.iter_elites()}
+                removed = sorted(pool_before - pool_after)
+                inserted = [child.text for child in battle.judged_children]
+                kept = [t for t in inserted if t in pool_after]
+                self.store.record_event(
+                    "pool_delta",
+                    {
+                        "inserted_child_text_ids": [
+                            self.store.put_text(t) for t in inserted
+                        ],
+                        "kept_child_text_ids": [self.store.put_text(t) for t in kept],
+                        "removed_text_ids": [self.store.put_text(t) for t in removed],
+                        "pool_size": len(self.pool),
+                    },
+                    iteration=iteration + 1,
+                )
+            except Exception:
+                log_evo.exception("Failed to record pool_delta.")
 
     def _propose_children(
         self,

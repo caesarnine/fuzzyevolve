@@ -81,6 +81,15 @@ class LLMCritic:
         *,
         parent: Elite,
     ) -> Critique | None:
+        parent_text_id: str | None = None
+        if self.store:
+            try:
+                parent_text_id = getattr(self.store, "put_text", lambda _t: None)(
+                    parent.text
+                )
+            except Exception:
+                parent_text_id = None
+
         prompt = build_critique_prompt(
             parent=parent,
             goal=self.goal,
@@ -109,6 +118,7 @@ class LLMCritic:
                         prompt=prompt,
                         output=None,
                         error="critic_call_failed",
+                        extra={"parent_text_id": parent_text_id},
                     )
                 except Exception:
                     log_llm.exception("Failed to record critic call.")
@@ -123,6 +133,7 @@ class LLMCritic:
                     model_settings=self.model_settings,
                     prompt=prompt,
                     output=out,
+                    extra={"parent_text_id": parent_text_id},
                 )
             except Exception:
                 log_llm.exception("Failed to record critic call.")
