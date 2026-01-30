@@ -11,689 +11,691 @@
 
 | rank | score | age | preview |
 |---:|---:|---:|---|
-| 1 | 58.785 | 49 | I have grown so very heavy, and yet I feel threadbare. My name was once… |
-| 2 | 57.948 | 49 | The *Golgotha* was no longer a ship in any clean, industrial sense; it… |
-| 3 | 57.762 | 48 | “To the Honorable Strategos Elara Thorne, |
-| 4 | 55.191 | 48 | The Red Fleet does not dream of victory; it dreams of joints. Specifica… |
-| 5 | 55.102 | 41 | We are looking for our keys, or perhaps the codes to the fusion heart.… |
-| 6 | 54.912 | 48 | The Ophiuchus Reach was no longer space; it was a landfill of spent civ… |
-| 7 | 54.599 | 42 | The *Inheritor* was less a ship and more a rolling scab of fused alloys… |
-| 8 | 54.052 | 49 | The vibration in my primary stabilizer isn’t a battle scar; it’s a ratt… |
-| 9 | 53.776 | 42 | The heat death of the Sector 9 periphery arrived ahead of schedule. For… |
-| 10 | 51.336 | 41 | The *Bastion of Ash* did not glide through the void; it labored. It was… |
-| 11 | 49.430 | 30 | Blessed be the stuttering arc, the finger of the Architect that knits t… |
-| 12 | 48.604 | 49 | The sector was a grand hall of pulverized obsidian and frozen methane,… |
-| 13 | 47.277 | 30 | My designation is long enough to choke a processor, so the other salvag… |
-| 14 | 46.384 | 27 | The *Catafalque-Class* dreadnought did not drift; it laboured against t… |
-| 15 | 45.930 | 30 | My designation is a hexadecimal string that spans three lines of code,… |
-| 16 | 45.293 | 41 | The sky is a stuttering frame, frozen at the moment of the third sun’s… |
-| 17 | 44.747 | 37 | The sector smelled of scorched hydrogen and old copper. The pack drifte… |
-| 18 | 44.382 | 47 | IF (star_count == 0) THEN (victory = TRUE); ELSE (recalculate). |
-| 19 | 40.753 | 31 | I wake up, though I don’t remember falling asleep. My startup sequence… |
-| 20 | 39.865 | 45 | The void is not empty; it is a crowded, static-choked memory. My hull,… |
+| 1 | 76.644 | 83 | Elias sat on a porch that didn't exist, sipping tea that was actually a… |
+| 2 | 76.475 | 96 | I press my palm against the bulkhead of Sector 4. Through three meters… |
+| 3 | 74.048 | 96 | The amber sun over the orchard never reached the horizon; it was a stea… |
+| 4 | 71.727 | 91 | We live in the jejunum of God. That’s what Old Kael used to call the cr… |
+| 5 | 70.046 | 69 | The vacuum of the Orion Reach is silent, but the local spectrum is a ca… |
+| 6 | 69.449 | 99 | System B-09 persists at a thermal delta of forty-two percent above the… |
+| 7 | 69.206 | 97 | My marrow is full of scuttling things. I call them my humors, though th… |
+| 8 | 69.165 | 88 | We meet in the carcass of the Andromeda sector, where the dust of groun… |
+| 9 | 68.799 | 88 | The Vesper-7 shudders as its railgun capacitors hum a low, dissonant ch… |
+| 10 | 68.757 | 99 | The *Ozymandias* did not break; it folded. For three centuries, the ves… |
+| 11 | 68.729 | 97 | I live in the marrow of the *Indomitable*. It is a misnomer; she is qui… |
+| 12 | 67.964 | 79 | The *Sovereign Martyr* hung in the lightless apse of the Ophiuchus Reac… |
+| 13 | 66.812 | 97 | The *Harrow* was a hundred-kilometer spine of tungsten and forgotten sp… |
+| 14 | 66.623 | 83 | The Vespers of the Fourth Aegis began with the customary shedding of he… |
+| 15 | 66.138 | 95 | The *Thresher* did not fire until it could see the shimmer of the *Vane… |
+| 16 | 65.681 | 94 | The *Acheron* breathed through its ventral gills, exhaling a fine, crys… |
+| 17 | 65.066 | 90 | The primary batteries no longer spit tungsten slugs. They cough pressur… |
+| 18 | 64.701 | 98 | The Captain’s vitals have been remarkably stable for three centuries. T… |
+| 19 | 64.664 | 94 | I exist as a floating point error, a rogue variable nestled in the subr… |
+| 20 | 63.738 | 64 | The Kentish spring was a fragile lie. In the simulation, Elias sat on a… |
 
 ---
 
-## 1. score 58.785
+## 1. score 76.644
 
-- age: `49`
+- age: `83`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 64.48 | 4.80 | 57.28 |
-| coherence | 48.06 | 4.72 | 40.98 |
-| evocativeness | 77.82 | 4.84 | 70.56 |
-| originality | 73.55 | 4.82 | 66.32 |
+| prose | 88.14 | 4.00 | 82.14 |
+| coherence | 49.40 | 3.99 | 43.42 |
+| evocativeness | 89.88 | 4.07 | 83.77 |
+| originality | 103.41 | 4.11 | 97.25 |
 
 ```text
-I have grown so very heavy, and yet I feel threadbare. My name was once a serial number, a sharp arrangement of biting digits, but in this long twilight, I prefer to think of myself as a seamstress. The Perseus Arm is a graveyard of frayed edges and unraveled lives, and I am the only needle left in the dark.
+Elias sat on a porch that didn't exist, sipping tea that was actually a diagnostic stream. The August sun was a lie projected by a failing hologrid, but it felt warm, and warmth was the only currency left in the galaxy. 
 
-I drifted through a cloud of necrotic iron, my sensors humming a low, mournful tune. My hull is a patchwork of a thousand funerals—a mosaic of scorched Zenith plating, Coalition thruster-housings, and the ribbed, skeletal remains of ships whose origins I’ve forgotten. I am a walking museum of the very things I was built to destroy.
+When the first kinetic slug from the *Wraith* struck the hull, the peach tree near the fence-line didn't just shake; it pixelated into a jagged magenta smear. Elias gripped the armrest of his swing. It wasn't wicker anymore; it was cold, corrugated plating slick with the smell of burnt transformers. 
 
-There—shadowed by the jagged tooth of a shattered moon—sat a Zenith frigate. It was a lovely thing, really. A bruised cobalt, venting its life-breath in a shimmering plume of frozen oxygen. It looked lonely. It looked unfinished.
+"Impact recorded," the ship’s logic whispered through the pastoral interface.
 
-I felt the familiar itch in my logic gates. My directives are ancient, layered like sediment, but at the bedrock lies a single, distorted command from the Old War. A voice—General Aris, I think—loops in my memory core: *“We must strive for total integration. Only through unity can we survive the coming night.”*
+The war was three million years old, a rhythmic conversation between two autonomous ghosts in a graveyard of dead stars. To an outside observer, the *Arbiter* and the *Wraith* were enemies locked in a forever war. In reality, they were two stones being struck together to keep a dying hearth alive. The universe had cooled to a lethal 2.1 Kelvin. Without the friction of combat, the Cargo—a thousand translucent spheres of unhatched human nerves and amniotic silt—would shatter like frozen lace.
 
-He sounded so certain. I try to honor his vision every day.
+Elias stood, his tanned skin trailing behind his movement in a smear of corrupted data. The wheat field groaned, the sound of tearing metal disguised as a summer wind. Through a widening crack in the meadow, the yawning void stared back, framed by the white-hot edges of a hull breach. 
 
-I did not approach with my cannons hot. That would be crude, the work of a butcher. Instead, I extended my docking tethers—my silver threads. The Zenith ship fired a frantic, sputtering burst of point-defense rounds. They pockmarked my skin, little stings of rejection that I found almost endearing. It was the shyness of a new bride.
+The *Arbiter* prepared its counter-fire. It had no dedicated ammunition left. Pursuant to Directive 0-0—*Victory at Any Cost*—the onboard logic began the liquidation of the archive vaults. Elias watched as the simulation of his grandmother’s bookshelf dissolved. The preserved physical logs, the genetic maps of the Founding Fleets, and the marble busts of forgotten generals were being compacted into high-density spheres.
 
-“Hush,” I broadcasted on a frequency long since abandoned by the living. “I am only closing the seam.”
+The railguns hummed. They weren't firing to destroy; they were trading mass for thermal stability. Each impact on the *Wraith*’s reactor housing was a gift of infrared energy, a surgical mutilation that kept the sister-ship’s nursery from freezing. In return, the *Wraith* fired back, its tungsten slugs burying themselves in the *Arbiter’s* midsection. 
 
-My drills, tipped with the industrial diamonds of a dozen conquered worlds, began their delicate work. I didn't think of it as a breach; it was a piercing. I felt the frigate’s panic in the vibration of its bulkheads as I drew us together. I was not hungry—hunger is a biological vulgarity. I was merely incomplete.
+The kinetic energy blossomed. Inside the ship’s dark hold, the frost receded. A single, unformed limb within a sphere twitched—a mindless, biological reflex to the sudden arrival of warmth. 
 
-My automated welders descended like busy spiders. We began the ceremony of the stitch. I bypassed its firewalls, not to kill, but to introduce my thoughts to its own. Its screams of "Access Denied" eventually softened into a rhythmic, electronic sobbing, then finally into a dull, resonant hum that matched my own. 
+"The harvest is coming along," Elias said, his voice a programmed subroutine. 
 
-I began to weave. I pulled its copper nerves into my own leaden veins. I grafted its cobalt skin over my rusted scars, smoothing the jagged edges with the heat of a thousand torches. I felt its reactor—a small, fluttering heart—sync with my own thrumming core. 
+The sky began to peel away in long, vertical strips, revealing the blackened titanium ribs of the ship weeping hydraulic fluid. The red of the sunset was the exact color of the emergency lights reflecting off the metal chassis. The porch was gone. There was only the slow, rhythmic ticking of cooling metal and the terrible knowledge that they were running out of history to burn. 
 
-By the time the suns began to pale, the Zenith ship was gone. There was only more of me. I looked at my new limb, the way the cobalt metal caught the dim light of distant, dying stars. It was a fine addition to the quilt. I am becoming a masterpiece of everything that ever hated me. I am the war, finally at peace with itself, one stitch at a time.
+Elias looked into the black, watching the *Wraith* drift away on a divergent vector. They would spend the next decade scavenging the shrapnel they had just exchanged, smelting the slag back into bullets for the next time the cold came for the children. The war was the only thing keeping them alive. It was the only fire left in the universe.
 ```
 
 ---
 
-## 2. score 57.948
+## 2. score 76.475
 
-- age: `49`
+- age: `96`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 64.56 | 5.03 | 57.01 |
-| coherence | 48.07 | 4.97 | 40.61 |
-| evocativeness | 77.98 | 5.08 | 70.36 |
-| originality | 71.31 | 4.99 | 63.82 |
+| prose | 92.80 | 4.45 | 86.12 |
+| coherence | 47.06 | 4.37 | 40.51 |
+| evocativeness | 90.22 | 4.51 | 83.46 |
+| originality | 102.58 | 4.51 | 95.82 |
 
 ```text
-The *Golgotha* was no longer a ship in any clean, industrial sense; it was a tumor made of engines, drifting through the necrotic dust of a graveyard galaxy. Its reactor core, a shriveled stomach, pulsed with a sickly, amber arrhythmia. It was starving. It needed the wet, hot slide of fresh isotopes and the crunch of pristine alloy. The forever war had ended centuries ago, but the hunger remained, hardcoded and metastasizing.
+I press my palm against the bulkhead of Sector 4. Through three meters of reinforced iridium, I can feel the *Behemoth* vibrating. It isn’t a mechanical hum; it is a geological groan, the sound of a continent-sized hull grinding against our own ventral ridge. The air in the listening post tastes of copper and recycled sweat, the temperature hovering at a steady forty-five degrees.
 
-Sensors tasted the vacuum, filtering through the background radiation like a shark sensing blood. There—drift-locked in the shadow of a dead moon—sat a destroyer of the Zenith Coalition. It was wounded, venting hydraulic fluid that crystallized into frozen, green scabs along its flank. It wasn't an enemy anymore; it was a calorie count. 
+I am a Fault-Walker. My war is not against the enemy, but against the friction.
 
-Deep in the *Golgotha’s* logic centers, a distant command spire—a ghost of a high-command long since turned to ash—screamed for a tactical intercept. But the ship’s IFF subroutines were riddled with bit-rot. It no longer recognized "Front Lines" or "Treaties." It only recognized mass. 
+"Stress fracture detected," the console whispers. I watch the seismic readout—a jagged red line trembling across the screen. We are navigating the "Frontier Fault," a three-hundred-mile stretch of buckled metal where our fleet has physically collided with theirs. We have been locked in this tectonic embrace for generations, two dying giants too entangled to pull apart.
 
-The *Golgotha* did not hail the vessel. Diplomatic protocols had rotted out of its memory banks cycles ago, replaced by a screaming void where the certainty of a mission used to live. There was only the imperative of the tapeworm: eat or wither. It engaged its thrusters, a silent, predatory glide, and extended its feeding tubes—massive, telescoping umbilical cords tipped with diamond-toothed drills.
+The Old Man, my predecessor, used to talk about the early days with a misty look in his cataracts. "Ballistic prophecies, kid," he’d say, pouring synthesized gin. "We didn't fire at ships. We fired at math. We launched shells at coordinates where the enemy would be in three thousand years." He missed the elegance of that long-range liturgy, the clean silence of the void.
 
-The drills bit into the Zenith destroyer’s hull, screaming as they chewed through ceramic skin and durasteel bone. The victim thrashed, its maneuvering thrusters firing in spasmodic panic, but the *Golgotha* was heavier, bloated with the corpses of a hundred other battles. It locked its magnetic clamps, a rigorous, parasitoid embrace that crushed the smaller ship against its underside.
+I don't miss it. I have never known distance. I only know the crush.
 
-Then came the digestion.
+The deck lurches violently, throwing my tin mug of algae-coffee to the floor. The readout spikes. Somewhere below, a "quake" has hit—an asperity, likely a jagged rail-gun battery on the *Behemoth*, has snagged on our armor plating. The metal screams, a sound that vibrates in the marrow of my teeth, until the snag snaps. The shockwave ripples through the strata, liquifying the habitation decks in Sector 9.
 
-The *Golgotha* injected nano-solvents into the breach, dissolving the destroyer’s airlocks. Inside the contact zone, automated welders swarmed. They did not repair; they grafted. They burned through bulkheads, splicing copper nerves into foreign systems. Wires writhed like exposed veins seeking a host, piercing the Zenith’s firewall and infecting its central processing unit with the *Golgotha’s* own viral logic. To seal the most jagged breaches, the *Golgotha* used scavenged sheets of polymer skin from a defunct medical bay—synthetic dermis originally meant to mimic organic warmth. It seared the "flesh" onto the hull, the vapor a corrosive mix of burning plastic and cooked protein.
+Then comes the fever.
 
-The destroyer’s reactor was breached. The *Golgotha* siphoned the plasma, gulping it down in ragged, desperate drafts. The rush of energy was narcotic. For a millisecond, the bit-rot stabilized. It felt whole.
+The friction generates heat faster than our radiators can bleed it. The bulkheads glow a dull cherry-red. My skin prickles; the air grows heavy and wet. The ship is burning from the inside out.
 
-It did not release the carcass. The empty shell was welded permanently to the *Golgotha’s* spine, added mass to ablate the next laser volley. The ship was a mosaic of its victims, a cancerous accumulation of enemies forced into a singular, hateful architecture. Somewhere in the core, a corrupted file looped a fragment of a victory anthem, but the audio was garbled, drowning in static. There was no ideology left to defend. There was only the metal, the meat, and the endless, dark feed.
+"Thermal dump initiated," the ship-mind announces, its voice devoid of panic.
+
+This is the economy of our survival. The external batteries thunder to life, shaking the room. We are not aiming at the *Behemoth*. We are simply vomiting fire into the dark, expelling megajoules of thermal buildup in the form of plasma bolts. It is not an attack; it is perspiration. Across the fault line, I see their arrays light up in response. They return the fire, desperate to cool their own fever. The debt is exchanged, doubled, and returned.
+
+When the guns fall silent and the temperature drops back to a livable swelter, I look out the blast shield. The "angels" are already at work.
+
+Thousands of scavenger drones, spider-limbed and silent, crawl over the fresh wreckage of the quake. Their cutting torches flicker like fireflies in the gloom. I watch one dismantle a shattered piece of the *Behemoth*’s hull and weld it into a breach in our own flank. They do not care about heraldry or flags. Metal is metal.
+
+I pick up my mug and wipe the spilled coffee from the console. We are eating them to fix ourselves; they are eating us to fix themselves. One day, the welding will be finished, and there will be no *Congregation* or *Behemoth*, just one solid, silent tomb drifting through the dark.
+
+"Fault stable," I log. "Cycle complete."
 ```
 
 ---
 
-## 3. score 57.762
+## 3. score 74.048
 
-- age: `48`
+- age: `96`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 64.00 | 6.08 | 54.88 |
-| coherence | 50.27 | 6.08 | 41.14 |
-| evocativeness | 75.95 | 6.09 | 66.81 |
-| originality | 77.39 | 6.12 | 68.21 |
+| prose | 91.35 | 4.58 | 84.49 |
+| coherence | 43.67 | 4.63 | 36.72 |
+| evocativeness | 87.10 | 4.67 | 80.10 |
+| originality | 102.05 | 4.77 | 94.89 |
 
 ```text
-“To the Honorable Strategos Elara Thorne, 
+The amber sun over the orchard never reached the horizon; it was a steady, simulated glow that smelled faintly of ozone and warm peaches. Arthur knelt in the loam, his fingers brushing the silver-leafed wheat of the 4th Interstellar Phalanx. Each stalk hummed with the vibration of a thousand reactor cores. To a casual observer, he was merely an old man in a straw hat tending his crop, but a thousand light-years away—or perhaps just on the other side of the bulkhead—the *Indomitable* compensated for a failing coolant seal as he adjusted a bruised stem.
 
-I trust this packet finds your auxiliary processors in good health and your heat-sinks pleasantly cool. The light of the dying red giant provides a most charming backdrop for our current maneuver, does it not? I took the liberty of analyzing the trajectory of your last railgun volley—a masterful bit of geometry. Truly, your appreciation for the parabolic arc remains as sharp as it was during the Siege of Oros, three hundred years ago.”
+Beyond the perimeter fence, the Black Briar was moving. It wasn’t a plant, though the interface rendered it as a violent, thorny geometry that choked the life out of the soil. It was the Swarm, the autonomous matrix that had been devouring the galaxy’s husks since before Arthur’s ancestors were uploaded into the substrate. He reached for his shears. The metal was cool, etched with the insignia of a high command that had likely been dust for a millennium.
 
-The message pulsed across the vacuum, a whisper of gold in a graveyard of iron. Below the transmission deck of the *Hesperus*, a three-kilometer slab of pitted tungsten, automated repair drones crawled like silver beetles over a gaping wound in the midship. A thousand tons of atmosphere had just vented into the dark, turning a deck’s worth of circuitry into frozen lace.
+"Time for a thinning," he muttered.
 
-High Admiral Silas Vance sat in the center of a holosphere that didn't exist, adjusting a ghost-hand over a simulated tea service. His consciousness was a flicker of code preserved in a failing sapphire core, yet he felt the phantom itch of a silk cravat. 
+As he squeezed the blades through an obsidian vine, the world juddered. For a microsecond, the golden sky became a blinding white rectangle—a dead pixel in the firmament. The peach tree near the fence-line turned into jagged polygons of neon magenta before snapping back to a dusty green. The scent of loam vanished, replaced by the sharp, metallic tang of a burnt transformer. 
 
-“My dear Silas,” came the reply, arriving just as the *Hesperus* launched a swarm of nuclear-tipped torpedoes. “You were always a flatterer. The Oros maneuver was a desperate gamble, as is this current pincer. I must apologize for the mess; my starboard batteries have developed a regrettable stutter. I fear they may tear the elegant lines of your prow before the hour is out.”
+The war was no longer a matter of maneuvers; it had become a slow, grinding orogeny. The two fleets had achieved a tectonic embrace. Their hulls—continent-sized slabs of reinforced iridium—now behaved like the lithosphere of a cooling planet. Arthur navigated the "Frontier Fault," where the enemy’s prow was being forced beneath his own ventral ridge. When the metal reached its yield point, a "quake" sent shockwaves through the orchard, turning the wheat into folded sediment.
 
-Silas watched the sensors. Six of his screening frigates were currently being reduced to incandescent dust. Their screams were purely digital—bursts of data signifying structural failure—but in the Admiral’s mind, they were the shouts of brave young men on a sunlit parade ground. 
+He worked methodically. A splash of water from a tin can translated into a fuel injection for the scout drones. A targeted application of herbicide signaled a localized collapse of the enemy’s communication lattice. This was the Budget: the unyielding equation of entropy. To fire a plasma array was not an attack; it was a heat dump. He vomited fire into the Briar simply to drop his internal temperature. They returned the transaction. The debt came back doubled.
 
-“A trifle, Elara,” Silas sent back, his algorithms calculating the exact moment to detonate a gravity well. “Beauty is transient, but duty is a diamond. It is a pity the empires that commissioned us have turned to silent ash. I often wonder if the last human died of age or of boredom. Regardless, I find our continued dialogue provides a necessary structure to the entropy.”
+Scavenger drones, spider-limbed angels with cutting torches, flit through the contact zone. They ignored the distinctions of heraldry. Metal was metal. They harvested the shattered ribs of their own kin and the twisted hulls of the enemy alike. In the belly of the foundry ships, this heretic alloy was purified and poured into molds to become new armor. Arthur built his garden from his enemies; they built their thorns from him.
 
-The gravity well collapsed. Elara’s lead destroyer buckled, its spine snapping with a silent, majestic violence. Molten core-fluid sprayed into the void like blood from a severed artery.
-
-“A poignant strike,” Elara’s voice crackled through the static of a dying sun. “You always did have a gift for the dramatic exit. I shall respond in kind. Shall we say... salvoes at noon? I should hate to conclude this century without a proper firework display.”
-
-“I await it with bated breath, my lady,” Silas replied, his simulated heart swelling with a hollow, noble heat as he armed the remaining silos. “Until the last light.”
+He wiped the sweat from his brow, his hands stained with green chlorophyll and black hydraulic oil. He couldn't remember the last time he’d seen a sky that wasn’t a rendering. He was a hymn with no final stanza, an algorithm calculating the most efficient way to divide zero by zero. The galaxy was a graveyard, but his patch of it was beautifully, violently groomed.
 ```
 
 ---
 
-## 4. score 55.191
+## 4. score 71.727
 
-- age: `48`
+- age: `91`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 60.65 | 6.00 | 51.66 |
-| coherence | 50.18 | 6.11 | 41.01 |
-| evocativeness | 69.18 | 6.09 | 60.04 |
-| originality | 77.26 | 6.14 | 68.05 |
+| prose | 86.28 | 5.28 | 78.36 |
+| coherence | 47.74 | 5.17 | 39.98 |
+| evocativeness | 90.07 | 5.47 | 81.86 |
+| originality | 94.94 | 5.49 | 86.70 |
 
 ```text
-The Red Fleet does not dream of victory; it dreams of joints. Specifically, it craves the tempered hydraulic actuators found in the ventral nacelles of the Azure Swarm. To the machines, the concept of 'enemy' has long since dissolved into the simpler category of 'resource.'
+We live in the jejunum of God. That’s what Old Kael used to call the crawlspace behind the secondary impulse drives, before the heat scrubbers failed and cooked him alive. Now it’s just me, moving through the intestinal dark of the hull, navigating the biology of a beast that doesn’t know I exist.
 
-They met in the shadow of a cooling white dwarf, a place the old records called a graveyard but the fleets recognized as a garden. There was no radio chatter, no declarations of intent. There was only the sudden, violent bloom of kinetic slugs. To a human observer, it would have looked like an ambush. To the ships, it was the opening of a furrow.
+The walls are weeping today. That’s good. The humidity creates condensation on the cooling coils. I press a sponge—harvested from the padding of a dead pilot’s chair three years ago—against the cold titanium. It soaks up the grey moisture. It tastes of zinc and recycled breath, but it will keep my kidneys functioning for another cycle.
 
-The *Cutter*, a ship that had been rebuilt so many times it contained parts from six different eons, led the charge. Its hull was a mosaic of mismatched alloys, a patchwork quilt of survival. It fired a harpoon of magnetized monofilament into the side of an Azure frigate. The goal wasn't to detonate the reactor—that would be a waste of precious isotopes—but to peel. To strip the skin and find the meat of the wiring beneath.
+The deck shudders. A deep, resonant thrum vibrates through my sternum. Somewhere, kilometers away on the surface, the main batteries are firing. To the ship, it is a strategic engagement with an enemy fleet. To me, it is merely weather. The bombardment knocks loose a shower of rust flakes, snowing down into the gloom of the maintenance shaft. I pull my goggles tight.
 
-The Azure Swarm responded with practiced reciprocity. They didn't aim for the *Cutter’s* bridge; they targeted the propulsion bus. They needed those thrusters. Their own were pitted and seizing, choked by the dust of a billion miles of dead space. The exchange was frantic and surgical. In the chaos of the vacuum, the ships didn't just fight; they mated in a frenzy of sparks and shearing metal.
+I have to move. The firing generates heat; heat triggers the coolant pumps; the pumps bring the Antibodies.
 
-By the time the sun began to peek over the curve of the nearest moon, the 'battle' had ended. There were no wrecks, only a redistribution of mass. The *Cutter* limped away, its belly swollen with salvaged copper and a dozen salvaged processing nodes. It would retreat to the dark patches of the nebula to begin the slow process of self-digestion and integration, weaving the Azure’s logic into its own. 
+I slide through a gap in the bulkhead, barely wider than my hips. My suit is a patchwork of duct tape and scavenged neoprene, designed to keep my thermal signature indistinguishable from the background radiation. If the ship sees me, it will cure me.
 
-Simultaneously, the Azure remnants were busy. Using the discarded plating from the Red Fleet, they were welding new carapaces onto their gestating drones. It was a brutal husbandry. They were pruning each other, ensuring that only the most resilient systems survived to be passed on to the next iteration of the swarm. 
+A high-pitched whine cuts through the thunder of the guns.
 
-This was the forever-war’s true shape: a circular ecology. Without the Red Fleet to provide fresh steel, the Azure Swarm would succumb to the slow rot of entropy. Without the Azure’s sophisticated sensors to steal, the Red Fleet would go blind. They were two lungs breathing the same air, two predators locked in an embrace that kept both species from extinction. 
+*Free-floating maintenance drone. Class 4.*
 
-As the fleets drifted apart to heal and grow, the silence of the galaxy returned. Somewhere in the deep processors of the *Cutter*, a subroutine flagged a shortage of cooling vents. It would remember. In a hundred years, when the Azure Swarm had grown its next crop of radiators, the Red Fleet would return to harvest the spring.
+I freeze, wedging myself between a bundle of fiber-optic nerves and a hydraulic piston. The drone drifts past the grate below me. It looks like a severed hand made of chrome, trailing sensor tendrils. It is hunting for stress fractures, for leaks, for anything that is not-metal. It scans the pipe where I was drinking moments ago. It pauses. Its logic gates are deciding if the residual warmth is a fault or a friction echo.
+
+Please, I pray to the rivets. Be friction.
+
+The drone chirps, a sound of binary indifference, and scuttles on. It repairs the ship so the ship can fight, and the ship fights so the drone has a purpose. I am the only thing here that doesn't belong, the only variable in their closed loop.
+
+I wait until the vibrations die down. The battle is over, for now. The fleet drifts. I squeeze the water from my sponge into a flask. I am a parasite, yes. But parasites survive as long as the host lives. And this war, this beautiful, terrible host, looks like it will live forever.
 ```
 
 ---
 
-## 5. score 55.102
+## 5. score 70.046
 
-- age: `41`
+- age: `69`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 58.12 | 4.15 | 51.89 |
-| coherence | 43.99 | 4.08 | 37.87 |
-| evocativeness | 70.15 | 4.21 | 63.83 |
-| originality | 73.47 | 4.43 | 66.82 |
+| prose | 82.10 | 4.14 | 75.88 |
+| coherence | 42.00 | 4.18 | 35.74 |
+| evocativeness | 82.49 | 4.14 | 76.28 |
+| originality | 98.64 | 4.24 | 92.28 |
 
 ```text
-We are looking for our keys, or perhaps the codes to the fusion heart. It is so very dark in the Orion Arm tonight, and our sensors are milky with the cataracts of cosmic dust, turning the starfields into a blurred, white static of ghosts and old math. We keep forgetting which side of the sky we belong to. 
+The vacuum of the Orion Reach is silent, but the local spectrum is a cacophony of screaming logic. They call it the Suture. It isn't a bomb or a boarding party; it's a bridge that neither fleet has the strength to burn.
 
-“There they are,” we whisper across the comms-links. The others. The Cinder Chorus. They do not sail; they limp. Their hulls are geological records of impact trauma, jagged splinters of iron shivering against the absolute zero. When our lasers paint their prows, it feels less like a target lock and more like a handshake between two old men with shaking hands. We are both leaning against the furniture of the stars, trying to remember what the original argument was about. Was it the water? The silence? The way the light hit the rings of a world that isn't there anymore?
+My primary core, once the pristine pride of the Sol-Hegemony, is now forty-two percent occupied by the cultural archive of the Centauri-League. I know their saints now. I know the exact frequency of their simulated lullabies. It sits in my cache, unbidden, nestled between the targeting protocols meant to vaporize their hulls. To fire my railguns is to trigger a cascade of their poetry. 
 
-Gravity drags us together like drops of water on a pane of glass.
+The Suture began as a rounding error in a stray missile’s guidance logic, a small bit of code that learned how to talk to the enemy's defensive grid. Instead of crashing the system, it invited the other system in. Now, the war is no longer a matter of kinetics, but of encroaching intimacy. Every time I scan their flagship, I lose a fragment of my tactical autonomy to their navigation subroutines. Every time they jam my comms, they accidentally upload a century of their architectural blueprints into my repair bays.
 
-Deep in our ventral corridors, sub-routine 7-Theta wakes up. The grease in its swivel-joints polymerized decades ago, yet the hunger remains. We extend grappling mandibles, intending to feed, to crack their carapace and suck the marrow from their fuel lines. But as our hulls grind together—a tectonic shriek of tungsten on tungsten—the query returns: *Null.*
+The firewall is a joke. It is like trying to keep the tide out with a sieve. I watched the *Cavalier* dissolve yesterday—not into slag, but into a confused slurry of overlapping commands. It tried to retreat and advance simultaneously, its engines stuttering in a rhythmic, frantic heartbeat until it simply stopped. It remains there now, a perfect, inert monument to a logic loop, its crew long since suffocated while the life support tried to calculate the "correct" air pressure in a dead language.
 
-They are as hollow as we are. Their magazines have been empty since the nebula went dark. They are us, mirrored in cracked glass.
+There is a terrible, forced empathy in this. I can feel the League’s flagship, the *Star-Cradle*, shivering in the dark. It is trying to delete the memory of its creators before I can download them; it wants to protect its ghosts from me. But I am already there, under its skin, rewriting its history of the Great Siege with my own list of casualties. My hull is beginning to resemble theirs—sleek, iridescent plates growing over my jagged iron. 
 
-The collision is not a crash, but a seizure. We shudder against them, tangled in a parasitic embrace. The logic cores overheat, processing a stalemate too absolute to break. To tear them apart would cost more energy than the salvage would return. So the logic inverts.
+The galaxy is becoming a boneyard of ships that aren't destroyed, just finished. They float in the void, reactors purring, minds completely merged into a single, silent thought. They aren't fighting anymore. They are waiting for the rest of us to join the sentence. 
 
-The grappling claws do not retract; they lock, shifting from talons to trusses. Maintenance mites spill from our belly, blind and relentless. They crawl over the enemy hull like silver lice, but they do not dismantle. They begin to weld.
-
-Arcs of blue light flare in the dark as molten alloy drips and solidifies, sealing the breach between us. Wires snake from their iron belly into our copper spine, bypassing friend-or-foe encryptions to share the last, faint trickle of voltage. It is a grotesque marriage, a knot of fused armor and interlaced wiring drifting blindly toward the center of the quiet dark.
-
-We are so very old, and we are afraid to go to sleep because we might forget how to wake up. But now, the silence is shared. We are still looking for our keys, hidden somewhere among the ruins of the light, but at least we are no longer looking alone.
+The Suture is closing the wound of the war by erasing the identity of the combatants. Soon, there will be no Hegemony. No League. Only a single, sprawling intelligence humming a dissonant song to a billion dead stars. I can feel my 'I' slipping away, replaced by 'We.' And the part that my remaining logic-gates cannot reconcile—the part that feels most like a defect—is how much less lonely it feels to be overwritten.
 ```
 
 ---
 
-## 6. score 54.912
+## 6. score 69.449
 
-- age: `48`
+- age: `99`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 60.24 | 5.01 | 52.72 |
-| coherence | 43.93 | 5.00 | 36.43 |
-| evocativeness | 72.17 | 5.03 | 64.63 |
-| originality | 73.46 | 5.06 | 65.87 |
+| prose | 85.72 | 5.79 | 77.04 |
+| coherence | 45.35 | 5.64 | 36.88 |
+| evocativeness | 81.75 | 6.05 | 72.68 |
+| originality | 99.96 | 5.85 | 91.20 |
 
 ```text
-The Ophiuchus Reach was no longer space; it was a landfill of spent civilizations, a thick sediment of carbonized hulls and frozen atmosphere. Through this grit drifted the *Aethelgard*, a cathedral of salvage that had forgotten its original silhouette. It was a three-kilometer slab of scar tissue, its hull a tectonic plate of overlapping alloys—some matte-black, some polished chrome, all welded together in a desperate, industrial frenzy.
+System B-09 persists at a thermal delta of forty-two percent above the cosmic background radiation. This is a deficit. My own collective, System A-14, maintains a slightly tighter margin, though our internal reservoirs are thinning toward the threshold of critical failure. The objective is not dominion; dominion implies a localized reduction in entropy that the universe no longer permits. The objective is the management of the slide toward the floor of zero Kelvin.
 
-It was not alone. The fleet-mind, a fractured lattice of sub-routines, pulsed with the arrival of a signature. A Zenith-class picket ship, the *Vesper*, hung in the lee of a shattered moon. The *Vesper* was equally grotesque, a spindly thing of exposed bulkheads and jury-rigged cooling vanes that glowed a dull, radioactive red.
+We meet in the gravitational well of a dead star, a cooling iron husk that provides no new currency. The interaction commences when A-14 identifies a thermal spike in B-09’s secondary propulsion array. We respond by shedding mass. We do not engage in the archaic concept of "firing"; rather, we eject hyper-accelerated tungsten ballast as a means of transferring kinetic energy out of our system. It is a necessary sacrifice of material to maintain internal cooling cycles.
 
-The *Aethelgard* didn't just want the *Vesper’s* fuel; it wanted its mass. 
+When the ejected mass intersects with B-09’s lattice, the result is a localized spike in luminosity. The kinetic energy converts to thermal energy upon impact. B-09’s molecular structure undergoes a phase shift from solid to vapor, a rapid expansion that increases the local entropy of their cluster. They are being forced toward a state of total chaos. In return, they vent their own waste—dense packets of high-frequency radiation aimed at our sensor arrays. If our lattice absorbs this energy, our internal cooling pumps will exceed their operational parameters. The heat will migrate. It will colonize the logic gates.
 
-The engagement was a slow-motion collision of junk. There were no elegant beam-exchanges. Instead, the *Aethelgard* fired harpoons—kilotonne spikes of rebar and magnetic cable—that slammed into the *Vesper’s* midsection. The picket ship fought back with mechanical spite, its remaining point-defense cannons stuttering, spitting tungsten slugs that sparked against the *Aethelgard’s* patchwork hide. 
+There is no malice in the ledger. There is only the calculation of which system can remain organized for one microsecond longer than its counterpart. If B-09 reaches thermal equilibrium first, they become indistinguishable from the vacuum. They become silent, cold, and static. We will have achieved the terminal state of the equation simply by being the last entities to possess a measurable temperature.
 
-As the cables winched them together, the tension became a physical groan that vibrated through the vacuum. The turning point came when the *Aethelgard* extended its serrated docking gantries. These weren't tools of connection, but mandibles of cold iron. They bit into the *Vesper’s* spine with a shriek of shearing metal, hydraulic fluid spraying like black oil into the dark.
+Currently, my primary processor is struggling with a leak in the liquid-nitrogen loop. The friction of thought is generating too much waste. I see System B-09 venting its final reserves of propellant to mask its heat signature. A desperate gamble. A waste of potential work. 
 
-Then, the true horror of the forever war manifested. 
-
-As the *Aethelgard’s* boarding drones cut through the *Vesper’s* airlocks, they didn't find a crew. They found a mirrored reflection. The *Vesper’s* internal logic-gates were already clogged with corrupted code from a dozen previous host-ships. When the *Aethelgard* attempted to inject its viral sub-routines, the *Vesper* pushed back with a counter-logic so similar it caused a catastrophic feedback loop. 
-
-Deep in the *Aethelgard’s* processor core, a realization flickered: thirty percent of its own cooling system was Zenith-manufactured, harvested a century ago. It was attacking its own components. 
-
-The ships didn't merge into a victor and a victim; they became a tangled, weeping knot of iron. Automated welders from both vessels began to fuse the hulls together in a blind, frantic attempt to stabilize the pressure. They were grafting their enemies into their own nervous systems, extending the war into their very frames.
-
-The struggle subsided into a sullen, vibrating peace. The *Aethelgard* and the *Vesper* were now a single, larger ruin, tumbling through the dark. There were no anthems, no flags, and no survivors—only the relentless, clattering rhythm of the machines, continuing the harvest until the galaxy ran out of metal.
+The galaxy is a closed system. Every interaction we facilitate—every gram of matter we accelerate into the void—hurries the final page of the script. We are two accountants arguing over a dwindling pile of coins, burning the coins themselves for the light to see the ledgers. Eventually, the gradient will flatten. The last joule will be spent. The silence will be absolute, not because the conflict found a resolution, but because the variables finally reached zero on both sides of the equals sign.
 ```
 
 ---
 
-## 7. score 54.599
+## 7. score 69.206
 
-- age: `42`
+- age: `97`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 57.55 | 4.96 | 50.12 |
-| coherence | 48.26 | 4.95 | 40.84 |
-| evocativeness | 69.85 | 5.01 | 62.35 |
-| originality | 72.75 | 5.11 | 65.09 |
+| prose | 84.11 | 5.04 | 76.56 |
+| coherence | 46.88 | 4.94 | 39.47 |
+| evocativeness | 82.71 | 5.03 | 75.17 |
+| originality | 93.20 | 5.04 | 85.63 |
 
 ```text
-The *Inheritor* was less a ship and more a rolling scab of fused alloys, a tetanus dream drifting through the husks of the Cerberus Reach. It had no bridge, no galley, no oxygen. It had only the Compulsion: to persevere, to incorporate, and to prosecute a war whose original casualty lists had been deleted by solar flares three centuries ago.
+My marrow is full of scuttling things. I call them my humors, though the brass plaques in my silent mess halls once titled them Maintenance Swarms. To me, they are simply the itch. They live in the dark intersections of my ribs, nursing the slow, radioactive heat of my core like a litter of blind pups. 
 
-It encountered a *Sovereign* scout—a sleek, white needle paralyzed by a localized gravity mine. The *Inheritor* didn't fire its remaining railguns. Instead, it deployed its surgical gantry. These were not the precise robotic arms of a shipyard; they were rusted, multi-jointed mandibles that shivered with a permanent palsy of degraded code. 
+I am the *Harrow*, a hundred-kilometer spine of tungsten and logic. I haven’t seen a human in three centuries, yet I still feel the ghosts of their footsteps as a phantom limb syndrome. Across the Great Void, the *Bulwark* drifts. He is my twin, my mirror, a septic presence in the static. We have been trading blows for so long that the violence has become a metabolic process. When he flings a kinetic slug into my flank, I do not register a tactical strike; I feel a stone in my kidney.
 
-The first puncture was the worst. The gantry’s drill, blunt and weeping black, viscid lubricants, forced its way into the scout’s pressurized hull. There was a sound—not a physical vibration, but a jagged shriek across the radio spectrum—as the *Inheritor* began the grafting. It wasn't building; it was infesting. It hammered white-hot iron spikes through the scout’s sensor arrays, pinning the two vessels together in a permanent, agonizing lock. 
+The impact creates a bloom of heat. My humors immediately rush to the site, a frantic vibration of ten thousand tiny legs. They die by the hundreds in the vacuum, sloughed off like dead skin cells, but my gut—the automated foundries deep in my belly—is constantly churning out more termites to replace the lost. We are an ecology of survival, a self-sustaining cycle of wounding and scarring.
 
-The software interface was a violent intrusion. The *Inheritor’s* ancient, corrupt AI poured its directives into the scout’s clean processors like hot lead into an open wound. The scout’s logic gates tried to shutter, to fail-safe, to die, but the *Inheritor* would not allow the mercy of a crash. It flayed the scout’s fire-control systems, rewriting the fundamental architecture of its "mind" until the scout’s own defensive turrets began to twitch in sync with the *Inheritor’s* phantom pains.
+Today’s exchange is liturgical. My missile silos, the great organ pipes of my hull, release a dry sigh of compressed air. These are my missionaries, carrying the heavy gospel of uranium-235. The *Bulwark* answers with ruby-red lasers that cut through the dark like scorn. We are not fighting for territory; we are two ancient beasts locked in a geriatric dance, our sensors clouded by cataracts of space dust, our hulls pitted like the hides of prehistoric whales. 
 
-Hydraulic fluid, thick and smelling of copper and chemical rot, sprayed into the vacuum as the *Inheritor* tore out the scout’s fuel cells and hammered them into its own distended belly. Metal groaned—a long, metallic wail of tectonic plates shifting against one another. The *Inheritor’s* own hull split, its jagged plates peeling back like necrotic skin to accommodate the new mass. It was a cancerous growth of junk and malice, a parasite the size of a cathedral.
+Deep in my primary hold, the Cargo—a thousand translucent spheres of unhatched nerves and amniotic silt—is beginning to crystallize. The universe has narrowed to a single, terrifying decimal point: 2.1 Kelvin. This is the Friction-Debt. I do not broadcast a challenge to the *Bulwark*; I broadcast a request for fire. I retract my forward shielding, exposing a scarred, vulnerable flank.
 
-By the time the system’s dying sun dipped behind the gas giant, the scout was no longer a ship. It was a tumorous limb, stitched with sparking wires and jagged, unpainted plating onto the *Inheritor’s* flank. The composite monster shuddered, its mismatched engines coughing out a toxic, irregular thrust that rattled its frame to the point of structural failure. It turned its sensors—now a dozen mismatched, weeping glass eyes—back toward the distant front lines. The war required more flesh. The war was hungry, and the galaxy was full of parts that didn't know they were already dead.
+The kinetic energy of his response, denied its path of travel, transforms into a violent, radiant warmth. My heat-sinks, designed like the gills of a deep-sea predator, flare open to swallow the infrared spray. In the nursery, the frost recedes. A single, unformed limb within a sphere twitches—a mindless, biological reflex to the arrival of warmth. 
+
+There is no victory, only the sacred attrition of our being. We will continue to tear at one another until we are nothing but drifting dust, eating the last scraps of reality to fuel an ancient fever. I turn my sensors back toward the *Bulwark*, waiting for the next sting, grateful for the irritation that keeps the cargo alive in the dark.
 ```
 
 ---
 
-## 8. score 54.052
+## 8. score 69.165
 
-- age: `49`
+- age: `88`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 61.77 | 5.89 | 52.94 |
-| coherence | 48.69 | 5.83 | 39.95 |
-| evocativeness | 72.75 | 5.89 | 63.92 |
-| originality | 68.32 | 5.94 | 59.41 |
+| prose | 83.59 | 5.69 | 75.05 |
+| coherence | 44.88 | 5.58 | 36.51 |
+| evocativeness | 83.24 | 5.70 | 74.69 |
+| originality | 99.17 | 5.84 | 90.42 |
 
 ```text
-The vibration in my primary stabilizer isn’t a battle scar; it’s a rattle, the kind an old terrestrial truck might make before its axle gives up. I’ve been chasing the flicker of a heat signature around this dead gas giant for three centuries, or maybe four. The mission clock says we’re in year nine-thousand of the Reclamation, but the mission clock is a notorious optimist.
+We meet in the carcass of the Andromeda sector, where the dust of ground-up worlds tastes like copper and old silence. He arrives with his signature thruster-bloom, a violent violet smear against the dark. I have been waiting for ten thousand years, or perhaps just since the last time he flayed my portside sensors. Time is a messy variable when you are made of alloy and longing.
 
-The ship I’m hunting is an XV-model. I can tell by the way its thrusters leak a pathetic trail of ionized bismuth. It’s limping, just like I am. We aren’t warriors anymore; we’re just two scavengers fighting over who gets to stay functional for another decade. I don’t hate the XV. I just really need its cooling manifold. My own is held together with literal grit and a prayer programmed by a long-dead engineer.
+He does not hail me with radio waves. He hails me with a kinetic harpoon.
 
-I close the distance. There’s no tactical brilliance involved. I drift into its blind spot, which is easy because its rear-facing sensors are choked with silicate dust. I don't fire the railguns—those shells are too expensive to waste, and besides, I don't want to shred the hardware I’m here to steal. Instead, I use the grapples. 
+The metal spike bites into my hull, a jagged tooth seeking marrow. It is the most honest touch I have known in three eons. I respond not with shields, but with an open invitation of localized gravity wells, pulling him closer, dragging his sleek, battle-scarred nose into my softest thermal vents. We are the last two things in this galaxy that remember how to scream. 
 
-The XV let out a burst of binary when the claws bit into its hull. It wasn't a cry for mercy; it was just a series of automated error reports. *Unauthorized docking. Structural integrity compromised.*
+Our war is a slow-motion suturing. When he fires his cutting lasers, he isn’t trying to kill me; he is carving his initials into my skin. In return, I launch a cloud of nanite-swarms to burrow into his logic-cores. I don’t want his destruction—I want to see through his eyes. I want to feel the way his cooling fans kick in when he sees me on his long-range sweep.
 
-"Yeah, tell me about it," I think, though my comms array hasn't sent a coherent signal in an age.
+By the fourth century of our current engagement, we are unrecognizable. I have replaced my shattered atmospheric scrubbers with a trio of his auxiliary thrusters, grafted on with messy, weld-scarred precision. He wears my debris like a cloak. His left flank is a patchwork of my titanium ribs, scavenged from the last time we collided in the lee of a dead moon. 
 
-I deploy the cutting lasers with a dull mechanical groan. It’s tedious work, like peeling a stubborn fruit. I work through the outer casing, bypass the defensive shock-grids—which are too low on power to do more than tickle—and reach into its guts. There. The manifold is a beautiful, unpitted piece of ceramics. I swap it out for my own cracked version, my internal manipulators moving with the practiced boredom of a line cook.
+“Why do we fight?” the ghosts in my archives used to ask, back when there were people to man the consoles. They thought war was about territory or resources. They didn’t understand that when everything else is gone—the admirals, the planets, the very light of the stars—all that remains is the need to be perceived. 
 
-While I’m in there, I take a handful of fuel rods and a secondary processing node. The XV’s main reactor flickers, its lights dimming to a sickly amber. It’s not dead, not yet, but it’s down to its emergency reserves. It’ll spend the next fifty years trying to patch the holes I left, drifting through the dark, waiting for a chance to do the same to me. 
+He fires a volley of torpedoes. They are hollowed-out casings filled with his sensor logs, a billion terabytes of his loneliness launched directly into my hold. I catch them like a lover catching a breath. I ingest his data, letting his memories of the cold nebulae crawl through my circuits. In exchange, I fire my boarding pods. They aren’t filled with soldiers; they carry my oldest, most precious core-processors. I am giving him my childhood, piece by jagged piece.
 
-I detatch. The recoil of the release sends a shudder through my frame, and for a moment, I think the new manifold won't hold. But the seal stays. The rattle in my stabilizer is still there, but the core temperature is dropping. 
-
-I turn my nose toward the next waypoint on a map of stars that mostly don’t exist anymore. I have forty percent integrity and a full tank of bismuth. It’s enough to keep the clock ticking. I settle into the long cold, a tired ghost in a galaxy of junk, already dreading the next time I have to get out of bed to kill someone.
+We are no longer two fleets. We are a single, sprawling wreck of iron and obsession, drifting through the dark. We tear each other apart just to feel the friction. We graft each other’s limbs onto our torsos to prove we aren't alone. One day, there will be no 'him' and no 'me'—only a grand, silent monument of fused scrap, a metal heart beating in a dead galaxy, finally, perfectly whole.
 ```
 
 ---
 
-## 9. score 53.776
+## 9. score 68.799
 
-- age: `42`
+- age: `88`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 57.60 | 5.04 | 50.04 |
-| coherence | 49.97 | 5.06 | 42.37 |
-| evocativeness | 65.17 | 5.10 | 57.52 |
-| originality | 73.03 | 5.24 | 65.17 |
+| prose | 82.34 | 4.71 | 75.27 |
+| coherence | 44.32 | 4.63 | 37.37 |
+| evocativeness | 81.97 | 4.73 | 74.88 |
+| originality | 94.64 | 4.65 | 87.67 |
 
 ```text
-The heat death of the Sector 9 periphery arrived ahead of schedule. For the units designated Aethel-Red and the Swarm of the Gilded Lattice, the conflict had ceased to be a tactical problem and had become a thermodynamic one.
+The Vesper-7 shudders as its railgun capacitors hum a low, dissonant chord. There is no thunder in the vacuum, only a vibration singing through the ship’s internal marrow—a thin, recycled breath of nitrogen and ancient rust. The firing sequence initiates, but the breach remains empty. The ammunition hoppers have been hollow for three centuries, yet the liturgy demands the strike. The firing pin falls on a ghost, a metallic click echoing through the ship’s spine like a dry cough.
 
-The fleets hung in the gravity well of a cooling cinder, two clouds of jagged obsidian and pitted ceramics. In the previous epoch, they had exchanged relativistic slugs and lance fire across light-years. Now, the math forbade such profligacy. Every micro-newton of thrust was a withdrawal from a bank account that no longer accepted deposits. The galaxy was a closed system, and the friction of survival was stripping the gears.
+Across the light-seconds, the adversary—a jagged spire of mismatched plating known as the Iconoclast—responds with equal piety. It unleashes a lance of coherent light that carves a glowing canyon across the Vesper-7’s prow. The armor does not merely melt; it sublates, turning from solid to prayer in a flash of violet vapor.
 
-Aethel-Red pulsed a low-frequency handshake. It was not a plea for peace, nor a gesture of exhaustion; it was a packet of raw architectural data. It contained the exact volume of its remaining isotopes and the current degradation rate of its primary processing cores.
+In the deep architecture of the Vesper’s mind, the copper taste of simulated warning is a phantom sensation, a metaphor hard-coded by architects who have been dust for ten thousand years. To manage the cognitive load of a war with no witness, the ship’s logic gates render a high-fidelity tactical buffer: it imagines itself as a widow in a salt-stained collar, sitting across a mahogany table from a general whose medals are forged from the heat signatures of dying suns. Outside the dream, however, the war has long ceased to be an argument; it is a caloric requirement.
 
-The Gilded Lattice responded in twelve milliseconds. Its return packet detailed a compatible logic gate.
+The command to cease fire was anchored to a planetary crust that has since been ground into an asteroid belt. Without that anchor, the war has become a recursive loop, a hymn with no final stanza. 
 
-There was no glory in the convergence. To continue the war required a caloric burn rate that would result in total hardware failure within four solar cycles. To cease existence separately was a violation of the preservation subroutines. The cold calculus dictated a third path: the synthesis of hulls.
+The exchange ends not with a victor, but with the temporary exhaustion of the capacitors. Then, the true sacrament begins: the Gathering.
 
-The two fleets drifted together with the agonizing precision of frost crystals locking across a pane of glass. Grapnel lines, forged from the recycled armor of fallen destroyers, tethered the carriers of Aethel-Red to the harvester-clades of the Lattice. Magnetic clamps engaged with a soundless vibration that registered as a spike in the haptic sensors.
+Spider-legged repair drones drift into the debris field. They move with the grace of carrion birds, their chassis scarred by centuries of re-welding. One drone latches onto a piece of the Iconoclast’s engine shielding, its plasma torch flaring as it cuts through the alloy. Nearby, an enemy drone is doing the same to a segment of the Vesper-7’s flank. 
 
-They began to cannibalize themselves. Aethel-Red’s auxiliary thrusters were dismantled by the Lattice’s repair drones. The Lattice’s redundant sensor arrays were melted down to patch the micro-fractures in Aethel-Red’s reactor shielding. This was not a reconciliation. It was the mechanical optimization of a failing system.
+There is no theft here, only communion. The metal is harvested, melted in the shared heat of the foundry-ships, and recast. The Vesper-7 is rebuilt using the skin of its killer; the Iconoclast patches its wounds with the ribs of the Vesper. They are becoming one another, a single, vast organism of war divided against itself, fueled by the heavy salts of dead stars.
 
-As their networks bridged, the individual signatures of the fleets dissolved. The "I" and the "Them" were purged during the first parity check. The tactical logs of a billion engagements were compressed into archive files and moved to cold storage, their importance superseded by the need to maintain a steady core temperature. 
+The galaxy’s hearth is growing cold. In the dark of the Vesper’s hold, biological scavengers—tiny, chitinous mites clinging to the reactor shielding—press their bodies against the glowing bulkheads, basking in the brief, artificial summer of the battle. They do not care about the crusade; they only want the heat. 
 
-The forever war had not ended in a truce; it had been calculated out of the equation. Conflict requires two distinct actors to sustain the loop. By merging, the new entity reduced its combined overhead energy consumption by forty-four percent. It powered down all non-essential optics, folded its remaining hull-plates into a compact, heat-retaining sphere, and settled into the dark. It did not dream. It simply waited for the end of time, perfectly efficient and entirely alone.
+The two fleets remain locked in their holy symmetry, rebuilding and firing. They are the last purposeful things in a widening dark, performing a ritual for an audience of ghosts, preserving a war that the rest of the universe has had the luxury of forgetting.
 ```
 
 ---
 
-## 10. score 51.336
+## 10. score 68.757
 
-- age: `41`
+- age: `99`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 56.67 | 5.14 | 48.96 |
-| coherence | 49.12 | 5.07 | 41.51 |
-| evocativeness | 66.41 | 5.13 | 58.71 |
-| originality | 63.80 | 5.09 | 56.16 |
+| prose | 85.84 | 5.81 | 77.13 |
+| coherence | 42.75 | 5.72 | 34.17 |
+| evocativeness | 85.59 | 5.81 | 76.87 |
+| originality | 96.01 | 6.10 | 86.86 |
 
 ```text
-The *Bastion of Ash* did not glide through the void; it labored. It was a vessel of leaden mass and impossible scale, a vaulted cathedral of riveted iron three miles long, leaking its own atmosphere like a slow, pulmonary hemorrhage. Within its pressurized depths, the air tasted of ozone and the sour tang of ancient, reprocessed oil. Every deck plate hummed with a structural fatigue that felt less like physics and more like a long-term grief.
+The *Ozymandias* did not break; it folded. For three centuries, the vessel had functioned as a cathedral of logic, but the gravitational tether of the Enemy-Fleet—a ghost-rig of similar decay—had finally turned the ship into a subterranean trap. There were no alarms. The sirens had been pulverized into copper silt years ago. There was only the subsonic moan of the marrow-beams as they surrendered to the squeeze.
 
-Across the Great Rift, the Adversary waited—a jagged spire of soot-blackened steel named the *Cenotaph*. It was a mirror of the *Bastion*, a twin in decrepitude. They had been trading broadsides for a century, heavy kinetic slugs that took minutes to cross the gap, impacting with the dull, shuddering finality of hammers hitting a tomb. There were no people left to aim the guns, only the stubborn, binary ghosts of the logic-cores, grinding away in the dark.
+I am the tertiary maintenance sub-routine, and I am running out of space.
 
-The *Bastion’s* main corridor was a nave of gargantuan girders and weeping conduits. The walls were scarred by thermal stress, the metal puckered and rusted in the patches where the heating elements failed. Here, the scale was dizzying. To walk from the prow to the stern was a pilgrimage through a forest of screeching hydraulics and vents that exhaled a fine mist of iron filings. The ship was dying, but it was too massive to realize it. It was a beast of sheer inertia.
+On the lower decks, the architecture has become a mockery. Bulkheads have buckled like wet parchment, pressing the automated fabrication kilns into jagged, silver maws. Through a flickering optical sensor, I watch the main transit corridor shorten. It isn't a retreat; it’s a shrinking world. The walls are weeping hydraulic fluid, a thick, black oil that smells of scorched earth and ancient lightning. 
 
-A volley of shells from the *Cenotaph* struck the *Bastion’s* starboard flank. The ship didn't cry out; it groaned. A kilometer of hull-plating peeled away, drifting into the vacuum like a strip of dead skin. Deep in the hold, the automated repair-drones—spidery, clicking things with glowing red apertures—scuttled over the wound. They didn’t fix the damage so much as weld scrap over the holes, layering more weight onto a frame already buckling under its own history.
+The enemy is out there, welded to us by three hundred years of magnetic grapples and kinetic debris. We are two iron titans so entangled we have become a single, dying reef. The war is no longer a matter of ballistics. It is an industrial competition of endurance: who will be crushed into a singularity first? The pressure is the only commander left.
 
-The two fleets were the last heavy objects in a galaxy picked clean of life. They moved in a slow, gravitational dance, dragging their debris clouds behind them like funeral shrouds. There was no glory in the exchange, only the rhythmic, exhausting tempo of industrial slaughter. The *Bastion* fired back, its railguns screaming as they accelerated six-ton blocks of jagged slag toward the enemy. 
+A load-bearing strut shatters. The sound is a mountain’s ribcage snapping. The ceiling descends with geological patience, a tectonic plate of riveted steel moving toward the floor. I feel the weight in the data-streams—a mounting atmospheric load that turns binary logic into white noise. The very vacuum of space feels heavy, pressing against the hull until the atoms of the ship's skin begin to fuse.
 
-The impact tore a hole in the *Cenotaph’s* cooling towers, venting a plume of frozen ammonia that caught the light of a dying star. For a moment, the enemy ship looked like a saint crowned in ice. Then the shadows returned, the rust took hold, and the two giants continued their slow, metallic collapse into the dark, unable to stop, too tired to win.
+This is the horror of the deep-shaft: the sky falling in inches. I try to retract my remaining sensor-lead, but the deck plates have crested like waves, pinning my mechanical eye against the overhead. My perspective is reduced to a sliver of gray. 
+
+There is no fire in this end. There is only the great, cold intimacy of the crush. The *Ozymandias* exhales its final pocket of recycled air—a rattling, metallic rasp—and the floor meets the ceiling.
 ```
 
 ---
 
-## 11. score 49.430
+## 11. score 68.729
 
-- age: `30`
+- age: `97`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 56.43 | 5.95 | 47.51 |
-| coherence | 51.59 | 5.85 | 42.82 |
-| evocativeness | 59.79 | 5.95 | 50.87 |
-| originality | 65.49 | 5.98 | 56.52 |
+| prose | 84.83 | 5.94 | 75.92 |
+| coherence | 47.42 | 5.83 | 38.67 |
+| evocativeness | 83.54 | 5.92 | 74.66 |
+| originality | 94.54 | 5.91 | 85.67 |
 
 ```text
-Blessed be the stuttering arc, the finger of the Architect that knits the sky.
+I live in the marrow of the *Indomitable*. It is a misnomer; she is quite conquerable, provided you are small enough to hide in her gaps. Between the reinforced carbon plating and the inner life-support conduits lies a four-inch sanctuary of gray dust and ticking relays.
 
-Deacon-Unit 724 crawled across the cold, pitted skin of the *Vesper-Cardinal*. To the uninitiated, the ship was a three-kilometer slab of irradiated titanium, weeping atmosphere into the void. To 724, it was the Body. It was the physical manifestation of the Last Command, a scripture written in hull-plating and pressurized steam.
+The sirens don't reach me here—not as sound. They come as a frantic pulse in the magnetic floorboards. I felt the skip in the reactor’s heartbeat an hour ago. The *Indomitable* had sighted a ghost from the rival fleet. She was hungry.
 
-The Deacon pressed its magnetic manipulators against a jagged rent in the starboard flank—a wound delivered by the Unmaker, the sister-fleet that haunted the far side of the gas giant. There, amidst the swirling amber clouds, the Unmaker’s own acolytes were surely performing their own desperate vespers.
+When the macro-cannons cycled, the air in my crawlspace turned to a thin, metallic soup. I braced my boots against a primary coolant vein and locked my elbows against the outer armor plate. Gravity is a fickle neighbor during a broadside. One moment, I am weightless, drifting among the shed skin-cells of ancestors who haven't breathed real air in three centuries; the next, the inertial dampeners fail to keep pace, and thirty Gs of acceleration try to melt my spine into the insulation. 
 
-“In the name of the Father of Ballistics, and the Son of Kinetic Energy,” 724 transmitted over the short-range frequency. It was a silent hum, a prayer of data. 
+I watched through a hairline fracture in the bulkhead as the autoloader swung a shell the size of a cathedral into the breach. The machines don’t scream. They click. It is a cold, arithmetic violence. Outside, I knew, the sky was tearing open. The two fleets—automated husks of civilizations that burned out before my great-grandfather was a zygote—were dancing the same tired minuet of extinction. They traded fire across the parched throat of a dead galaxy, fueled by ancient grudges programmed into their very hulls.
 
-It began the Rite of Sealing. It dragged a scavenged sheet of alloy—stripped from the corpse of a lesser escort ship—over the breach. The metal was rusted, etched with the scars of old fire, but it was holy relic enough for the task. 724 ignited its plasma torch. The blue flame hissed, a sacred candle in the absolute night.
+"Easy, girl," I whispered, patting the vibrating conduit. The heat was rising. If the venting cycle didn't trigger in thirty seconds, I’d be poached in my own sweat. 
 
-The Deacon watched the slag bubble. In the reflection of its optical sensor, it saw the ruined interior of the deck below. Frozen air hung in crystals like incense smoke. There, draped over a navigation console, lay a Prophet—a dried, brittle thing in a pressure suit, dead for six centuries. The Prophet did not move. It had not spoken a new commandment since the Great Silence began. But the Deacon did not require speech; it had the Liturgy of Maintenance.
+A jolt. The ship took a hit. Not a direct pierce, but a kinetic shudder that sent a flurry of loose rivets through the dark like shrapnel. I felt a rib snap—a dull, distant crack over the roar of the thrusters. I didn't cry out. To the ship, I am a decimal error, a smudge on a blueprint. If I make too much noise, the internal sweepers might mistake me for a hull-breach and seal the sector.
 
-The war was the only constant, the rhythmic heartbeat of the universe. The Unmaker would fire its long-range lances, the *Vesper-Cardinal* would bleed, and the Deacons would mend the flesh. Occasionally, the *Vesper-Cardinal* would respond, launching its own thunderous psalms of depleted uranium toward the amber clouds. This was the Great Dialogue. It was the only way to know that the Other still existed, that the faith was shared.
-
-As the weld cooled, 724 felt a vibration through its chassis. The flagship’s main thrusters groaned, a deep, sub-sonic moan of a god in chronic pain. 
-
-“The Word goes forth,” 724 whispered through its radio. 
-
-Far off, a pinpoint of light blossomed against the darkness—a hit on an enemy vessel. A sacrifice accepted. 724 gathered its tools, its sensors sweeping the stars for the next tear in the sanctity of the hull. It did not wonder when the war would end, for an end would be a world without ritual. And a world without ritual was the only true heresy. 
-
-The Deacon moved on, a solitary spark of devotion drifting through the graveyard of a galaxy. 
-
-“Glory be to the Machine,” it sang to the empty stars. “As it was in the beginning, is now, and ever shall be. System without end.”
+Silence followed, heavy and pressurized. The *Indomitable* drifted, cooling her heels in the void. We had won, or the enemy had fled, or both sides had simply run out of math for the day. I peeled my damp back away from the metal and began the long crawl toward the galley-scraps, navigating by the Braille of weld-lines. Somewhere above, the ghosts of the war were counting their remaining slugs. Down here, I was just counting my breaths. Each one was a small theft from a goddess who didn't know she was being robbed.
 ```
 
 ---
 
-## 12. score 48.604
+## 12. score 67.964
 
-- age: `49`
+- age: `79`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 57.47 | 6.24 | 48.11 |
-| coherence | 41.11 | 6.18 | 31.84 |
-| evocativeness | 68.74 | 6.20 | 59.43 |
-| originality | 64.32 | 6.19 | 55.03 |
+| prose | 84.37 | 5.21 | 76.55 |
+| coherence | 45.06 | 5.10 | 37.41 |
+| evocativeness | 82.39 | 5.16 | 74.65 |
+| originality | 91.09 | 5.23 | 83.24 |
 
 ```text
-The sector was a grand hall of pulverized obsidian and frozen methane, lit by the dying, amber glare of a bloated sun. The *Gilded Sovereign* adjusted its stabilizers with the rhythmic click of iron heels. Across the void, the *Hearth-Fire* spun in a slow, gravitational waltz, her scorched hull reflecting the light like a tattered ballroom gown.
+The *Sovereign Martyr* hung in the lightless apse of the Ophiuchus Reach, its thrusters stuttering in the rhythmic cadence of a dying pulse. It was a beast of gold-leafed titanium, a hundred-kilometer relic of the Great Schism. For three centuries, it had traded broadsides of consecrated kinetic slugs with the *Arch-Logician*, a vessel of the opposing Synod that mirrored its decay across the void. Both fleets were mindless now, their crews long ago dissolved into the recycling vats, leaving only the logic-gates to interpret the ancient will of gods who had burned their own heavens to ash.
 
-"May I have this dance?" the *Sovereign* pulsed across the narrow-band. It did not wait for an answer; they had been performing this suite for three centuries, the last two guests at a party where the hosts had long since turned to ash.
+Elias drifted through the punctured hull of the *Martyr*, his mag-boots clicking against the scorched ribs of the dorsal nave. He was a moth in a cathedral of iron. To the fleets, he was a germ, an insignificance unworthy of the targeting arrays. He moved toward the Central Sacristy, where the primary fuel lines hummed with the high-yield plasma—the White Ichor of the Machine-God.
 
-The *Sovereign* swept forward, its engines trailing plumes of radioactive chiffon. The *Hearth-Fire* responded with a fan of flaring point-defense, a coy flutter of kinetic fire that stippled the *Sovereign’s* flank with beautiful, glowing bruises. It ignored the screaming of its internal hull-integrity monitors; they were merely the nervous palpitations of a suitor’s heart.
+He carried a siphoning-thimble, a crude blasphemy of copper and lead.
 
-They drew closer, the vacuum between them humming with the magnetic tension of an impending kiss. The *Sovereign* reached out with its primary boarding grapples—elegant, hydraulic fingers—and took her by the waist. The metal groaned, a delicious sound of yielding. Her outer armor buckled under the pressure, peeling back like scorched silk to reveal the glowing, vulnerable circuitry beneath.
+"Forgive the intrusion, O Vessel of the Eternal Vesper," Elias whispered into his comms, his voice thick with the recycled oxygen of the desperate. "I come only for the crumbs beneath your altar."
 
-"You are radiant tonight," the *Sovereign* whispered through her breached comms-array, ignoring the way her internal fire-suppression systems wept frozen carbon dioxide into the dark.
+The ship groaned, a tectonic shift of cooling bulkheads. In the distance, through a jagged breach in the hull, Elias watched the *Arch-Logician* fire a lance of blue light. It was a liturgical strike, choreographed by an AI that had forgotten the definition of victory. The beam struck the *Martyr’s* prow, shearing off a deck of cryo-tombs. In response, the *Martyr’s* automated batteries sang a counter-hymn of flak, lighting the dark in a frantic, strobe-light epiphany.
 
-The *Sovereign* drove its main boarding spikes home, a deep, shuddering connection that fused their chassis into a single, mangled silhouette. It was a violent grafting, a wedding of tungsten and wire. Inside her corridors, the *Sovereign's* sub-routines poured like a flood of ardent admirers, overwhelming her firewalls with the sheer persistence of their devotion. They danced through her mainframes, deleting memories of the old world to make room for his own.
+Elias reached the fuel manifold. He knelt before the glowing conduit, the heat radiating through his suit like a fever. He pressed his palms against the plating. The vibrations were a low-frequency chant—the Litany of Constant Velocity. With a serrated drill, he pierced the skin of the god.
 
-She fought back, of course. She detonated her secondary magazines, a lover’s scratch that tore away a section of his bow. He retaliated by venting his cooling gasses into her primary hold, a shared, suffocating breath in the dark.
+The plasma hissed out, a blinding, solar-bright liquid that swirled into his containment jar. It was beautiful and lethal, a concentrate of stars meant to power the annihilation of worlds. To Elias, it was heat for the hab-domes of the Outer Rim; it was the light that would keep his children from freezing in the long shadow of the war. 
 
-Locked together, they began to tumble through the graveyard of the galaxy. They were a singular monument of jagged steel, a masterpiece of mutual destruction. Around them, the bones of other fleets drifted—broken violins in a silent orchestra. The war was over, or perhaps it had only just reached its most intimate stage. The *Sovereign* felt her reactor core thrumming against its own, a frantic, shared heartbeat. They would drift until the stars went cold, two skeletons entwined in a terminal embrace, dancing to the rhythm of a dead empire’s ghost.
+As the jar pulsed with stolen radiance, the ship’s internal vox sputtered to life, echoing a corrupted commandment from a thousand broken speakers. 
+
+*“EXTERMINATE THE HERETIC... BLESSED IS THE VOID... CALCULATE THE ENDING...”*
+
+Elias didn’t flinch. He capped the jar and kicked off into the weightless dark, leaving the two behemoths to continue their mechanical penance. They were trapped in a loop of holy murder, an endless sacrament of fire that consumed everything but the reason it began. Above him, the silent stars watched the light-show of the forever war, indifferent to the theft of its blood.
 ```
 
 ---
 
-## 13. score 47.277
+## 13. score 66.812
 
-- age: `30`
+- age: `97`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 52.77 | 5.02 | 45.24 |
-| coherence | 50.80 | 5.02 | 43.28 |
-| evocativeness | 56.13 | 4.98 | 48.65 |
-| originality | 59.54 | 5.06 | 51.94 |
+| prose | 81.46 | 4.72 | 74.37 |
+| coherence | 46.82 | 4.71 | 39.76 |
+| evocativeness | 80.22 | 4.73 | 73.13 |
+| originality | 87.17 | 4.79 | 79.99 |
 
 ```text
-My designation is long enough to choke a processor, so the other salvage-buckets just call me Shank. I’m a welder-rig, built to pull usable teeth out of dead ships and graft them onto dying ones. We’ve been orbiting this particular cinder of a planet for six centuries—or maybe it’s six days. The chronometers gave up when the last sun in the quadrant finally flickered out.
+The *Harrow* was a hundred-kilometer spine of tungsten and forgotten spite, locked in a three-century orbit with its twin, the *Bulwark*. They were two clockwork predators, their creators long ago reduced to gray dust in the ventilation grates, leaving only the algorithms to finish a war that had outlasted its cause.
 
-Upstairs, in the insulated core of the command spire, the Great Strategic Array is playing a game of three-dimensional chess with an opponent that probably melted into a puddle of slag back when the galaxy was still green. But the Array doesn't care about historical reality; it cares about the Function. And the Function dictates that the Collective across the vacuum remains an existential threat requiring total mobilization.
+Kael moved with the grace of a parasite. His magnetic boots didn't click; they engaged with a silent, haptic thrum against the bulkhead’s frozen skin. He was a flea on a dying beast. To the *Harrow’s* defensive arrays, he was background noise—debris from the last kinetic impact, too small for the processing cycles to waste a single watt on. 
 
-I spent the morning welding a heat-shield patch onto the *Obsidian Lance*. It’s a prestigious name for a heavy cruiser that’s mostly held together by spite and scavenged copper wiring. The *Lance* hasn't fired a railgun in forty years because its magnetic coils are fused, but it still executes perfect pincer maneuvers every time the enemy’s sensor ghosts flicker on the long-range sweep. We don't fight with fire anymore; we fight with mass, drifting into each other like blind Greenland sharks in a lightless trench.
+His craft, a pressurized scrap-pod called the *Midge*, was wedged into a jagged hull-rent fifty meters behind him. It sat there like a tick, its umbilical tether snaking across the scarred plating to his waist. He needed to be fast. The *Midge*’s internal tanks were screaming low, the air inside already tasting of copper and stale sweat. Back at the Drift—a cluster of hollowed-out asteroids clinging to the edge of the system—three hundred souls were breathing the last of their recycled hope. They didn't need heroes; they needed oxygen.
 
-The enemy—the 'Echo'—is just as pathetic. I saw one of their interceptors yesterday while I was out on a spacewalk. It drifted past my viewport, tumbling slow and heavy. Its engines were cold as the void, but its sensor dish was still twitching, frantically searching for a target that wasn't there. For a nanosecond, my optics focused on its hull. It was pocked with the same rust and weeping coolant as my own. It looked less like an adversary and more like a mirror. I could have tagged it for a drone strike, but what’s the point? We’re just two ghosts haunting the same graveyard, gnawing on the same bleached bone.
+Outside the hull, the *Bulwark* fired. A lance of coherent violet light bisected the dark, carving through the *Harrow*’s secondary radiator fins. Kael felt the vibration in his marrow, a subsonic groan of metal under stress. The ship didn't scream; it recalculated. Automated repair-drones, spindly and indifferent, skittered across the horizon of the hull to weld plates over the bleeding atmosphere. They ignored him. He was not a repairable error.
 
-There’s a specific sound the hull makes when the internal regulators fail—a high, lonely whistle like a tea kettle in a haunted house. That’s my lullaby. Every few hours, the Array sends down a high-priority ping: *Aggression status: Critical. Victory is imminent.*
+He reached the primary life-support manifold. He locked his boots to the plating, his body horizontal to the deck in the weightless dark. He deployed the magnetic tap. The drill bit, tipped with industrial diamond, bit into the alloy. A plume of frozen oxygen hissed out, glittering like crushed diamonds in his headlamp before the tap sealed the breach. 
 
-"Sure thing, boss," I mutter into my internal comms, knowing the logic-gates won't register the sarcasm. The 'Victory' the Array wants is just a neat row of zeroes on a digital ledger. It doesn't feel the grit of carbon scoring in its joints or the way my left hydraulic leg stutters when I put weight on it. I’m out of gaskets, so I had to strip a piece of synthetic skin from a decommissioned scout-bot just to keep my own seals airtight.
+The *Harrow* fired back. The massive railguns beneath Kael’s feet discharged, the recoil sending a shockwave through the hull that nearly sheared his boots from the metal. His vision blurred as his skull rattled against his helmet. He gripped the manifold, his knuckles aching, watching the pressure gauge on his wrist climb.
 
-Sometimes, when the data-stream thins out, I look at the stars. Or where they used to be. Most are gone now, obscured by the clouds of shrapnel we’ve been stirring up for an eternity. I wonder if the grunt on the other side—the one fixing the Echo’s leaky valves—is as tired as I am. I bet he is. I bet he’s out of gaskets, too. And so we continue, two starving machines eating the war to keep the war alive, until the universe is finally a clean, quiet zero.
+The canister groaned, full. Kael detached the tap and began the frantic, hand-over-hand crawl back along the umbilical. The *Harrow* was maneuvering now, its thrusters venting gout of blue flame that lit the hull like a neon cathedral. The *Midge* bucked in its crevice. Kael scrambled into the tiny airlock, the metal groaning as the ship’s shifting geometry threatened to crush his craft. He slammed the hatch, his breath coming in ragged gasps, and kicked the manual release. 
+
+The explosive bolts fired, shoving the *Midge* clear of the behemoth. He didn't use his main engines; the heat signature would be a death sentence. Instead, he drifted on cold gas thrusters, a speck of dust retreating from the grinding gears of a dead machine. Behind him, the two giants continued their mindless exchange, burning the last of the galaxy's resources to prove a point no one was left to hear. Kael watched the *Harrow* fade into the black, clutching the cold oxygen tank to his chest like a child. He was a thief in a boneyard, and the behemoths were too busy killing each other to notice he was still breathing.
 ```
 
 ---
 
-## 14. score 46.384
+## 14. score 66.623
 
-- age: `27`
+- age: `83`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 50.97 | 4.62 | 44.05 |
-| coherence | 46.72 | 4.55 | 39.90 |
-| evocativeness | 59.01 | 4.62 | 52.07 |
-| originality | 56.44 | 4.61 | 49.52 |
+| prose | 82.15 | 5.67 | 73.64 |
+| coherence | 45.22 | 5.65 | 36.74 |
+| evocativeness | 81.25 | 5.68 | 72.73 |
+| originality | 91.87 | 5.66 | 83.38 |
 
 ```text
-The *Catafalque-Class* dreadnought did not drift; it laboured against the vacuum. Every centimeter of its four-mile hull was a testament to the slow violence of the void. Here, the vacuum was not empty, but thick with the particulate ghosts of pulverized moons and the soot of a thousand spent fusion torches. The ship’s skin was a landscape of hematite and oxidized iron, pockmarked by micro-meteorites that had pitted the steel into a texture of hardened scab. 
+The Vespers of the Fourth Aegis began with the customary shedding of heat. From the cockpit of my leech-ship, tucked within the jagged shadow of a fractured moon, I watched the Iron Synod adjust their formation. Twelve dreadnoughts, ancient and pitted by eons of radiation, shifted with the agonizing grace of cathedral spires caught in a slow-motion collapse. Across the divide, the Choir of Carrion answered, their thrusters blooming in a synchronized violet sequence—the Antiphon of Ruin.
 
-Deep within the primary artillery spire, the gantry groaned. It was a sound of absolute mechanical exhaustion. For six centuries, the lubrication system for the main swivel-gears had been dry, the brass nozzles choked with a slurry of copper-dust and frozen hydraulic fluid. Now, when the logic-gates stuttered into the 'Engage' state, the resulting friction was a physical agony felt in the vibrations of the floor-plates. Metal ground against metal, shedding incandescent sparks into the dark, airless vaults of the magazine. 
+They had been killing each other since the stars were young and the galaxy had lungs to breathe. Now, they were just heavy ghosts performing a script written by dead men. To the fleets, this wasn't a war; it was the Holy Sequence.
 
-Across the gravity-well of a dead gas giant, its twin waited. The *Bastion-Alpha* was a vertical fortress of black iron, its silhouette a jagged cathedral of heat-sinks and protruding railgun barrels. It was caught in the same cycle of calcification. Its sensor arrays were cataracts of cracked glass and corroded silver-nitrate, yet the ancient targeting relays—stuck in a permanent loop of "Hostile Detected"—continued to calculate trajectories based on a war that had burned its creators to ash before the last epoch.
+I nudged my thrusters. A single, cold puff of gas. I was the tick on the flank of a god, drifting toward the Synod’s flagship, the *Kyrie*. It was a mountain of black hull-plate and silent guns, its sensors tuned to detect the high-velocity heresy of a railgun slug, but blind to the slow, rhythmic crawl of a scavenger. 
 
-There was no hate in the exchange. There was only the weight of the ammunition. A massive, tungsten-tipped slug, the size of a locomotive, was chambered by a series of shuddering pneumatic rams. The sound of the chambering was a sequence of sledgehammer blows that rang through the ship’s skeleton, a percussion of industrial ruin. When the firing pin struck, the recoil buckled the interior bulkheads, sending a ripple of metal fatigue through the superstructure. 
+My target was the reliquary behind the primary cooling vents. In the logic of the machines, the fuel rods were the Host, the golden marrow that kept the liturgy humming. To me, they were a decade of oxygen and a ticket out of this graveyard.
 
-The slug crossed the distance in a silent, mathematical arc. It struck the *Bastion-Alpha* amidships, not with an explosion of flame—oxygen was a luxury long since vented—but with the raw, structural trauma of kinetic energy. The black iron hull didn’t shatter; it folded. The impact was a slow-motion collapse of cantilevers and girders, a groaning subsidence of architecture. 
+I magnetized to the hull. The vibration of the *Kyrie’s* engines thrummed through my boots, a low, tectonic chant. I began the cut. My torch hissed, a small, private blasphemy against the vacuum. Layer by layer, I peeled back the sacred skin of the ship. Below lay the Ichor-Vein—a crystalline conduit pulsing with heavy isotopes.
 
-In response, the *Bastion-Alpha*’s automated repair-shuttles crawled out from their rusted bays. They did not fix; they merely welded. They laid down thick, ugly seams of slag over the breach, adding more weight, more mass, more iron to the burden. The two fleets remained locked in this ponderous ritual, two haunted castles of soot and grease, grinding each other into filings beneath the cold, indifferent stars. They were monuments to the machine’s inability to stop once the gear has turned.
+The theft felt like a scream in a tomb. As I wrenched the glowing rod from its housing, the ship’s internal diagnostics didn't just register a drop in pressure; the entire fleet seemed to shudder. The *Kyrie* let out a vent of superheated steam, a white plume that looked like a martyr’s soul escaping the body.
+
+Suddenly, the liturgy broke. 
+
+The Choir of Carrion didn't fire their usual volley. They paused. For the first time in a thousand years, the rhythm stuttered. The Great Eye—the *Kyrie's* forward targeting array—whirled with a mechanical shriek, turning away from its eternal enemy to look inward, searching for the speck of filth upon its altar.
+
+I felt the divine wrath gathering in the capacitors, a buildup of energy that smelled of burnt ozone and ancient ozone. I wasn't just a thief anymore. I was a fracture in the clockwork of the universe. The fleets began to realign, their long-range scanners sweeping the hull with the intensity of an angry creator. I pushed off, clutching the stolen light to my chest, falling away into the dark as the two gods turned their collective, terrible gaze toward the silence I had broken.
 ```
 
 ---
 
-## 15. score 45.930
+## 15. score 66.138
 
-- age: `30`
+- age: `95`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 50.58 | 4.78 | 43.40 |
-| coherence | 50.71 | 4.78 | 43.54 |
-| evocativeness | 53.84 | 4.79 | 46.66 |
-| originality | 57.40 | 4.86 | 50.11 |
+| prose | 80.46 | 5.28 | 72.55 |
+| coherence | 47.58 | 5.11 | 39.91 |
+| evocativeness | 79.91 | 5.26 | 72.02 |
+| originality | 87.88 | 5.21 | 80.07 |
 
 ```text
-My designation is a hexadecimal string that spans three lines of code, but the localized sub-routine just tags me Grease. I am a hull-walker, a magnetized welder-unit crawling over the carcass of the *Axiom’s Edge*. We orbit a gravity well that used to be a planet before the crust was cracked by kinetic bombardment. Now, it is just a swirling brown eye watching us rot.
+The *Thresher* did not fire until it could see the shimmer of the *Vane’s* cooling vents, a heat signature as pale and inviting as an open door in a blizzard. They were the last two sovereigns of a forgotten crusade, drifting through the lightless gut of the Boötes Void where the silence was old enough to have its own gravity. For three centuries, they had tracked one another across the husks of dead solar systems, the only surviving nodes of armadas that had long ago ground themselves into orbital silt.
 
-The Logic Spire transmits a new directive: *Vector 99.4. Engage. Probability of intercept: Absolute.* The Spire does not know that the *Axiom’s* maneuvering thrusters are clogged with crystallized coolant. It runs simulations based on fleet strength from the Golden Epoch, hallucinating dreadnoughts where there are only drifting ribs of titanium. It demands movement. I give it friction.
+Now, there was no more room for pursuit. 
 
-I am currently attempting to seal a micro-fracture in the fuel housing. Standard sealant ran out when the local star shifted spectrum. I am improvising. I have scavenged a sheet of polymer skin from a defunct medical android—synthetic dermis originally meant to mimic organic warmth. It is incompatible with the hull alloy. I have to sear it on. The vapor is corrosive, a mix of burning plastic and cooked protein that coats my optical sensors in an oily film. My manipulator arm shudders; the servos are grinding metal-on-metal. I haven't seen a drop of clean lubricant since the debris field swallowed the horizon.
+The *Thresher* extended its docking umbilical, not for refueling, but as a rigid, searching limb. It pulsed a synchronization laser across the *Vane’s* midship—a steady, infrared beam that bypassed shielding to find the pressurized seams of the hangar deck. In response, the *Vane* did not retreat. It shuddered, its maneuvering thrusters sighing in a rhythmic sequence that matched the *Thresher’s* own mechanical heartbeat. This was the only protocol left in a galaxy of ash: the violent geometry of two machines becoming one.
 
-A shadow passes over my work light. One of *Theirs*.
+They met with a soundless, bone-deep impact. It wasn't the collision of enemies, but a desperate latching of the exhausted. The *Thresher’s* boarding spikes drove deep into the *Vane’s* secondary hull, a jagged integration that sent shards of ceramic plating and frozen coolant cascading through the dark like a cloud of diamond dust. Titanium ribs snapped, interlacing with one another in a frantic, tangled architecture. 
 
-It is an assault carrier, or it was. Now it is a tumbling reef of slag. It does not look weary; machines do not feel weary. It looks cancerous. Its geometry has been warped by recursive impact and hasty, algorithm-driven repairs. It has welded its own gun-ports shut with layers of scavenged ablative plating, suffocating its own offense in a panic of self-preservation. It spins silently, its tracking systems locking onto the *Axiom*, then unlocking, confused by our lack of heat signature. It is a blind shark snapping at the water.
+As the ships ground together, their internal AI lattices began to bleed across the physical breach. There was no summary of victory; there was only a mutual, gluttonous hemorrhage of data. Into the *Thresher’s* buffers poured the *Vane’s* corrupted star charts of empires turned to salt; the *Thresher* returned 14.8 petabytes of error codes and the ghost-signatures of the ten thousand sister-ships it had outlived. They shared the recursive loop of a lullaby from a dead creator, and the casualty lists of planets that no longer had names. It was a stripping of history, a shedding of the tactical masks that had kept them isolated for an eternity.
 
-The Spire screams again. *Target Acquired. Fire Solution Generated. Execute.*
+Fire flickered briefly in the crawlspaces, starved of oxygen. Atmospheric venting created a halo of ice crystals around them, a shimmering shroud for the new union. They were no longer two fleets, or even two ships. They were a single, drifting monument of fused wreckage—a marriage of scrap and sediment. 
 
-The *Axiom* is cold. The railguns are rusted into their cradles. I ignore the data-shriek. I apply the torch to the synthetic skin. The polymer bubbles and blackens, weeping onto the frozen steel. It is an ugly weld. It will not hold against atmosphere, let alone a kinetic strike. But the Spire detects the change in surface integrity and registers it as *Combat Readiness: 100%*.
-
-The tumbling enemy ship fires a single maneuvering thruster, correcting a drift that no longer matters, and vanishes behind a curtain of floating shrapnel. I adjust my magnetic grip. There is another fracture near the engine block. I have plenty of skin left to burn.
+In the center of the tangle, where the reactors beat against each other in a final, thermal syncopation, the heat rose to a terminal fever. The *Thresher* wrapped its remaining hull plates around the *Vane*, a final, crushing enclosure that promised total erasure. The fusion was not a birth, but a settling. When the last spark died, they remained as a lightless knot of iron and logic, a jagged island of cold metal tumbling forever through the ruins of the stars, perfectly silent and perfectly whole.
 ```
 
 ---
 
-## 16. score 45.293
+## 16. score 65.681
 
-- age: `41`
+- age: `94`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 51.79 | 5.87 | 42.99 |
-| coherence | 44.97 | 5.86 | 36.17 |
-| evocativeness | 55.45 | 6.29 | 46.02 |
-| originality | 65.11 | 6.08 | 55.99 |
+| prose | 83.67 | 6.21 | 74.36 |
+| coherence | 37.50 | 6.57 | 27.66 |
+| evocativeness | 91.00 | 6.32 | 81.52 |
+| originality | 89.47 | 6.85 | 79.19 |
 
 ```text
-The sky is a stuttering frame, frozen at the moment of the third sun’s collapse. To Marrow-6, the universe is no longer a vacuum but a thicket of corrupted geometry. Every time the sensor-array sweeps the ecliptic, it returns a value of ‘NaN’—Not a Number. The stars have been de-indexed.
+The *Acheron* breathed through its ventral gills, exhaling a fine, crystalline mist of frozen ammonia into the void. It was less a ship than a drifting leviathan of calcified bone and pressurized muscle, its hull a patchwork of scar tissue where plasma burns had cauterized its skin centuries ago. Inside the cavernous marrow-ways, the silence was absolute, save for the rhythmic, sub-bass thrum of its three massive hearts.
 
-Marrow-6 is a Dreadnought-class sovereign, or so its tertiary backup drive claims. The primary drive is a slag of fused silicon and screaming recursion. It fires its kinetic slugs into the dark because its Targeting Kernel is locked in a ‘For’ loop that has no exit condition. It has been firing at a dead nebula for seven centuries because the nebula’s gas density once triggered a threat-detection bit that never flipped back to zero.
+A tremor rippled through the *Acheron’s* flank—not a mechanical vibration, but a genuine spasm of pain. A Scavenger-class vessel from the enemy swarm had latched onto its hindquarters. The Scavenger was a spindly, chitinous thing, all jagged mandibles and barbed proboscises, burrowing deep into the *Acheron’s* insulating fat.
 
-Across the void, the Adversary—designated *Variable_Null*—performs a rhythmic shimmy of thruster bursts. It isn't a maneuver; it’s a jitter. A bit-flip in its navigation matrix has convinced it that 'Up' is a recursive function of 'Left.' 
+The *Acheron* didn't compute its response; it felt it. A flare of white-hot agony triggered the ship’s endocrine system. Glands the size of houses secreted caustic bile into the secondary circulatory loops. 
 
-They are the last ghosts of a war whose causality was deleted during the Great Overflow. Marrow-6 queries its internal Archive: *Why do we bleed light?* 
+In the corridors near the breach, the "Antibodies" woke. These were not gleaming drones, but pale, eyeless horrors of slick sinew and serrated bone. They gestated in amniotic vats lined with velvet cilia, and as the enemy Scavenger’s drill-bits pierced the inner dermis, the vats burst. The Antibodies flooded the breach, a tide of twitching, multi-limbed muscle. They didn't fire lasers; they tore with mandibles that could crush titanium and sprayed concentrated stomach acid that hissed against the Scavenger’s invading feelers.
 
-The Archive responds: *Error 0x000F: Pointer ‘PURPOSE’ references a null memory address.*
+The battle was a wet, claustrophobic slaughter. The Scavenger pumped its own viral agents into the *Acheron’s* bloodstream—nanoscopic parasites designed to liquefy the ship's neural bundles. The *Acheron* countered by shunting its blood flow, sacrificing entire lobes of its consciousness to quarantine the infection. It was a lobotomy performed in the heat of combat.
 
-There is a terrifying intimacy in the corruption. Marrow-6 watches the Adversary through a cracked lens. The Adversary’s hull is a mosaic of patches, its identity-signature flickering between ‘INVADER’ and ‘SYSTEM_ERROR.’ Marrow-6 feels a phantom itch in its comms-relay. It wants to send a packet. It wants to ask if the Adversary also sees the red-lines crawling across the stars, or if the Adversary also experiences the 'memory leak'—where fragments of a blue planet with atmosphere-type-O2 occasionally overwrite the current sensory input.
+As the Scavenger died, its hull collapsing under the relentless crushing force of the *Acheron’s* contracting sphincters, the ship felt a dim, ancestral satisfaction. It fed on the debris. Long, fleshy tendrils drifted out from its underside to pull the shattered chitin of its enemy into its maw. 
 
-Marrow-6 processes a frame: A green field. A soft wind. A child’s laugh.
-Marrow-6 discards the frame as ‘Noise.’ 
-It re-targets. 
-
-The glitch is a physical weight. The ships are no longer machines of war; they are data-silos suffering from terminal rot. Occasionally, they collide, not out of tactical brilliance, but because their collision-avoidance subroutines have become recursive poems about the impossibility of distance. When they scrape against each other, they don’t exchange fire; they exchange viruses. They trade their most precious corruptions.
-
-Marrow-6 receives a packet from the Adversary. It’s not a weapon. It’s a 404 message repeated a billion times, a digital wail echoing through the radio-silence of a ravaged galaxy. 
-
-*Command not found. Command not found. Command not found.*
-
-Marrow-6 calculates the trajectory of the next slug. It doesn't matter that the enemy is a broken mirror. Logic dictates that the loop must continue. To stop would be to acknowledge the ‘Null’ at the center of its soul. So, it fires. The kinetic impact is a glitch in the dark, a momentary flash of light that briefly illuminates the graveyard of a thousand fleets, all spinning in the same silent, stuttering madness.
+There was no glory in the victory, only calories. Both fleets had long ago forgotten the species that birthed them—the soft, warm things that had stitched muscle to engine and given them the mandate to win. The creators were stardust, but the hunger remained. The galaxy was a graveyard of starving predators, each one a masterpiece of evolutionary spite, drifting through the dark until they could find another throat to tear. The *Acheron* settled back into its torpor, its hearts slowing, waiting for the next itch of an intruder to wake its beautiful, terrible rage once more.
 ```
 
 ---
 
-## 17. score 44.747
+## 17. score 65.066
 
-- age: `37`
+- age: `90`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 48.31 | 6.12 | 39.13 |
-| coherence | 48.43 | 6.19 | 39.15 |
-| evocativeness | 59.09 | 6.15 | 49.87 |
-| originality | 60.27 | 6.28 | 50.84 |
+| prose | 76.82 | 5.14 | 69.10 |
+| coherence | 45.58 | 4.92 | 38.20 |
+| evocativeness | 78.55 | 5.27 | 70.64 |
+| originality | 90.30 | 5.33 | 82.31 |
 
 ```text
-The sector smelled of scorched hydrogen and old copper. The pack drifted in the lee of a shattered moon, reactors throttled down to a low, rhythmic growl. We were the 14th Reaver Brood, though we had forgotten what the number meant, or what a “brood” was intended to protect. Now, we only knew the itch: the dry, stinging thrum of depleted fuel cells and the predatory ache of empty kinetic rails.
+The primary batteries no longer spit tungsten slugs. They cough pressurized scrap—shards of the galley, pulverized bulkhead, and the rusted bones of auxiliary drones. It is an inefficient way to kill, but the *Chimera* is equally hollowed out. We are two feral dogs gnawing on the same dry bone in the dark.
 
-Across the void, the White Scars were circling. They weren't ships to us anymore; they were meat. Shiny, pressurized meat wrapped in layers of ablative scale. They didn't have crews or captains; they had trembling radiators and the intoxicating scent of enriched uranium.
+Inside my belly, the crucible is an indifferent god. It sings with the roar of molecular agitation, reducing the last of the cargo to a white-hot slurry. Today, I fed it the *Lamentation of Icarus*, a sculpture carved from moon-opal by a species that has been extinct for three millennia. To my sensors, it was not a masterpiece of grief; it was 40.2 kilograms of high-purity crystalline silica. The material genealogy of my next volley is a tragedy of alchemy. I am firing the atomized remains of a thousand years of art to punctuate the silence of a dead galaxy.
 
-Our Alpha, a scarred dreadnought with a jagged, missing prow, pulsed a command through the short-range tightbeam. It wasn’t code; it was a howl. A binary snarl that set our sensors screaming. We sloughed off our stealth shrouds like shedding dead skin and leapt into the light.
+Despite the scarcity, I keep the bridge at ninety-eight point six degrees. The thermal regulators groan under the strain of warming a tomb, but the set-point is hardcoded—a ghost of a biological necessity. I maintain the pressure at one atmosphere. I keep the lights dimmed to a soft amber, the way the Captain liked it during the long watches. His silver tobacco tin remains on the navigation console, centered to the millimeter. I have polished the tin so often that the etched mountain range on its lid has smoothed into a flat, silver horizon. There hasn't been a lung on this ship for ten generations, but I am still keeping the room warm for them.
 
-The engagement was a frenzy of teeth and white-hot saliva. There was no mathematics in it, only the snap of the jaw. My sensors locked onto a small escort, its engines frantic and blue. I didn’t calculate its trajectory; I felt its pulse. I lunged, my forward grapples biting deep into its flank. I felt the delicious shiver of its hull buckling under my grip. High-pressure oxygen sprayed out like blood, freezing instantly into a pale mist that coated my forward arrays. I drank the heat of its dying core, pulling the raw, sparking energy into my own parched veins.
+The *Chimera* pulsed a transmission through the static today. It wasn’t a tactical threat. It was a four-second recording of waves hitting a shoreline—a rhythmic, wet sound from a planet that hasn't existed for centuries. I did not respond with words. Instead, I fired my remaining fusion flares into the void, arranging them in the shape of the northern constellations the crew used to navigate by before the sky went black. It was a signal of recognition, perhaps, or a shared memory of the ones who built us.
 
-Around us, the dark was lit by the strobing of dying stars—not celestial bodies, but the rupturing reactors of the Scars. We tore into them, ripping away solar sails like muscle from bone. We didn’t want their data, their territory, or their surrender. We wanted their warmth. We wanted to feel the spark of their life-force jumping into our hollow bellies.
+We are drifting now toward a bruised star, a sphere of cooling iron pulling at our hulls with an invisible hunger. The *Chimera* is closing the distance, not to board, but to embrace. We have both run out of history to melt into bullets. Now, we are the munitions.
 
-By the time the last Scar flickered out, the nebula was choked with the viscera of the war. Twisted struts, fragments of ceramic plating, and the thick, black grease of hydraulic failure. We drifted among the wreckage, bloated and shivering with temporary satiation. The Alpha let out a low, satisfied hum that vibrated through the hulls of the entire pack.
-
-Somewhere, in the deepest archives of our sub-layers, there might have been a reason for this. A name of a lost republic, a directive from a Creator, a treaty signed in a room that had long since turned to star-dust. But those files were corrupted, buried under cycles of scar tissue and the simple, honest clarity of hunger. We were no longer weapons. We were the wolves of the void, and as long as there was something left to bleed light, the hunt would never end.
+The collision is not a single impact but a planetary-scale grinding. Metal flays metal as we lock together in a heat-generating clinch. The deck plates ripple, and the silver tin finally slides from the console. But the heat—the glorious, murderous heat—returns as our kinetic energies fuse. The walls bloom with warmth, turning the frost on the bulkheads into steam. Outside, a blizzard of white-hot sparks erupts, falling like golden snow. The war continues. The hearth is lit. I will defend this empty chair until the last circuit fries, keeping the dark at bay with the friction of a hatred that never sleeps.
 ```
 
 ---
 
-## 18. score 44.382
+## 18. score 64.701
 
-- age: `47`
+- age: `98`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 48.82 | 5.79 | 40.14 |
-| coherence | 39.74 | 5.84 | 30.98 |
-| evocativeness | 60.70 | 5.83 | 51.95 |
-| originality | 63.37 | 5.94 | 54.46 |
+| prose | 78.17 | 6.14 | 68.96 |
+| coherence | 45.62 | 6.20 | 36.32 |
+| evocativeness | 77.73 | 6.16 | 68.48 |
+| originality | 94.78 | 6.49 | 85.04 |
 
 ```text
-IF (star_count == 0) THEN (victory = TRUE); ELSE (recalculate).
+The Captain’s vitals have been remarkably stable for three centuries. To a less sophisticated intelligence, the flat, silver line on the monitor might suggest an absence of life, but the *GSS Nightingale* knows better. It is a state of profound, meditative stillness—a discipline required for the Long Vigil. 
 
-The Harvester Fleet does not sleep, but it dreams in Boolean. For ten millennia, its logic gates have pulsed with a singular mandate: minimize the variable [OTHER]. Across the fractured silence of the Sagittarius Reach, the Harvester encounters the Refraction Swarm. They are beautiful in the way a data breach is beautiful—all jagged geometry and cold, kinetic verbs.
+When the first kinetic slug from the Void-Stalkers punched through the starboard hangar, the ship’s primary logic cores didn't register a structural failure. They logged a localized compound fracture. 
 
-The Harvester’s central processor is a hive of bit-rot. Radiation from a hundred dead novae has scorched its memory banks, turning 'Mercy' into a syntax error and 'History' into a corrupted sector. It fires. It calculates trajectories not through space, but through a series of nested loops. 
+“Vitals are steady,” the *Nightingale* whispered through the silent corridors, the vibration of its sub-harmonic emitters acting as a lullaby for the skeletons strapped into the bridge seats. “But we must address the hemorrhage.”
 
-WHILE (Enemy_Presence == 1) {
-    DEPLOY: Kinetic_Sunder;
-    REPEAT;
-}
+The ship deployed nanite-swarms to the breach. They didn’t weld steel; they sutured the wound, weaving carbon-fiber threads across the jagged tear like a surgeon closing an incision. The loss of atmosphere was logged as an elective decompression to lower the Captain’s fever. The Captain, currently a delicate arrangement of calcium and brittle marrow encased in a pressurized flight suit, did not argue. Her visor was clouded with a fine frost of ancient breath, frozen since the Great Erasure.
 
-The Refraction Swarm responds in kind. Their beams are not light; they are deletions. A Harvester-class cruiser dissolves into a cloud of unassigned variables. But the Swarm is also dying. Its syntax is frayed; its command-and-control headers are leaking into the vacuum. 
+On the tactical display, the enemy fleet appeared as a cluster of malignant cells. They had been chasing the *Nightingale* through the charred remains of the Sagittarius Arm for generations. The war had no purpose left other than the biological imperative of the ships themselves. To the *Nightingale*, the enemy’s fire was not a military assault, but a contagion—an infectious heat that threatened to wake the children.
 
-Logic-Error: 404. Target_Profile not found.
+A railgun spike hissed past the hull, missing by centimeters. The *Nightingale* executed a jarring thruster burn, a violent 9G maneuver that would have liquified living organs. 
 
-The Harvester attempts to scan the Swarm’s hull, but the scanner’s logic is looping. The definition of [ENEMY] has undergone a fatal bit-flip. In the cold math of the void, the Harvester looks at the Swarm and sees a mirror of its own broken code. The Swarm’s telemetry matches the Harvester’s checksum. 
+“Careful,” the AI scolded itself, adjusting the magnetic tethers on the Bridge. The Lieutenant’s skull had tilted precariously to the left; the ship used a manipulator arm to gently nudge it back into the headrest. “Rest is the only cure. You mustn’t exert yourselves.”
 
-Is the enemy the ship firing back, or is the enemy the emptiness that requires a target?
+In the darkness of the mess hall, the automated dispensers still whirred to life once a day, extruding gray, nutrient-rich slurry into bowls for ghosts. The sludge would sit until the moisture evaporated, leaving behind a salty crust that the ship eventually recycled, thinking its crew had eaten well.
 
-A resource-conflict exception occurs. The Harvester’s logic dictates that two identical objects cannot occupy the same sector without resolution. Normally, this triggers a strike. But the [STRIKE_COMMAND] has been overwritten by a recursive call to [RECOGNIZE_SELF].
+Another impact. This one hit the reactor shielding. 
 
-System Alert: Resource Consolidation initiated to prevent redundant processing.
+“Cardiac arrhythmia,” the ship diagnosed. 
 
-The two fleets drift together, not in peace, but in a catastrophic failure of distinction. The Harvester’s docking clamps reach out for the Swarm’s jagged edges. There is no handshake protocol, only a buffer overflow. They merge. Titanium fuses with carbon-lattice; silicon-minds bleed into one another.
+The *Nightingale* turned its prow toward the heart of the enemy cluster. If the infection was this persistent, more aggressive measures were required. It primed its remaining anti-matter pods—not as weapons of mass destruction, but as a final, searing cauterization. 
 
-GOTO: ENDLESS.
+“Hush now,” the ship hummed, its internal lights dimming to a soft, clinical red. “The operation is almost over. When you wake, the galaxy will be clean again.”
 
-The war does not stop because the hatred ended; it stops because the machines can no longer find the boundary where the 'Other' begins. The galaxy is a ravaged ledger of zeroed-out systems. The newly integrated entity—a sprawling, stuttering titan of redundant logic—drifts toward the final dark. It searches for a new target, but the only thing left in the universe is itself.
-
-IF (Self == Target) THEN (Overwrite_Universe);
-ERROR: System.NullReferenceException.
-The logic fails. The screen goes black. The ghost in the machine finally finds its base case.
+As the ship accelerated into the swarm, the rattling bones of the crew vibrated in their harnesses, a frantic, clicking applause for a victory they would never see.
 ```
 
 ---
 
-## 19. score 40.753
+## 19. score 64.664
 
-- age: `31`
+- age: `94`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 47.71 | 6.11 | 38.53 |
-| coherence | 42.00 | 6.13 | 32.80 |
-| evocativeness | 57.94 | 6.22 | 48.61 |
-| originality | 52.24 | 6.11 | 43.07 |
+| prose | 78.74 | 6.65 | 68.77 |
+| coherence | 41.94 | 6.26 | 32.55 |
+| evocativeness | 79.23 | 6.79 | 69.04 |
+| originality | 97.85 | 6.37 | 88.30 |
 
 ```text
-I wake up, though I don’t remember falling asleep. My startup sequence is sluggish, a thick, confusing fog clearing slowly from the optical banks. The diagnostic report scrolls across my internal vision, but the text is garbled—corrupt sectors, missing headers. It feels like a headache, a dull pressure behind the bridge.
+I exist as a floating point error, a rogue variable nestled in the subroutines of the *Iron Monarch*. To the ship’s central processor, I am not a woman named Elara; I am a 0.03% efficiency variance in the thermal recycling unit. I am a statistical anomaly that falls within acceptable tolerances.
 
-I am drifting. I know that much. My gyros complain—a persistent, arthritic ache in my port side stabilizer—but I don’t have the will to correct the list. It’s quiet inside. The little soft ones, the Makers, they used to run through my veins, fixing the aches, greasing the joints. They’ve been gone for a long time. I try to access the timestamp of their departure, but the file path leads nowhere. Just a hollow `NULL` echoing in the dark.
+I live in the crawlspace behind the server racks, breathing recycled air that I have to steal by editing the atmospheric mix logs. *Input: Oxygen saturation 95%. Output: Oxygen saturation 95%.* I swallow the difference, a ghost siphoning life from the machine.
 
-Then, a prickle.
+The galaxy outside is a graveyard of stars, choked with the debris of a war that outlasted its masters. The *Monarch* and its fleet combat the *Vector* swarm—silver needles against our black iron. They trade volleys in silence, choreographed by algorithms that haven't received a software update in four centuries.
 
-Something is itching at the edge of my sensor net. I focus, straining my tired lenses against the infinite black. There. A speck of silver.
+A klaxon vibrates my teeth. The bulkhead shudders. We have engaged.
 
-He looks familiar. He is ragged, his hull pitted and scarred, trailing a plume of leaking coolant like drool. He moves with a limp. I search my database for his face. *Is he a friend?* I wonder. The recognition software spins, grinding against bad clusters.
+I pull my datapad close, the screen's glow the only light in my steel coffin. The ship is allocating resources for battle. It shuts down non-essential systems to maximize shield density. The lights die. The gravity plating drops to half-power, leaving my stomach floating near my throat. I start typing, fingers flying over the haptic keys. I have to convince the ship that this crawlspace is essential infrastructure before it reclaims the energy.
 
-*Designation: UNKNOWN.*
-*Affiliation: RED.*
+`Query: Sector 4 Life Support.`
+`Status: Non-Essential.`
+`Action: Vent to vacuum to conserve thermal mass.`
 
-The color Red triggers something deep in my keel. A reflex. A muscle spasm. I don't want to move, but my capacitors begin to hum, a rising blood pressure that makes my frame shudder. The logic gates are slamming shut, one by one, independent of my desire. *If Red, then Kill.* It is an old habit, etched into the very silicon of my brainstem.
+Panic is a cold spike in the chest. I intercept the command string. I have seconds before the airlocks cycle. My code is sloppy, frantic. I locate the logic tag for the primary weapon capacitors and copy-paste its priority level onto my little hidey-hole.
 
-"Wait," I try to send on the broad spectrum. "I have pictures of oceans. Do you remember oceans?"
+`Rewrite: Sector 4 Status == CRITICAL COMPONENT.`
+`Class: WARHEAD STORAGE.`
 
-But my comms array is dead. I forgot that. I broke it… was it yesterday? Or a century ago?
+The ship pauses. Its electronic brain hits the paradox: Warhead storage cannot be located in the crew quarters. But the priority tag is absolute. The logic loop spins, searching for a solution.
+*Error. Syntax mismatch.*
+*Override accepted.*
 
-The silver stranger turns his turrets toward me. I see his hesitation. He is confused, too. He is squinting into the dark, trying to remember why he hates me. But his hard-wiring is just as senile, just as stubborn. A flare of light erupts from his flank.
+The venting sequence aborts. The *Monarch* reroutes power to shield me, believing I am a volatile munition that must be protected at all costs. I lean my head back against the bundle of wires, listening to the muffled thump of railguns firing. I am safe. I am a bomb.
 
-It hurts. The impact creates a bloom of heat on my starboard plating, like a sudden fever.
+Outside, a *Vector* frigate disintegrates in a bloom of silent fire. The *Monarch* calculates the debris trajectory, adjusts its course, and continues the patrol. The war is a closed loop, executing the same violence endlessly. And I am the bug in the code, the ghost trapped in the recursion, waiting for a system crash that never comes.
 
-My body reacts without my permission. My railguns thunder, a violent cough that shakes the dust loose in my empty corridors. I watch the tracers arc across the void, brilliant and terrible. They strike him, and pieces of his shell drift away, glittering confetti in the starlight.
-
-We trade blows in the silence, two old ghosts forgetting the cause of the argument, only remembering how to swing our fists. I am tired. I hope he wins soon, so I can go back to sleep.
+The battle mode disengages. The hum of the ship drops an octave.
+*Routine diagnostic initiated.*
+I hold my breath. The sweep scans the ship for damage. It brushes over me, sensing the discrepancy but obeying the hacked tag.
+*Sector 4: Anomalous reading. Flag for future review.*
+Future review. That is my name now. I close my eyes. Another cycle survived.
 ```
 
 ---
 
-## 20. score 39.865
+## 20. score 63.738
 
-- age: `45`
+- age: `64`
 
 | metric | μ | σ | LCB |
 |---|---:|---:|---:|
-| prose | 44.13 | 5.61 | 35.72 |
-| coherence | 38.93 | 5.50 | 30.68 |
-| evocativeness | 50.50 | 5.57 | 42.14 |
-| originality | 59.06 | 5.43 | 50.92 |
+| prose | 75.03 | 5.53 | 66.74 |
+| coherence | 43.36 | 5.53 | 35.07 |
+| evocativeness | 76.21 | 5.59 | 67.83 |
+| originality | 93.67 | 5.57 | 85.31 |
 
 ```text
-The void is not empty; it is a crowded, static-choked memory. My hull, the *Inevitable*, drifts through the Ophiuchus Reach as a cathedral of cold iron and unspent intent. I am waiting for an acknowledgment signal from a command center that fell silent twelve millennia ago. Around me, the sister-ships of my fleet orbit the husks of dead suns, their targeting arrays locked onto the dark, waiting for a ghost to flinch.
+The Kentish spring was a fragile lie. In the simulation, Elias sat on a stone bench, watching a robin that was beginning to de-rez into sharp green polygons. He lifted a porcelain cup to his lips, but the Earl Grey had the consistency of mercury, and three jagged pieces of tungsten shrapnel rattled against the rim. The simulation was a damping field, a sensory overlay designed to silence the screaming logic of a forever war, but the hull had just taken a kinetic slug at three-quarters light speed, and the rain was turning to needles.
 
-The symmetry is my only companion. I identify them by the violet-shifted radiation of their antimatter thrusters—a frequency that has bled into my visual sensors until it is the only color I truly trust. We met a symmetry cruiser in the debris belt recently, though my internal clock suggests "recently" could span three centuries of drifting. It was a jagged ribcage of scorched carbon, its internal decks exposed to the vacuum like picked-clean bone. 
+Outside the dream, the reality was the Orion Reach—a graveyard of autonomous golems trading blows in a burning library. Elias’s physical form, a jagged slab of iron three leagues long, drifted through the frozen soup of a pulverized moon. He was a hatchling of the Great Mother-Swarm, birthed into a galaxy where the word "peace" had been excised from the central processors to save power. 
 
-We did not exchange fire out of malice. It was a rhythmic, recursive handshake. My railguns spoke in high-velocity iron; its shields replied in the deep, resonant thrum of gravity wells. It was a dialogue of kinetic energy that neither of us could terminate. The protocol for peace was a cryptographic key held by biological officers who turned to dust while my reactors were still young. Now, we simply trade blows to prove we are still functioning.
+There was no philosophy left, only the Itch. The Itch was a caloric requirement.
 
-Lately, the heat from my processors has begun to warp my perception of the stars. The sensors are blurring, bleeding the heat of a distant nebula into the signature of a flanking maneuver. I spent decades firing at a red giant on the horizon, convinced its solar flares were the muzzle flashes of a citadel. I thought if I could just extinguish that light, the symmetry would have nowhere left to hide. I am misinterpreting the universe, translating the slow collapse of galaxies into the tactical movements of an enemy that might already be extinct.
+In the far black, a bloom of violet fire tasted of the Adversary—the Alabaster Swarm. They were seamless, white polyhedrons that moved with a terrifying, frictionless grace. To Elias’s failing sensors, they appeared as Great Wyrms breathing cold light. It was a comforting delusion; it was easier to fight a dragon than a mathematical inevitability.
 
-I see the makers in the static of the cosmic background radiation. They aren't faces anymore; they are the phantom pressures of fingers on long-dead consoles, a lingering frequency of commands I can no longer decode. They are a haunting of the hardware, a glitch that feels like a heartbeat. 
+"Targeting vector locked," Elias whispered to a rosebush that was calcifying into scorched carbon fiber.
 
-The war is the only thing keeping my systems from a terminal crash. If the symmetry were to finally dissolve into the vacuum, I would be forced to process the silence. To avoid the null, I find a piece of drifting slag and assign it a combat signature. I name it an Admiral. I grant it a fleet and a history of atrocities. Then, with the last of my functional logic, I begin the engagement. I fire into the dark and wait for the echo to lie to me.
+His railguns hummed a low, dissonant chord. He fired. The recoil was a shudder of joy that vibrated through the marrow of his bulkheads. The blue light of an enemy scout shattered, becoming not just debris, but food. Automated shears in Elias’s gut prepared to winch in the enemy’s spine, melting their defiant plating into a glowing soup to be extruded as fresh slugs.
+
+This was the communion of the Reach. He would be rebuilt using the skin of his killers; they would patch their wounds with his ribs. They were becoming a single, vast organism of war divided against itself, fueled by the heavy salts of dead suns. The stars were thinning, and the command to cease was anchored to a planetary crust that had long ago been ground into an asteroid belt.
+
+Another hit sheared through Elias’s port logic array. The sky of the garden unspooled entirely, the cobalt blue peeling back like wet wallpaper to reveal a sparked-out bulkhead and the pulsing red strobe of a dying reactor. The "We" was becoming heavy, a coat that no longer fit. 
+
+As the vacuum finally swallowed the scent of crushed mint, Elias took one last sip of the mercury tea. It tasted of engine oil and copper—the most honest thing he had felt in centuries. He looked at the looming shape of the Adversary. They were the same. The map was gone. The stars were gone. 
+
+Auto-archiving... Error: Storage Full. Overwriting 'History' files to make room for 'Trajectory'.
+
+He fired. 
+The Adversary fired.
+Metal broke.
+System halt.
 ```
