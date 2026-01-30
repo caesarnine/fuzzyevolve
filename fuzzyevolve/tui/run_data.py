@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from collections import deque
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -16,9 +17,14 @@ def _read_json(path: Path) -> dict[str, Any]:
 def _read_jsonl(path: Path, *, max_lines: int | None = None) -> list[dict[str, Any]]:
     if not path.exists():
         return []
-    lines = path.read_text(encoding="utf-8").splitlines()
-    if max_lines is not None and max_lines > 0 and len(lines) > max_lines:
-        lines = lines[-max_lines:]
+    if max_lines is not None and max_lines > 0:
+        dq: deque[str] = deque(maxlen=max_lines)
+        with path.open("r", encoding="utf-8") as f:
+            for line in f:
+                dq.append(line)
+        lines = list(dq)
+    else:
+        lines = path.read_text(encoding="utf-8").splitlines()
     out: list[dict[str, Any]] = []
     for line in lines:
         line = line.strip()
@@ -43,10 +49,32 @@ class EliteRecord:
     ratings: dict[str, MetricRating]
     age: int
     score: float
+    preview_text: str = ""
 
     @property
     def preview(self) -> str:
-        return self.text_id[:8]
+        return self.preview_text or self.text_id[:8]
+
+
+@dataclass(frozen=True, slots=True)
+class StatsRecord:
+    iteration: int
+    best_score: float | None
+    pool_size: int | None
+    best_text_id: str | None = None
+
+    mean_score: float | None = None
+    p50_score: float | None = None
+    p90_score: float | None = None
+    min_score: float | None = None
+    max_score: float | None = None
+    std_score: float | None = None
+
+    diversity_nn_mean: float | None = None
+    diversity_nn_p10: float | None = None
+    diversity_nn_p50: float | None = None
+
+    mean_sigma: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +96,10 @@ class RunState:
     members: list[EliteRecord]
     best: EliteRecord | None
     checkpoint_mtime: float = 0.0
+    stats: list[StatsRecord] = field(default_factory=list)
+    events: list[dict[str, Any]] = field(default_factory=list)
+    stats_mtime: float = 0.0
+    events_mtime: float = 0.0
 
     def score_from_ratings(self, ratings: Mapping[str, MetricRating]) -> float:
         c = float(self.cfg.rating.score_lcb_c)
@@ -131,6 +163,66 @@ def list_runs(data_dir: Path) -> list[RunSummary]:
     return out
 
 
+def _preview_line(text: str, *, max_len: int = 72) -> str:
+    for raw in text.splitlines():
+        stripped = raw.strip()
+        if stripped:
+            line = stripped
+            break
+    else:
+        line = text.strip()
+    if len(line) > max_len:
+        return line[: max(0, max_len - 1)].rstrip() + "…"
+    return line
+
+
+def _parse_optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def _parse_optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except Exception:
+        return None
+
+
+def _parse_stats(lines: list[dict[str, Any]]) -> list[StatsRecord]:
+    out: list[StatsRecord] = []
+    for row in lines:
+        iteration = _parse_optional_int(row.get("iteration"))
+        if iteration is None:
+            continue
+        best_text_id = row.get("best_text_id")
+        out.append(
+            StatsRecord(
+                iteration=iteration,
+                best_score=_parse_optional_float(row.get("best_score")),
+                pool_size=_parse_optional_int(row.get("pool_size")),
+                best_text_id=(str(best_text_id) if best_text_id else None),
+                mean_score=_parse_optional_float(row.get("mean_score")),
+                p50_score=_parse_optional_float(row.get("p50_score")),
+                p90_score=_parse_optional_float(row.get("p90_score")),
+                min_score=_parse_optional_float(row.get("min_score")),
+                max_score=_parse_optional_float(row.get("max_score")),
+                std_score=_parse_optional_float(row.get("std_score")),
+                diversity_nn_mean=_parse_optional_float(row.get("diversity_nn_mean")),
+                diversity_nn_p10=_parse_optional_float(row.get("diversity_nn_p10")),
+                diversity_nn_p50=_parse_optional_float(row.get("diversity_nn_p50")),
+                mean_sigma=_parse_optional_float(row.get("mean_sigma")),
+            )
+        )
+    out.sort(key=lambda r: r.iteration)
+    return out
+
+
 def load_run_state(run_dir: Path) -> RunState:
     store = RunStore.open(run_dir)
     cfg = store.load_config()
@@ -139,6 +231,15 @@ def load_run_state(run_dir: Path) -> RunState:
     checkpoint_mtime = cp_path.stat().st_mtime if cp_path.exists() else 0.0
     checkpoint = _read_json(cp_path) if cp_path.exists() else {}
     iteration = int(checkpoint.get("next_iteration", 0))
+
+    stats_path = store.run_dir / "stats.jsonl"
+    stats_mtime = stats_path.stat().st_mtime if stats_path.exists() else 0.0
+    stats_lines = _read_jsonl(stats_path, max_lines=20000)
+    stats = _parse_stats(stats_lines)
+
+    events_path = store.run_dir / "events.jsonl"
+    events_mtime = events_path.stat().st_mtime if events_path.exists() else 0.0
+    events = _read_jsonl(events_path, max_lines=50000)
 
     members_out: list[EliteRecord] = []
     for elite in checkpoint.get("population", {}).get("members", []):
@@ -162,8 +263,20 @@ def load_run_state(run_dir: Path) -> RunState:
             else 0.0
         )
 
+        preview_text = ""
+        try:
+            preview_text = _preview_line(store.get_text(text_id))
+        except Exception:
+            preview_text = text_id[:8]
+
         members_out.append(
-            EliteRecord(text_id=text_id, ratings=ratings, age=age, score=score)
+            EliteRecord(
+                text_id=text_id,
+                ratings=ratings,
+                age=age,
+                score=score,
+                preview_text=preview_text,
+            )
         )
 
     members_out.sort(key=lambda e: e.score, reverse=True)
@@ -177,6 +290,10 @@ def load_run_state(run_dir: Path) -> RunState:
         members=members_out,
         best=best,
         checkpoint_mtime=checkpoint_mtime,
+        stats=stats,
+        events=events,
+        stats_mtime=stats_mtime,
+        events_mtime=events_mtime,
     )
 
 
